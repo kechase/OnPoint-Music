@@ -990,11 +990,85 @@ function gameSetup(data) {
 function startGame() {
     fileName = "tgt_files/testShort.json";
     subject.tgt_file = fileName;
+    initAudio();
+    const vowelSquare = document.getElementById('vowelSquare');
+    const rect = vowelSquare.getBoundingClientRect();
+    const squareLeft = rect.left;
+    const squareTop = rect.top;
+    const squareSize = 600;
+
+    document.addEventListener('mousemove', (event) => {
+        const x = event.clientX;
+        const y = event.clientY;
+        const infoDisplay = document.getElementById('infoDisplay');
+
+        if (x >= squareLeft && x <= squareLeft + squareSize && 
+            y >= squareTop && y <= squareTop + squareSize) {
+            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
+
+            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
+            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
+
+            infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
+
+            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
+            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
+            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
+            filter1.Q.setValueAtTime(12, audioContext.currentTime);
+            filter2.Q.setValueAtTime(12, audioContext.currentTime);
+        } else {
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        }
+    });
     subjTrials.group_type = "null"; // **TODO** update group_type to manage the groups
     $.getJSON(fileName, function(json) {
         target_file_data = json;
         gameSetup(target_file_data);
     });
+}
+const vowelFormants = {
+    i: { f1: 300, f2: 2300 },
+    u: { f1: 300, f2: 800 },
+    a: { f1: 700, f2: 1200 },
+    æ: { f1: 700, f2: 1800 }
+};
+
+let audioContext, oscillator, gainNode, filter1, filter2;
+
+function getVowelFormants(y, squareTop, squareSize) {
+    const vowels = Object.keys(vowelFormants);
+    const segmentHeight = squareSize / (vowels.length - 1);
+    const index = Math.min(Math.floor((y - squareTop) / segmentHeight), vowels.length - 2);
+    const t = ((y - squareTop) % segmentHeight) / segmentHeight;
+    const vowel1 = vowels[index];
+    const vowel2 = vowels[index + 1];
+
+    const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
+    const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
+
+    return { f1, f2, vowel: t < 0.5 ? vowel1 : vowel2 };
+}
+
+function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    gainNode = audioContext.createGain();
+    gainNode.gain.value = 0.5;
+
+    oscillator = audioContext.createOscillator();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.value = 220;
+
+    filter1 = audioContext.createBiquadFilter();
+    filter1.type = 'bandpass';
+    filter2 = audioContext.createBiquadFilter();
+    filter2.type = 'bandpass';
+
+    oscillator.connect(filter1);
+    filter1.connect(filter2);
+    filter2.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.start();
 }
 
 // Helper function to end the game regardless good or bad

@@ -24,6 +24,29 @@
     <script src="/__/firebase/6.6.1/firebase-storage.js"></script>
     <!-- initialize the SDK after all desired features are loaded -->
     <script src="/__/firebase/init.js"></script>
+    <style>
+        #vowelSquare {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border: 2px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            color: black;
+            font-size: 18px;
+            text-align: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #infoDisplay {
+            margin-top: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+        }
+    </style>
 </head>
 
 <body>
@@ -44,7 +67,6 @@
                 <p>
                     <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned on.</b></p>
                     <br>
-                </p>
                 <div id="consentForm">
                     <iframe frameborder="1" id="consentForm" src="https://drive.google.com/file/d/1_jkO8vZMrpOrZMgEhpZuFgGcBjGE72Yg/preview"></iframe>
                 </div>
@@ -52,7 +74,6 @@
               <span class="glyphicon glyphicon-print"></span> Print a copy of this
               </button>
             </div>
-            <hr />
             <h4>If you agree and consent to these terms, please click "I Agree" to continue. 
             <p>If you do not agree to these terms, simply exit the page.</p></h4>
             <br />
@@ -240,7 +261,7 @@
 
                 <div class="questions" id="startcode">
                     What's the code from the last page (Reread the instructions page if you don't know):
-                    <input id="age" type="text" name="age" value="">
+                    <input id="code" type="text" name="code" value="">
                 </div>
 
                 <hr>
@@ -327,9 +348,9 @@
                 </div>
             </form>
             <form id="feedbackForm">
-                <div class="question" id="feedback">
+                <div class="question" id="feedback1">
                     Let us know if you had any issues with this experiment.
-                    <input id="feedback" type="text" name="feedback" value="">
+                    <input id="feedback1" type="text" name="feedback1" value="">
                 </div>
             </form>
             <center>
@@ -370,7 +391,6 @@
         </div>
         <div class="media-body">
             <h1>Your responses has been saved, thank you!</h1>
-            <hr />
         </div>
     </div>
 </body>
