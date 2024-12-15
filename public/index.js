@@ -7,11 +7,124 @@ Currently supported experiments include:
 Remember to update necessary fields before starting the game. All fields that require change will be marked by a "**TODO**" comment.
 */
 
+
+//#region Components
+
+function Circle(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+function ScreenSize(width, height) {
+    this.width = width;
+    this.height = height;
+}
+
+// we will create line soon here - Just need to make sure all of this still works.
+
+//#endregion
+
+//#region Models
+
+// This will be used to help create inheritance to save to database structure
+class Database {
+    constructor(table_name) {
+        this.table_name = table_name;
+    }
+
+    save() {
+        // TODO: Impl. code to save data to table.
+        // take this class and save the structure to approprate database location
+        // e.g. class name should be used as target table name to save to
+    }
+}
+
+class Subject extends Database  {
+    constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, dpi) {
+        super("subject");
+        this.id = id,
+        this.age = age,
+        this.sex = sex,
+        this.handedness = handedness,
+        this.mousetype = mousetype,
+        this.returner = returner,
+        // TODO: Why does the subject needs to know the current trial? Ask Katie for this one?
+        this.currTrial = 0,
+        // **TODO** Update the 'fileName' to path to targetfile
+        this.tgt_file = "tgt_files/testShort.json",
+        this.ethnicity = ethnicity,
+        this.race = race,
+        this.comments = null,
+        this.distractions = [],
+        this.distracto = null,
+        this.dpi = dpi
+    }
+
+    // contains the basic information required to proceed
+    isValid() {
+        return !(!this.id || !this.age || !this.sex || !this.handedness || !this.mousetype )
+    }
+}
+
+class Trial extends Database {
+    constructor(experimentID, id, group_type) {
+        super("trial");
+        this.id = id; 
+        this.experimentID = experimentID;
+        this.group_type = group_type;
+        this.blocks = [];
+    }    
+
+    // return the current trial number (usually define as number of blocks we've created and stored)
+    getBlockNum() {
+        return this.blocks.length;
+    }
+
+    appendTrialBlock(target_angle, trial_type, ) {
+        let lastTrialNum = this.getBlockNum();
+        let block = new Block(
+            lastTrialNum + 1, 
+        );
+
+        // append data to this trial block
+        this.blocks.push(block);
+    }
+}
+
+class Block extends Database {
+    constructor(num, target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback){
+        super("block");
+        // auto create the date
+        var d = new Date();
+        var current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
+        
+        this.trialNum = num;
+        this.currentDate = current_date;
+        this.target_angle = target_angle;
+        this.trial_type = trial_type;
+        this.rotation = rotation;
+        this.hand_fb_angle = hand_angle;
+        this.rt = rt;
+        this.mt = mt;
+        this.search_time = time;
+        this.reach_feedback = feedback;
+    }
+}   
+
+//#endregion
+
+//#region Global funciton
+
+function isNumericKey(event) {
+    var code = (event.which) ? event.which : event.keyCode;
+    return !(code > 31 && (code < 48 || code > 57));
+}
+
+//#endregion
+
 // Set to 'true' if you wish to only test the front-end (will not access databases)
 // **TODO** Make sure this is set to false before deploying!
 const noSave = true;
-
-
 var fileName;
 
 /* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
@@ -35,6 +148,8 @@ function show(shown, hidden) {
 }
 
 // Function to save the dpi
+// this function would break because subject hasn't been created yet...
+// TODO: Create new subject here without constructor inputs. Is there any reason why we're not saving this?
 function saveDPI() {
     if (noSave) {
         show('container-instructions2', 'container-dpi')
@@ -89,74 +204,94 @@ function closeFullScreen() {
 }
 
 // Object used track subject data (uploaded to database)
-var subject = {
-    id: null,
-    age: null,
-    sex: null,
-    handedness: null,
-    mousetype: null,
-    returner: null,
-    currTrial: 0,
-    tgt_file: null,
-    ethnicity: null,
-    race: null,
-    comments: null,
-    distractions: [],
-    distracto: null,
-    dpi: null
-}
+var subject;    // use Subject class instead
+// for historical copy only 
+// = {
+//     id: null,
+//     age: null,
+//     sex: null,
+//     handedness: null,
+//     mousetype: null,
+//     returner: null,
+//     currTrial: 0,
+//     tgt_file: null,
+//     ethnicity: null,
+//     race: null,
+//     comments: null,
+//     distractions: [],
+//     distracto: null,
+//     dpi: null
+// }
 
 // Object used to track reaching data (updated every reach and uploaded to database)
-var subjTrials = {
-    id: null,
-    experimentID: null,
-    trialNum: [],
-    currentDate: [],
-    target_angle: [],
-    trial_type: [],
-    rotation: [],
-    hand_fb_angle: [],
-    rt: [],
-    mt: [],
-    search_time: [],
-    reach_feedback: [],
-    group_type: null
-}
+var subjTrials;     // use Trial class instead
+// for historical copy only
+// = {
+//     id: null,
+//     experimentID: null,
+//     group_type: null,
+//     trialNum: [],
+//     currentDate: [],
+//     target_angle: [],
+//     trial_type: [],
+//     rotation: [],
+//     hand_fb_angle: [],
+//     rt: [],
+//     mt: [],
+//     search_time: [],
+//     reach_feedback: []
+// }
 
 // Function used to check if all questions were filled in info form, if so, starts the experiment 
 function checkInfo() {
-    var actualCode = "rice"; // **TODO: Update depending on the "code" set in index.html
+    // **TODO: Update depending on the "code" set in index.html
+    var actualCode = "rice"; 
+
     var values = $("#infoform").serializeArray();
-    subject.id = values[0].value;
-    subject.age = values[1].value;
-    subject.sex = values[2].value;
-    subject.handedness = values[3].value;
-    subject.mousetype = values[4].value;
-    subject.returner = values[5].value;
-    var code = values[6].value;
-    subject.ethnicity = values[7].value;
-    subject.race = values[8].value;
-    if (noSave) {
-        show('container-exp', 'container-info');
-        openFullScreen();
-        startGame();
-        return;
-    }
-    console.log(subject.id);
-    console.log(subject.handedness);
-    console.log(values)
-    if (!subject.id || !subject.age || !subject.sex || !subject.handedness || !subject.mousetype) {
+    // form data used to create subject info
+    let email = values[0].value;
+    let age = values[1].value;
+    let sex = values[2].value;
+    let handedness = values[3].value;
+    let mousetype = values[4].value;
+    let returner = values[5].value;
+    let ethnicity = values[7].value;
+    let race = values[8].value;
+    
+    // this is used to validate the reader did read the prompt correctly from previous page.
+    let code = values[6].value;
+    
+    // TODO: Relocate this subject initialization to DPI or somewhere at the beginning instead?
+    subject = new Subject(
+        email, 
+        age, 
+        sex, 
+        handedness,
+        mousetype,
+        returner, 
+        ethnicity,
+        race, 
+        dpi
+    );
+    
+    console.log(values);
+    console.log(subject);
+    
+    // validation proceed here
+    if (!subject.isValid()) {
         alert("Please fill out your basic information!");
         return;
     } else if (actualCode.localeCompare(code) != 0) {
         alert("Make sure to find the code from the last page before proceeding!")
         return;
-    } else {
-        show('container-exp', 'container-info');
-        createSubject(subjectcollection, subject);
-        openFullScreen();
-        startGame();
     }
+
+    show('container-exp', 'container-info');
+    if (!noSave) {
+        createSubject(subjectcollection, subject);
+    }
+    openFullScreen();
+    startGame();
 }
 
 // Function used to create/update subject data in the database
@@ -192,8 +327,11 @@ function recordTrialSubj(collection, subjTrials) {
 
 // Variables used throughout the experiment
 var svgContainer;
-var screen_height;
-var screen_width;
+var screen_size;    // use ScreenSize object instead
+// var screen_height;
+// var screen_width;
+
+// TODO: Digest through this and see how we can containerize this into objects instead?
 var elem;
 var experiment_ID;
 var subject_ID;
@@ -256,8 +394,9 @@ var target_invisible;
 var cursor_show;
 
 // Variables to track screen size
-var prev_height;
-var prev_width;
+var prev_screen_size;
+// var prev_height;
+// var prev_width;
 
 // Function that sets up the game 
 // All game functions are defined within this main function, treat as "main"
@@ -285,13 +424,14 @@ function gameSetup(data) {
         .attr('id', 'stage')
         .attr('background-color', 'black');
 
-    // Getting the screen resolution
-    screen_height = window.screen.availHeight;
-    screen_width = window.screen.availWidth;
-    prev_height = screen_height;
-    prev_width = screen_width;
+    // Get the screen resolution
+    screen_size = new ScreenSize(window.screen.availWidth, window.screen.availheight);
+    prev_screen_size = screen_size;
+    
     // Experiment parameters, subject_ID is no obsolete
-    experiment_ID = "test"; // **TODO** Update experiment_ID to label your experiments
+    // **TODO** Update experiment_ID to label your experiments
+    experiment_ID = "test"; 
+    // This is not used anywhere? Where is this being used?
     subject_ID = Math.floor(Math.random() * 10000000000);
 
     /***************************
@@ -299,13 +439,12 @@ function gameSetup(data) {
      ***************************/
 
     // Setting the radius from center to target location 
-    target_dist = screen_height / 4;
+    target_dist = screen_size.height / 4;
     trial_type;
 
-
     // Setting parameters and drawing the center start circle
-    start_x = screen_width / 2;
-    start_y = screen_height / 2;
+    start_x = screen_size.width / 2;
+    start_y = screen_size.height / 2;
     start_radius = Math.round(target_dist * 4.5 / 80.0);
     start_color = 'white';
 
@@ -320,8 +459,8 @@ function gameSetup(data) {
         .attr('display', 'none');
 
     // Setting parameters and drawing the target 
-    target_x = screen_width / 2;
-    target_y = Math.round(screen_height / 10 * 2);
+    target_x = screen_size.width / 2;
+    target_y = Math.round(screen_size.height / 10 * 2);
     target_radius = Math.round(target_dist * 4.5 / 80.0);
     target_color = 'blue';
 
@@ -414,15 +553,15 @@ function gameSetup(data) {
     ];
 
     // Setting size of the displayed letters and sentences
-    line_size = Math.round(screen_height / 30)
+    line_size = Math.round(screen_size.height / 30)
     message_size = String(line_size).concat("px");
 
     // Setting up first initial display once the game is launched 
     // **TODO** Update the '.text' sections to change initial displayed message
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 - line_size)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 2 - line_size)
         .attr('fill', 'white')
         .attr('font-family', 'sans-serif')
         .attr('font-size', message_size)
@@ -432,8 +571,8 @@ function gameSetup(data) {
 
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 2)
         .attr('fill', 'white')
         .attr('font-family', 'sans-serif')
         .attr('font-size', message_size)
@@ -443,8 +582,8 @@ function gameSetup(data) {
 
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 + line_size)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 2 + line_size)
         .attr('fill', 'white')
         .attr('font-family', 'sans-serif')
         .attr('font-size', message_size)
@@ -454,8 +593,8 @@ function gameSetup(data) {
 
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 + line_size * 2)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 2 + line_size * 2)
         .attr('fill', 'white')
         .attr('font-family', 'sans-serif')
         .attr('font-size', message_size)
@@ -467,8 +606,8 @@ function gameSetup(data) {
     too_slow_time = 300; // in milliseconds
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 2)
         .attr('fill', 'red')
         .attr('font-family', 'sans-serif')
         .attr('font-size', message_size)
@@ -480,8 +619,8 @@ function gameSetup(data) {
     search_too_slow = 3000; // in milliseconds
     svgContainer.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 3 * 2)
+        .attr('x', screen_size.width / 2)
+        .attr('y', screen_size.height / 3 * 2)
         .attr('fill', 'white')
         .attr('font-family', 'san-serif')
         .attr('font-size', message_size)
@@ -494,8 +633,8 @@ function gameSetup(data) {
     totalTrials = target_file_data.numtrials;
     svgContainer.append('text')
         .attr('text-anchor', 'end')
-        .attr('x', screen_width / 20 * 19)
-        .attr('y', screen_height / 20 * 19)
+        .attr('x', screen_size.width / 20 * 19)
+        .attr('y', screen_size.height / 20 * 19)
         .attr('fill', 'white')
         .attr('font-size', message_size)
         .attr('id', 'trialcount')
@@ -629,13 +768,13 @@ function gameSetup(data) {
         hand_y += event.movementY;
 
         // Ensure we do not exceed screen boundaries
-        if (hand_x > screen_width) {
-            hand_x = screen_width;
+        if (hand_x > screen_size.width) {
+            hand_x = screen_size.width;
         } else if (hand_x < 0) {
             hand_x = 0;
         }
-        if (hand_y > screen_height) {
-            hand_y = screen_height;
+        if (hand_y > screen_size.height) {
+            hand_y = screen_size.height;
         } else if (hand_y < 0) {
             hand_y = 0;
         }
@@ -917,16 +1056,21 @@ function gameSetup(data) {
     // Function used to initiate the next trial after uploading reach data and subject data onto the database
     // Cleans up all the variables and displays to set up for the next reach
     function next_trial() {
-        var d = new Date();
-        var current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
-
         cursor_show = false;
         // Uploading reach data for this reach onto the database
         //SubjTrials.group_type is defined in startGame
-        subjTrials.experimentID = experiment_ID;
-        subjTrials.id = subject.id;
-        subjTrials.currentDate.push(current_date);
-        subjTrials.trialNum.push(trial + 1);
+        if ( !subjTrials) {
+            var group_type = "null"; // **TODO** update group_type to manage the groups
+            subjTrials = new Trial(experiment_ID, subject.id, group_type);
+        }
+
+        // TODO: add data to append to block for this Trial
+        subjTrials.appendTrialBlock(
+
+        );
+        // subjTrials.experimentID = experiment_ID;
+        // subjTrials.id = subject.id;
+        // subjTrials.trialNum.push(trial + 1);
         subjTrials.target_angle.push(target_angle[trial]);
         subjTrials.trial_type.push(trial_type);
         subjTrials.rotation.push(rotation[trial]);
@@ -986,10 +1130,8 @@ function gameSetup(data) {
 }
 
 // Function used to start running the game
-// **TODO** Update the 'fileName' to path to targetfile
 function startGame() {
-    fileName = "tgt_files/testShort.json";
-    subject.tgt_file = fileName;
+
     initAudio();
     const vowelSquare = document.getElementById('vowelSquare');
     const rect = vowelSquare.getBoundingClientRect();
@@ -1020,7 +1162,7 @@ function startGame() {
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);
         }
     });
-    subjTrials.group_type = "null"; // **TODO** update group_type to manage the groups
+    
     $.getJSON(fileName, function(json) {
         target_file_data = json;
         gameSetup(target_file_data);
@@ -1050,6 +1192,8 @@ function getVowelFormants(y, squareTop, squareSize) {
 }
 
 function initAudio() {
+    // TODO: I'm running into problem here where audioContext would still be null on MacOS (Zen/Firefox browser support)
+    // I may have some security/permission issue with this.
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     gainNode = audioContext.createGain();
     gainNode.gain.value = 0.5;
@@ -1136,6 +1280,4 @@ document.addEventListener('DOMContentLoaded', function() {
     // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
     //
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-
-
 });
