@@ -80,10 +80,18 @@ class Trial extends Database {
         return this.blocks.length;
     }
 
-    appendTrialBlock(target_angle, trial_type, ) {
+    appendTrialBlock(target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback ) {
         let lastTrialNum = this.getBlockNum();
         let block = new Block(
-            lastTrialNum + 1, 
+            lastTrialNum + 1,   //  num
+            target_angle, 
+            trial_type,
+            rotation,
+            hand_angle,
+            rt,
+            mt, 
+            time,
+            feedback
         );
 
         // append data to this trial block
@@ -395,8 +403,9 @@ var cursor_show;
 
 // Variables to track screen size
 var prev_screen_size;
-// var prev_height;
-// var prev_width;
+
+// audio controls. 
+var oscillator, gainNode, filter1, filter2;
 
 // Function that sets up the game 
 // All game functions are defined within this main function, treat as "main"
@@ -1052,7 +1061,6 @@ function gameSetup(data) {
         }
     }
 
-
     // Function used to initiate the next trial after uploading reach data and subject data onto the database
     // Cleans up all the variables and displays to set up for the next reach
     function next_trial() {
@@ -1129,72 +1137,8 @@ function gameSetup(data) {
     }
 }
 
-// Function used to start running the game
-function startGame() {
-
-    initAudio();
-    const vowelSquare = document.getElementById('vowelSquare');
-    const rect = vowelSquare.getBoundingClientRect();
-    const squareLeft = rect.left;
-    const squareTop = rect.top;
-    const squareSize = 600;
-
-    document.addEventListener('mousemove', (event) => {
-        const x = event.clientX;
-        const y = event.clientY;
-        const infoDisplay = document.getElementById('infoDisplay');
-
-        if (x >= squareLeft && x <= squareLeft + squareSize && 
-            y >= squareTop && y <= squareTop + squareSize) {
-            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
-
-            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
-            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
-
-            infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
-
-            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
-            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
-            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
-            filter1.Q.setValueAtTime(12, audioContext.currentTime);
-            filter2.Q.setValueAtTime(12, audioContext.currentTime);
-        } else {
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        }
-    });
-    
-    $.getJSON(fileName, function(json) {
-        target_file_data = json;
-        gameSetup(target_file_data);
-    });
-}
-const vowelFormants = {
-    i: { f1: 300, f2: 2300 },
-    u: { f1: 300, f2: 800 },
-    a: { f1: 700, f2: 1200 },
-    æ: { f1: 700, f2: 1800 }
-};
-
-let audioContext, oscillator, gainNode, filter1, filter2;
-
-function getVowelFormants(y, squareTop, squareSize) {
-    const vowels = Object.keys(vowelFormants);
-    const segmentHeight = squareSize / (vowels.length - 1);
-    const index = Math.min(Math.floor((y - squareTop) / segmentHeight), vowels.length - 2);
-    const t = ((y - squareTop) % segmentHeight) / segmentHeight;
-    const vowel1 = vowels[index];
-    const vowel2 = vowels[index + 1];
-
-    const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
-    const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
-
-    return { f1, f2, vowel: t < 0.5 ? vowel1 : vowel2 };
-}
-
 function initAudio() {
-    // TODO: I'm running into problem here where audioContext would still be null on MacOS (Zen/Firefox browser support)
-    // I may have some security/permission issue with this.
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
     gainNode = audioContext.createGain();
     gainNode.gain.value = 0.5;
 
@@ -1213,6 +1157,69 @@ function initAudio() {
     gainNode.connect(audioContext.destination);
     
     oscillator.start();
+    return audioContext;
+}
+
+// Function used to start running the game
+function startGame() {
+    let audioContext;
+    
+    audioContext = initAudio();
+    const vowelSquare = document.getElementById('vowelSquare');
+    const rect = vowelSquare.getBoundingClientRect();
+    const squareLeft = rect.left;
+    const squareTop = rect.top;
+    const squareSize = 600;
+
+    document.addEventListener('mousemove', (event) => {
+        const x = event.clientX;
+        const y = event.clientY;
+        // const infoDisplay = document.getElementById('infoDisplay');
+
+        if (x >= squareLeft && x <= squareLeft + squareSize && 
+            y >= squareTop && y <= squareTop + squareSize) {
+            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
+
+            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
+            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
+
+            // infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
+
+            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
+            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
+            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
+            filter1.Q.setValueAtTime(12, audioContext.currentTime);
+            filter2.Q.setValueAtTime(12, audioContext.currentTime);
+        } else {
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        }
+    });
+    
+    $.getJSON(fileName, function(json) {
+        target_file_data = json;
+        gameSetup(target_file_data);
+    });
+}
+
+function getVowelFormants(y, squareTop, squareSize) {
+    const vowelFormants = {
+        i: { f1: 300, f2: 2300 },
+        u: { f1: 300, f2: 800 },
+        a: { f1: 700, f2: 1200 },
+        æ: { f1: 700, f2: 1800 }
+    };
+    
+    const vowels = Object.keys(vowelFormants);
+    const segmentHeight = squareSize / (vowels.length - 1);
+    const index = Math.min(Math.floor((y - squareTop) / segmentHeight), vowels.length - 2);
+    const t = ((y - squareTop) % segmentHeight) / segmentHeight;
+    const vowel1 = vowels[index];
+    const vowel2 = vowels[index + 1];
+
+    const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
+    const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
+
+    return { f1, f2, vowel: t < 0.5 ? vowel1 : vowel2 };
 }
 
 // Helper function to end the game regardless good or bad

@@ -47,6 +47,14 @@
             font-family: Arial, sans-serif;
             font-size: 16px;
         }
+
+        .btn-left {
+            margin-right: 60px;
+        }
+
+        .btn-right {
+            margin-left: 60px;
+        }
     </style>
 </head>
 
@@ -85,14 +93,11 @@
             </h4>
             <br />
             <center>
-                <button type="button" class="btn btn-danger btn-lg"
+                <button type="button" class="btn btn-danger btn-lg btn-left"
                     onClick='return show("final-page", "container-consent");'>
                     <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
                 </button>
-                <!-- TODO: Replace this with margin instead -->
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                <button type="button" class="btn btn-primary btn-lg"
+                <button type="button" class="btn btn-primary btn-lg btn-right"
                     onClick='return show("container-instructions1", "container-consent" );'>
                     <span class="glyphicon glyphicon-ok"></span> I Agree
                 </button>
@@ -133,14 +138,11 @@
         </div>
         <hr>
         <center>
-            <button type="button" class="btn btn-primary btn-lg"
+            <button type="button" class="btn btn-primary btn-lg btn-left"
                 onClick="return show('container-consent', 'container-instructions1');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
-            <!-- TODO: Replace this with margin instead -->
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg"
+            <button type="button" class="btn btn-primary btn-lg btn-right"
                 onClick="return show('container-dpi', 'container-instructions1');">
                 <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
@@ -177,14 +179,11 @@
         </form>
         <hr>
         <center>
-            <button type="button" class="btn btn-primary btn-lg"
+            <button type="button" class="btn btn-primary btn-lg btn-left"
                 onClick="return show('container-instructions1', 'container-dpi');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
-            <!-- TODO: Replace this with margin instead -->
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg" onClick="return saveDPI();">
+            <button type="button" class="btn btn-primary btn-lg btn-right" onClick="return saveDPI();">
                 <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
         </center>
@@ -225,14 +224,11 @@
         </div>
         <hr>
         <center>
-            <button type="button" class="btn btn-primary btn-lg"
+            <button type="button" class="btn btn-primary btn-lg btn-left"
                 onClick="return show('container-dpi', 'container-instructions2');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
-            <!-- TODO: Replace this with margin instead -->
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg"
+            <button type="button" class="btn btn-primary btn-lg btn-right"
                 onClick="return show('container-info', 'container-instructions2');">
                 <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
@@ -339,14 +335,11 @@
         <center>
             <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
             <hr> -->
-            <button type="button" id="back" value="back" class="btn btn-primary btn-lg previous"
+            <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
                 onClick="show('container-instructions2', 'container-info');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
-            <!-- TODO: Replace this with margin instead -->
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg continue"
+            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
                 onClick="checkInfo();">
                 Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
             </button>
@@ -355,6 +348,7 @@
 
     <!-- Game page -->
     <div id="container-exp" style="display:none">
+        <div id="vowelSquare"></div>
     </div>
 
     <!-- Thank you page 
