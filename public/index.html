@@ -143,47 +143,7 @@
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
             <button type="button" class="btn btn-primary btn-lg btn-right"
-                onClick="return show('container-dpi', 'container-instructions1');">
-                <span class="glyphicon glyphicon-arrow-right"></span> Next
-            </button>
-        </center>
-    </div>
-
-    <!-- Instructions to measure DPI
-        **TODO** To integrate section, modify the "onClick" method in the previous segment as well as TODO comments in index.js-->
-    <div id="container-dpi" style="display:none">
-        <h1>Measure your device sensitivity</h1>
-        <hr>
-        <div class="instructions well">
-            <p>
-                We will be measuring your device (mouse or trackpad) sensitivity in units of dots per inch (DPI). To
-                measure your DPI, please follow the instructions on this <a
-                    href="https://www.mouse-sensitivity.com/dpianalyzer/" target="_blank"> website</a>. See additional
-                clarifying instructions below:
-            </p>
-            <p style="color:rgb(0, 0, 0)">
-                1. Physically mark how far you will be moving on your mouse or trackpad in inches, and input that into
-                "Target distance".
-                <br> 2. Set "Units" to Inches and Axis to "X+".
-                <br> 3. Using your device, drag the red circle on ruler located at the bottom of the website the same
-                distance you have marked in step 1. Make sure you are dragging to the circle to the right side.
-                <br> 4. Record the number shown for "Actual DPI" and input that in the following text box.
-            </p>
-        </div>
-        <form id="dpiform">
-            <div class="questions" id="dpi">
-                Please input the "Actual DPI" number here:
-                <input id="dpi" type="number" pattern="[0-9]" onkeypress="return isNumericKey(event)" name="dpi"
-                    value="">
-            </div>
-        </form>
-        <hr>
-        <center>
-            <button type="button" class="btn btn-primary btn-lg btn-left"
-                onClick="return show('container-instructions1', 'container-dpi');">
-                <span class="glyphicon glyphicon-arrow-left"></span> Back
-            </button>
-            <button type="button" class="btn btn-primary btn-lg btn-right" onClick="return saveDPI();">
+                onClick="return show('container-instructions2', 'container-instructions1')">
                 <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
         </center>

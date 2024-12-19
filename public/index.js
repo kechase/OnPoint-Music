@@ -7,6 +7,11 @@ Currently supported experiments include:
 Remember to update necessary fields before starting the game. All fields that require change will be marked by a "**TODO**" comment.
 */
 
+// Set to 'true' if you wish to only test the front-end (will not access databases)
+// **TODO** Make sure this is set to false before deploying!
+const noSave = true;
+// TODO: Replace this with your own experiment file! 
+const fileName = "./tgt_files/testShort.json"; 
 
 //#region Components
 
@@ -40,7 +45,7 @@ class Database {
 }
 
 class Subject extends Database  {
-    constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, dpi) {
+    constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race) {
         super("subject");
         this.id = id,
         this.age = age,
@@ -49,15 +54,14 @@ class Subject extends Database  {
         this.mousetype = mousetype,
         this.returner = returner,
         // TODO: Why does the subject needs to know the current trial? Ask Katie for this one?
-        this.currTrial = 0,
+        this.currTrial = 0, // remove
         // **TODO** Update the 'fileName' to path to targetfile
         this.tgt_file = "tgt_files/testShort.json",
         this.ethnicity = ethnicity,
         this.race = race,
         this.comments = null,
         this.distractions = [],
-        this.distracto = null,
-        this.dpi = dpi
+        this.distracto = null
     }
 
     // contains the basic information required to proceed
@@ -130,11 +134,6 @@ function isNumericKey(event) {
 
 //#endregion
 
-// Set to 'true' if you wish to only test the front-end (will not access databases)
-// **TODO** Make sure this is set to false before deploying!
-const noSave = true;
-var fileName;
-
 /* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
 try {
     let app = firebase.app();
@@ -152,26 +151,6 @@ const trialcollection = firestore.collection("Trials");
 function show(shown, hidden) {
     document.getElementById(shown).style.display = 'block';
     document.getElementById(hidden).style.display = 'none';
-    return false;
-}
-
-// Function to save the dpi
-// this function would break because subject hasn't been created yet...
-// TODO: Create new subject here without constructor inputs. Is there any reason why we're not saving this?
-function saveDPI() {
-    if (noSave) {
-        show('container-instructions2', 'container-dpi')
-        return false;
-    }
-    var values = $("#dpiform").serializeArray();
-    var dpi = values[0].value;
-    dpi = +dpi;
-    if (!dpi) {
-        alert("Please input a valid number!");
-        return;
-    }
-    subject.dpi = dpi;
-    show('container-instructions2', 'container-dpi')
     return false;
 }
 
@@ -228,7 +207,6 @@ var subject;    // use Subject class instead
 //     comments: null,
 //     distractions: [],
 //     distracto: null,
-//     dpi: null
 // }
 
 // Object used to track reaching data (updated every reach and uploaded to database)
@@ -269,7 +247,6 @@ function checkInfo() {
     // this is used to validate the reader did read the prompt correctly from previous page.
     let code = values[6].value;
     
-    // TODO: Relocate this subject initialization to DPI or somewhere at the beginning instead?
     subject = new Subject(
         email, 
         age, 
@@ -278,8 +255,7 @@ function checkInfo() {
         mousetype,
         returner, 
         ethnicity,
-        race, 
-        dpi
+        race,
     );
     
     console.log(values);
@@ -407,6 +383,72 @@ var prev_screen_size;
 // audio controls. 
 var oscillator, gainNode, filter1, filter2;
 
+function initAudio() {
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    gainNode = audioContext.createGain();
+    gainNode.gain.value = 0.5;
+
+    oscillator = audioContext.createOscillator();
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.value = 220;
+
+    filter1 = audioContext.createBiquadFilter();
+    filter1.type = 'bandpass';
+    filter2 = audioContext.createBiquadFilter();
+    filter2.type = 'bandpass';
+
+    oscillator.connect(filter1);
+    filter1.connect(filter2);
+    filter2.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.start();
+    return audioContext;
+}
+
+// Function used to start running the game
+function startGame() {
+    // create a new audio context
+    let audioContext = initAudio();
+
+    // visual setup
+    const vowelSquare = document.getElementById('vowelSquare');
+    const rect = vowelSquare.getBoundingClientRect();
+    const squareLeft = rect.left;
+    const squareTop = rect.top;
+    const squareSize = 600;
+
+    document.addEventListener('mousemove', (event) => {
+        const x = event.clientX;
+        const y = event.clientY;
+        // const infoDisplay = document.getElementById('infoDisplay');
+
+        if (x >= squareLeft && x <= squareLeft + squareSize && 
+            y >= squareTop && y <= squareTop + squareSize) {
+            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
+
+            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
+            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
+
+            // infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
+
+            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
+            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
+            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
+            filter1.Q.setValueAtTime(12, audioContext.currentTime);
+            filter2.Q.setValueAtTime(12, audioContext.currentTime);
+        } else {
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        }
+    });
+    --
+    // CORS error is blocking from loading this file
+    $.getJSON(fileName, function(json) {
+        target_file_data = json;
+        gameSetup(target_file_data);
+    });
+}
+
 // Function that sets up the game 
 // All game functions are defined within this main function, treat as "main"
 function gameSetup(data) {
@@ -434,7 +476,7 @@ function gameSetup(data) {
         .attr('background-color', 'black');
 
     // Get the screen resolution
-    screen_size = new ScreenSize(window.screen.availWidth, window.screen.availheight);
+    screen_size = new ScreenSize(window.screen.availWidth, window.screen.availHeight);
     prev_screen_size = screen_size;
     
     // Experiment parameters, subject_ID is no obsolete
@@ -498,8 +540,8 @@ function gameSetup(data) {
     cursor_radius = Math.round(target_dist * 1.75 * 1.5 / 80.0);
     cursor_color = 'white';
 
-
     // Function to move cursor to random location near center
+    // TODO Move this to circle object?
     function moveCursor() {
         var off_x = Math.random() * start_radius + start_radius;
         var off_y = Math.random() * start_radius + start_radius;
@@ -516,8 +558,6 @@ function gameSetup(data) {
             hand_y = start_y + off_y;
         }
     }
-
-
 
     console.log("Initial X: " + hand_x + " Initial Y: " + hand_y);
     // Drawing the displayed cursor 
@@ -739,12 +779,14 @@ function gameSetup(data) {
     if_slow = false;
 
     // Game Phase Flags
+    // could this be made into enums?
     SEARCHING = 0; // Looking for the center after a reach
     HOLDING = 1; // Holding at start to begin the next target
     SHOW_TARGETS = 2; // Displaying the target
     MOVING = 3; // The reaching motion 
     FEEDBACK = 4; // Displaying the feedback after reach
     BETWEEN_BLOCKS = 5; // Displaying break messages if necessary
+
     game_phase = BETWEEN_BLOCKS;
 
     // Initializing between block parameters
@@ -1135,70 +1177,6 @@ function gameSetup(data) {
 
         }
     }
-}
-
-function initAudio() {
-    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = audioContext.createGain();
-    gainNode.gain.value = 0.5;
-
-    oscillator = audioContext.createOscillator();
-    oscillator.type = 'sawtooth';
-    oscillator.frequency.value = 220;
-
-    filter1 = audioContext.createBiquadFilter();
-    filter1.type = 'bandpass';
-    filter2 = audioContext.createBiquadFilter();
-    filter2.type = 'bandpass';
-
-    oscillator.connect(filter1);
-    filter1.connect(filter2);
-    filter2.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.start();
-    return audioContext;
-}
-
-// Function used to start running the game
-function startGame() {
-    let audioContext;
-    
-    audioContext = initAudio();
-    const vowelSquare = document.getElementById('vowelSquare');
-    const rect = vowelSquare.getBoundingClientRect();
-    const squareLeft = rect.left;
-    const squareTop = rect.top;
-    const squareSize = 600;
-
-    document.addEventListener('mousemove', (event) => {
-        const x = event.clientX;
-        const y = event.clientY;
-        // const infoDisplay = document.getElementById('infoDisplay');
-
-        if (x >= squareLeft && x <= squareLeft + squareSize && 
-            y >= squareTop && y <= squareTop + squareSize) {
-            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
-
-            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
-            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
-
-            // infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
-
-            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
-            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
-            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
-            filter1.Q.setValueAtTime(12, audioContext.currentTime);
-            filter2.Q.setValueAtTime(12, audioContext.currentTime);
-        } else {
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        }
-    });
-    
-    $.getJSON(fileName, function(json) {
-        target_file_data = json;
-        gameSetup(target_file_data);
-    });
 }
 
 function getVowelFormants(y, squareTop, squareSize) {
