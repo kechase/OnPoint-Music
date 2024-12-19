@@ -11,7 +11,10 @@ Remember to update necessary fields before starting the game. All fields that re
 // **TODO** Make sure this is set to false before deploying!
 const noSave = true;
 // TODO: Replace this with your own experiment file! 
-const fileName = "./tgt_files/testShort.json"; 
+// Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead.
+const fileName = "./tgt_files/testShort.json";
+const data = {"numtrials": 8, "trialnum": {"0": 1, "1": 2, "2": 3, "3": 4, "4": 5, "5": 6, "6": 7, "7": 8}, "aiming_landmarks": {"0": 0, "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0, "9": 0, "10": 0, "11": 0, "12": 0, "13": 0, "14": 0, "15": 0, "16": 0, "17": 0, "18": 0, "19": 0}, "online_fb": {"0": 0, "1": 0, "2": 0, "3": 0, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1, "9": 1, "10": 1, "11": 1, "12": 1, "13": 1, "14": 1, "15": 1, "16": 0, "17": 0, "18": 0, "19": 0}, 
+"endpoint_feedback": {"0": 0, "1": 0, "2": 0, "3": 0, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1, "9": 1, "10": 1, "11": 1, "12": 1, "13": 1, "14": 1, "15": 1, "16": 0, "17": 0, "18": 0, "19": 0}, "rotation": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": -10.0, "9": -10.0, "10": -10.0, "11": -10.0, "12": -10.0, "13": -10.0, "14": -10.0, "15": -10.0, "16": 0.0, "17": 0.0, "18": 0.0, "19": 0.0}, "clamped_fb": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": 1.0, "9": 1.0, "10": 1.0, "11": 1.0, "12": 1.0, "13": 1.0, "14": 1.0, "15": 1.0, "16": 0.0, "17": 0.0, "18": 0.0, "19": 0.0}, "tgt_angle": {"0": 135.0, "1": 45.0, "2": 45.0, "3": 135.0, "4": 135.0, "5": 45.0, "6": 45.0, "7": 135.0, "8": 270.0, "9": 270.0, "10": 270.0, "11": 270.0, "12": 45.0, "13": 135.0, "14": 135.0, "15": 45.0, "16": 45.0, "17": 135.0, "18": 45.0, "19": 135.0}, "tgt_distance": {"0": 80, "1": 80, "2": 80, "3": 80, "4": 80, "5": 80, "6": 80, "7": 80, "8": 80, "9": 80, "10": 80, "11": 80, "12": 80, "13": 80, "14": 80, "15": 80, "16": 80, "17": 80, "18": 80, "19": 80}, "between_blocks": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 1, "4": 0.0, "5": 0.0, "6": 0.0, "7": 6, "8": 6, "9": 6, "10": 6, "11": 2, "12": 0.0, "13": 0.0, "14": 0.0, "15": 3, "16": 0.0, "17": 0.0, "18": 0.0, "19": 0.0}, "target_jump": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, "4": 0.0, "5": 0.0, "6": 0.0, "7": 0.0, "8": 0.0, "9": 0.0, "10": 0.0, "11": 0.0, "12": 0.0, "13": 0.0, "14": 0.0, "15": 0.0, "16": 0.0, "17": 0.0, "18": 0.0, "19": 0.0}}
 
 //#region Components
 
@@ -53,8 +56,6 @@ class Subject extends Database  {
         this.handedness = handedness,
         this.mousetype = mousetype,
         this.returner = returner,
-        // TODO: Why does the subject needs to know the current trial? Ask Katie for this one?
-        this.currTrial = 0, // remove
         // **TODO** Update the 'fileName' to path to targetfile
         this.tgt_file = "tgt_files/testShort.json",
         this.ethnicity = ethnicity,
@@ -120,8 +121,18 @@ class Block extends Database {
         this.mt = mt;
         this.search_time = time;
         this.reach_feedback = feedback;
+        // this.log = [];  // used to collect mouse movement
     }
-}   
+} 
+
+// used to track mouse movement when conducting the experiment run.
+class Log extends Database {
+    constructor(mouse_x, mouse_y) {
+        this.timestamp = new Date();
+        this.mouse_x = mouse_x;
+        this.mouse_y = mouse_y;
+    }
+}
 
 //#endregion
 
@@ -191,42 +202,10 @@ function closeFullScreen() {
 }
 
 // Object used track subject data (uploaded to database)
-var subject;    // use Subject class instead
-// for historical copy only 
-// = {
-//     id: null,
-//     age: null,
-//     sex: null,
-//     handedness: null,
-//     mousetype: null,
-//     returner: null,
-//     currTrial: 0,
-//     tgt_file: null,
-//     ethnicity: null,
-//     race: null,
-//     comments: null,
-//     distractions: [],
-//     distracto: null,
-// }
+var subject;    // : Subject  
 
 // Object used to track reaching data (updated every reach and uploaded to database)
-var subjTrials;     // use Trial class instead
-// for historical copy only
-// = {
-//     id: null,
-//     experimentID: null,
-//     group_type: null,
-//     trialNum: [],
-//     currentDate: [],
-//     target_angle: [],
-//     trial_type: [],
-//     rotation: [],
-//     hand_fb_angle: [],
-//     rt: [],
-//     mt: [],
-//     search_time: [],
-//     reach_feedback: []
-// }
+var subjTrials; // : Trial
 
 // Function used to check if all questions were filled in info form, if so, starts the experiment 
 function checkInfo() {
@@ -245,7 +224,7 @@ function checkInfo() {
     let race = values[8].value;
     
     // this is used to validate the reader did read the prompt correctly from previous page.
-    let code = values[6].value;
+    // let code = values[6].value;
     
     subject = new Subject(
         email, 
@@ -258,17 +237,14 @@ function checkInfo() {
         race,
     );
     
-    console.log(values);
-    console.log(subject);
-    
     // validation proceed here
-    if (!subject.isValid()) {
-        alert("Please fill out your basic information!");
-        return;
-    } else if (actualCode.localeCompare(code) != 0) {
-        alert("Make sure to find the code from the last page before proceeding!")
-        return;
-    }
+    // if (!subject.isValid()) {
+    //     alert("Please fill out your basic information!");
+    //     return;
+    // } else if (actualCode.localeCompare(code) != 0) {
+    //     alert("Make sure to find the code from the last page before proceeding!")
+    //     return;
+    // }
 
     show('container-exp', 'container-info');
     if (!noSave) {
@@ -341,7 +317,7 @@ var cursor_color;
 var messages;
 var line_size;
 var message_size;
-var counter; // current reach count (starts at 1)
+var counter = 1; // current reach count (starts at 1)
 var target_file_data;
 var rotation;
 var target_angle;
@@ -349,7 +325,7 @@ var online_fb;
 var endpt_fb;
 var clamped_fb;
 var between_blocks;
-var trial; // trial count (starts at 0)
+var trial = 0; // trial count (starts at 0)
 var num_trials;
 var search_tolerance;
 var hand_angle;
@@ -441,12 +417,16 @@ function startGame() {
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);
         }
     });
-    --
+    
     // CORS error is blocking from loading this file
-    $.getJSON(fileName, function(json) {
-        target_file_data = json;
-        gameSetup(target_file_data);
-    });
+    // TODO: before we deploy this website - please serve this on NodeJS and see if we can load the file properly
+    // currently using a hack to test this code on local development without NodeJS/Serve
+    // $.getJSON(fileName, function(json) {
+        // target_file_data = json;
+    //     gameSetup(target_file_data);
+    // });
+    target_file_data = data;
+    gameSetup(data);
 }
 
 // Function that sets up the game 
@@ -722,14 +702,14 @@ function gameSetup(data) {
 
     // Function to monitor changes in screen size;
     function monitorWindow(event) {
-        var prev_size = prev_width * prev_height;
+        var prev_size = prev_screen_size.width * prev_screen_size.height;
         var curr_size = window.innerHeight * window.innerWidth;
         console.log("prev size: " + prev_size + " curr size: " + curr_size);
         if (prev_size > curr_size) {
             alert("Please enter full screen and click your mouse to continue the experiment! (Shortcut for Mac users: Command + Control + F. Shortcut for PC users: F11) ");
         }
-        prev_width = window.innerWidth;
-        prev_height = window.innerHeight;
+        prev_screen_size.width = window.innerWidth;
+        prev_screen_size.height = window.innerHeight;
         return;
     }
     /*****************
@@ -1116,22 +1096,15 @@ function gameSetup(data) {
 
         // TODO: add data to append to block for this Trial
         subjTrials.appendTrialBlock(
-
+            target_angle[trial],
+            trial_type, 
+            rotation[trial],
+            hand_fb_angle, 
+            rt,
+            mt,
+            search_time,
+            reach_feedback
         );
-        // subjTrials.experimentID = experiment_ID;
-        // subjTrials.id = subject.id;
-        // subjTrials.trialNum.push(trial + 1);
-        subjTrials.target_angle.push(target_angle[trial]);
-        subjTrials.trial_type.push(trial_type);
-        subjTrials.rotation.push(rotation[trial]);
-        subjTrials.hand_fb_angle.push(hand_fb_angle);
-        subjTrials.rt.push(rt);
-        subjTrials.mt.push(mt);
-        subjTrials.search_time.push(search_time);
-        subjTrials.reach_feedback.push(reach_feedback);
-
-        // Updating subject data to display most recent reach on database
-        subject.currTrial = trial + 1;
 
         // Reset timing variables
         rt = 0;
@@ -1140,8 +1113,7 @@ function gameSetup(data) {
 
         // Between Blocks Message Index
         bb_mess = between_blocks[trial];
-
-
+        
         // Increment the trial count
         trial += 1;
         counter += 1;
