@@ -6,6 +6,9 @@ yarn-debug.log*
 yarn-error.log*
 firebase-debug.log*
 
+# ignore IDE user settings
+.vscode/ 
+
 # Firebase cache
 .firebase/
 

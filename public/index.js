@@ -209,8 +209,6 @@ var subjTrials; // : Trial
 
 // Function used to check if all questions were filled in info form, if so, starts the experiment 
 function checkInfo() {
-    // **TODO: Update depending on the "code" set in index.html
-    var actualCode = "rice"; 
 
     var values = $("#infoform").serializeArray();
     // form data used to create subject info
@@ -220,11 +218,8 @@ function checkInfo() {
     let handedness = values[3].value;
     let mousetype = values[4].value;
     let returner = values[5].value;
-    let ethnicity = values[7].value;
-    let race = values[8].value;
-    
-    // this is used to validate the reader did read the prompt correctly from previous page.
-    // let code = values[6].value;
+    let ethnicity = values[6].value;
+    let race = values[7].value;
     
     subject = new Subject(
         email, 
@@ -240,9 +235,6 @@ function checkInfo() {
     // validation proceed here
     // if (!subject.isValid()) {
     //     alert("Please fill out your basic information!");
-    //     return;
-    // } else if (actualCode.localeCompare(code) != 0) {
-    //     alert("Make sure to find the code from the last page before proceeding!")
     //     return;
     // }
 

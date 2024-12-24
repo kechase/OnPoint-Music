@@ -11,19 +11,20 @@
     connect-src * ws: wss:;" />
     <title>Playing a New Instrument!</title>
 
-    <link rel="stylesheet" href="/static/bootstrap.min.css" type="text/css" />
-    <link rel="stylesheet" href="/static/style.css" type="text/css" />
+    <link rel="stylesheet" href="./static/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="./static/style.css" type="text/css" />
 
+    <!-- TODO: Replace __ with correct url pathing -->
     <!-- update the version number as needed -->
-    <script src="/__/firebase/6.6.1/firebase-app.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <!-- include only the Firebase features as you need -->
-    <script src="/__/firebase/6.6.1/firebase-auth.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-database.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-firestore.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-messaging.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-storage.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <!-- initialize the SDK after all desired features are loaded -->
-    <script src="/__/firebase/init.js"></script>
+    <script defer src="./init-firebase.js"></script>
     <style>
         #vowelSquare {
             position: absolute;
@@ -59,7 +60,7 @@
 </head>
 
 <body>
-    <!-- Consent Page-->
+    <!-- Consent Page--> 
     <div id="container-consent">
         <div id="consent">
             <h1><b>Welcome!</b></h1>
@@ -98,7 +99,7 @@
                     <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
                 </button>
                 <button type="button" class="btn btn-primary btn-lg btn-right"
-                    onClick='return show("container-instructions1", "container-consent" );'>
+                    onClick='return show("container-instructions1", "container-consent");'>
                     <span class="glyphicon glyphicon-ok"></span> I Agree
                 </button>
             </center>
@@ -169,10 +170,6 @@
                 3. PAUSE when you reach the target to let the computer know that's your final answer. Then lift your
                 fingers off the trackpad. The cursor will reappear in the center for the next trial.
             </p>
-            <p style="color:red">
-                <i> You'll need the code word "rice" on the next page to indicate you've read and understand these
-                    steps.</i>
-            </p>
             <div class="row">
                 <center>
                     <div class="columnB2">
@@ -185,7 +182,7 @@
         <hr>
         <center>
             <button type="button" class="btn btn-primary btn-lg btn-left"
-                onClick="return show('container-dpi', 'container-instructions2');">
+                onClick="return show('container-instructions1', 'container-instructions2');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
             <button type="button" class="btn btn-primary btn-lg btn-right"
@@ -255,11 +252,6 @@
                     </select>
                 </div>
 
-                <div class="questions" id="startcode">
-                    What's the code from the last page (Reread the instructions page if you don't know):
-                    <input id="code" type="text" name="code" value="">
-                </div>
-
                 <hr>
 
                 <p>
@@ -296,11 +288,11 @@
             <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
             <hr> -->
             <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
-                onClick="show('container-instructions2', 'container-info');">
+                onClick="return show('container-instructions2', 'container-info');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
             <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
-                onClick="checkInfo();">
+                onClick="return checkInfo();">
                 Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
             </button>
         </center>
@@ -354,18 +346,14 @@
                 </div>
             </form>
             <center>
-                <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
-                <hr> -->
-                <!-- TODO: Replace this block with margin instead -->
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 <button type="button" id="end" value="final" onClick="saveFeedback();">
                     Submit
                 </button>
             </center>
             <!-- **TODO** Customize the message you want for your experiment -->
             <h2>If you do not receive compensation in 14 business days please reach out to ___.</h2>
-            <h2>You have a wonderful life now!</h2>
+            <h2>Have a wonderful day!</h2>
+            <!-- <h2>You have a wonderful life now!</h2> -->
         </div>
     </div>
 
@@ -402,6 +390,6 @@
 <script src="static/lib/d3.v3.min.js"></script>
 <script src="static/lib/underscore-min.js"></script>
 <script src="static/lib/backbone-min.js"></script>
-<script src="index.js"></script>
+<script defer src="index.js"></script>
 
 </html>
