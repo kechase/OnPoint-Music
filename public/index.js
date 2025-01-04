@@ -35,6 +35,14 @@ class Circle {
         this.display(false);
     }
 
+    setFill(color) {
+        this.element.attr('fill', color);
+    }
+
+    setStroke(color) {
+        this.element.attr('stroke', color);
+    }
+
     setColor(fill, stroke) {
         this.element.attr('fill', fill).attr('stroke', stroke);
     }
@@ -136,8 +144,8 @@ class Block extends Database {
     constructor(num, target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback){
         super("block");
         // auto create the date
-        var d = new Date();
-        var current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
+        const d = new Date();
+        const current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
         
         this.trialNum = num;
         this.currentDate = current_date;
@@ -156,6 +164,7 @@ class Block extends Database {
 // used to track mouse movement when conducting the experiment run.
 class Log extends Database {
     constructor(mouse_x, mouse_y) {
+        super("Log");
         this.timestamp = new Date();
         this.mouse_x = mouse_x;
         this.mouse_y = mouse_y;
@@ -166,8 +175,9 @@ class Log extends Database {
 
 //#region Global funciton
 
+// Function used on html side of code.
 function isNumericKey(event) {
-    var code = (event.which) ? event.which : event.keyCode;
+    const code = (event.which) ? event.which : event.keyCode;
     return !(code > 31 && (code < 48 || code > 57));
 }
 
@@ -309,26 +319,38 @@ function recordTrialSubj(collection, subjTrials) {
 let svgContainer;
 let screen_size;    // use ScreenSize object instead
 
+/*
+// Game Phase Flags
+    // could this be made into enums?
+    SEARCHING = 0; // Looking for the center after a reach
+    HOLDING = 1; // Holding at start to begin the next target
+    SHOW_TARGETS = 2; // Displaying the target
+    MOVING = 3; // The reaching motion 
+    FEEDBACK = 4; // Displaying the feedback after reach
+    BETWEEN_BLOCKS = 5; // Displaying break messages if necessary
+*/
+const Phase = Object.freeze({
+    SEARCHING: 0,
+    HOLDING: 1,
+    SHOW_TARGETS: 2,
+    MOVING: 3,
+    FEEDBACK: 4,
+    BETWEEN_BLOCKS: 5
+});
 
 // TODO: Digest through this and see how we can containerize this into objects instead?
-var elem;
-var experiment_ID;
-var subject_ID;
-var target_dist;
-var trial_type;
+let elem;
+let experiment_ID;
+let subject_ID;
+let target_dist;
+let trial_type;
 
+// Circle
 let start = null;
-
 let target = null;
-// what does the target_invisible do?
-// let target_invisible;
-
-// TODO What does the cursor_show do?
 let cursor = null;
-let cursor_show;
 
 // Currently in used in moveCursor and updateCursor function.
-// consider updating the Circle object manually instead?
 let hand_x;
 let hand_y;
 // let hand_fb_x;
@@ -362,13 +384,7 @@ let hold_timer;
 let fb_timer;
 let begin;
 let timing;
-let SEARCHING;
-let HOLDING;
-let SHOW_TARGETS;
-let MOVING;
-let FEEDBACK;
-let BETWEEN_BLOCKS;
-let game_phase = BETWEEN_BLOCKS;
+let game_phase = Phase.BETWEEN_BLOCKS;
 let reach_feedback;
 let bb_counter;
 let audio_flag = 0;
@@ -803,16 +819,7 @@ function gameSetup(data) {
     timing = true;
     if_slow = false;
 
-    // Game Phase Flags
-    // could this be made into enums?
-    SEARCHING = 0; // Looking for the center after a reach
-    HOLDING = 1; // Holding at start to begin the next target
-    SHOW_TARGETS = 2; // Displaying the target
-    MOVING = 3; // The reaching motion 
-    FEEDBACK = 4; // Displaying the feedback after reach
-    BETWEEN_BLOCKS = 5; // Displaying break messages if necessary
-
-    game_phase = BETWEEN_BLOCKS;
+    game_phase = Phase.BETWEEN_BLOCKS;
 
     // Initializing between block parameters
     reach_feedback;
@@ -871,7 +878,7 @@ function gameSetup(data) {
         hand_angle = Math.atan2(start.y - hand_y, hand_x - start.x) * 100 / Math.PI;
 
         // Check if mouse is within the square
-        if (game_phase == MOVING &&
+        if (game_phase == Phase.MOVING &&
             hand_x >= squareLeft &&
             hand_x <= squareLeft + squareSize &&
             hand_y >= squareTop &&
@@ -895,7 +902,7 @@ function gameSetup(data) {
         };
 
         // Calculations done in the MOVING phase
-        if (game_phase == MOVING) {
+        if (game_phase == Phase.MOVING) {
             
             handPositions.push({ time: new Date() - begin, x: hand_x, y: hand_y});
             // /*
@@ -936,42 +943,34 @@ function gameSetup(data) {
         cursor.update(hand_x, hand_y);
 
         // Calculations done in the HOLDING phase
-        if (game_phase == HOLDING) {
+        if (game_phase == Phase.HOLDING) {
             if (r <= start.radius) { // Fill the center if within start radius
                 cursor.display(false);
-                start.setColor('white', 'none');
-                // d3.select('#cursor').attr('display', 'none');
-                // d3.select('#start').attr('fill', 'white');
+                start.setFill('white');
             } else { // Display cursor otherwise
-                cursor.update(cursor_x, cursor_y).display(true);
-                // d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-                start.setColor('none','none');
-                // d3.select('#start').attr('fill', 'none');
+                cursor.update(hand_x, hand_y);
+                cursor.display(true);
+                start.setFill('none');
             }
             // Calculations done in SHOW_TARTETS phase
-        } else if (game_phase == SHOW_TARGETS) {
+        } else if (game_phase == Phase.SHOW_TARGETS) {
             cursor.display(false);
-            start.display(true);
+            // start.display(true);
             start.setColor('white', 'none');
-            // d3.select('#cursor').attr('display', 'none');
-            // d3.select('#start').attr('fill', 'white');
             // Flag cursor to display if within certain distance to center
-        } else if (game_phase == SEARCHING) {
+        } else if (game_phase == Phase.SEARCHING) {
             if (r <= target_dist * 1) {
-                // cursor_show = true;
                 cursor.display(true);
             }
 
             // Display the cursor if flag is on 
-            if (cursor_show) {
+            if (cursor.visible) {
+                cursor.update(hand_x, hand_y);
                 cursor.display(true);
-                cursor.update(cursor_x, cursor_y);
-                // d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
             } else {
                 $('html').css('cursor', 'none');
                 $('body').css('cursor', 'none'); //ensure mouse is hidden
-                cursor.display(false);
-                // d3.select('#cursor').attr('display', 'none'); // hide the cursor
+                cursor.display(false); // hide the cursor
             }
 
             // Displaying the start circle and trial count 
@@ -987,47 +986,46 @@ function gameSetup(data) {
                 }
             }
             // Displaying the cursor during MOVING if targetfile indicates so for the reach
-        } else if (game_phase == MOVING) {
+        } else if (game_phase == Phase.MOVING) {
             if (online_fb[trial] || clamped_fb[trial]) {
-                cursor.update(cursor_x, cursor_y).display(true);
-                // d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
+                cursor.update(hand_x, hand_y)
+                cursor.display(true);
             } else {
                 cursor.display(false);
-                // d3.select('#cursor').attr('display', 'none'); // hide the cursor
             }
         }
 
         // Trigger Game Phase Changes that are Dependent on Cursor Movement
 
         // Move from search to hold phase if they move within search tolerance of the start circle 
-        if (game_phase == SEARCHING && r <= search_tolerance && cursor_show) {
+        if (game_phase == Phase.SEARCHING && r <= search_tolerance && cursor.visible) {
             d3.select('#search_too_slow').attr('display', 'none');
             // d3.select('#encouragement').attr('display', 'none');
             hold_phase();
 
 
             // Move from hold back to search phase if they move back beyond the search tolerance
-        } else if (game_phase == HOLDING && r > search_tolerance) {
+        } else if (game_phase == Phase.HOLDING && r > search_tolerance) {
             search_phase();
 
             // Start the hold timer if they are within the start circle
             // Timing flag ensures the timer only gets started once
-        } else if (game_phase == HOLDING && r <= start.radius && !timing) {
+        } else if (game_phase == Phase.HOLDING && r <= start.radius && !timing) {
             timing = true;
             hold_timer = setTimeout(show_targets, hold_time);
 
             // Clear out timer if holding is completed
-        } else if (game_phase == HOLDING && r > start.radius && timing) {
+        } else if (game_phase == Phase.HOLDING && r > start.radius && timing) {
             timing = false;
             d3.select('#message-line-1').attr('display', 'none');
             clearTimeout(hold_timer);
 
             // Move from show targets to moving phase once user has begun their reach
-        } else if (game_phase == SHOW_TARGETS && r > start.radius && !target.visible) { // for clicking
+        } else if (game_phase == Phase.SHOW_TARGETS && r > start.radius && !target.visible) { // for clicking
             moving_phase();
 
             // Move from moving to feedback phase once their reach intersects the target ring
-        } else if (game_phase == MOVING && r > target_dist) {
+        } else if (game_phase == Phase.MOVING && r > target_dist) {
             fb_phase();
         }
     }
@@ -1041,15 +1039,15 @@ function gameSetup(data) {
         const b = 66;
         const f = 70;
         // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
-        if ((game_phase == BETWEEN_BLOCKS && (bb_mess == 5 || bb_mess == 2) && event.keyCode == a) || bb_mess == 0) {
+        if ((game_phase == Phase.BETWEEN_BLOCKS && (bb_mess == 5 || bb_mess == 2) && event.keyCode == a) || bb_mess == 0) {
             search_phase();
-        } else if ((game_phase == BETWEEN_BLOCKS && bb_mess == 4 && event.keyCode == e)) {
+        } else if ((game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 4 && event.keyCode == e)) {
             search_phase();
-        } else if (game_phase == BETWEEN_BLOCKS && bb_mess == 1 && event.keyCode == b) {
+        } else if (game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 1 && event.keyCode == b) {
             search_phase();
-        } else if (game_phase == BETWEEN_BLOCKS && event.keyCode == SPACE_BAR && (bb_mess == 3 || bb_mess == 6)) {
+        } else if (game_phase == Phase.BETWEEN_BLOCKS && event.keyCode == SPACE_BAR && (bb_mess == 3 || bb_mess == 6)) {
             search_phase();
-        } else if (game_phase != BETWEEN_BLOCKS) {
+        } else if (game_phase != Phase.BETWEEN_BLOCKS) {
             // Do nothing
         } else {
             // Hmm>
@@ -1070,22 +1068,19 @@ function gameSetup(data) {
 
     // Phase when searching for the center start circle
     function search_phase() {
-        game_phase = SEARCHING;
+        game_phase = Phase.SEARCHING;
 
         // Start of timer for search time
         begin = new Date();
 
-        console.log(start);
-
         // Start circle becomes visible, target, cursor invisible
         start.display(true);
-        start.setColor('none', 'white');
+        start.setFill('none');
+
         target.display(false);
-        target.setColor('blue', 'none');
+        target.setFill('blue');
+
         cursor.display(false);
-        // d3.select('#start').attr('display', 'block').attr('fill', 'none');
-        // d3.select('#target').attr('display', 'none').attr('fill', 'blue');
-        // d3.select('#cursor').attr('display', 'none');
 
         d3.select('#message-line-1').attr('display', 'none');
         d3.select('#message-line-2').attr('display', 'none');
@@ -1098,17 +1093,17 @@ function gameSetup(data) {
 
     // Obsolete function
     function end_game() {
-        game_phase = END_GAME;
+        game_phase = Phase.END_GAME;
     }
 
     // Phase when users hold their cursors within the start circle
     function hold_phase() {
-        game_phase = HOLDING;
+        game_phase = Phase.HOLDING;
     }
 
     // Phase when users have held cursor in start circle long enough so target shows up 
     function show_targets() {
-        game_phase = SHOW_TARGETS;
+        game_phase = Phase.SHOW_TARGETS;
 
         // Record search time as the time elapsed from the start of the search phase to the start of this phase
         d3.select('#message-line-1').attr('display', 'none');
@@ -1118,8 +1113,8 @@ function gameSetup(data) {
         begin = new Date();
 
         // Target becomes visible
-        target_x = start_x + target_dist * Math.cos(target_angle[trial] * Math.PI / 180);
-        target_y = start_y - target_dist * Math.sin(target_angle[trial] * Math.PI / 180);
+        target_x = start.x + target_dist * Math.cos(target_angle[trial] * Math.PI / 180);
+        target_y = start.y - target_dist * Math.sin(target_angle[trial] * Math.PI / 180);
 
         target.update(target_x, target_y);
         
@@ -1127,12 +1122,9 @@ function gameSetup(data) {
         if(target_jump[trial] == 1){
           //Show the target.
           target.display(true);
-        //   d3.select('#target').attr('display', 'block').attr('cx', target_x).attr('cy', target_y);
         }else{
           //Hiding the target. 
           target.display(false);
-        //   d3.select('#target').attr('display', 'none').attr('cx', target_x).attr('cy', target_y);
-          
           if(play_sound == 1){
           
             if(target_angle[trial] == 45){
@@ -1144,25 +1136,21 @@ function gameSetup(data) {
             }
             
             play_sound == 0;
-          }
-          
+          } 
         }
         
-        // target_invisible = false;
         target.display(true);
         
           // Turn start circle green
           setTimeout(function() {
-            start.display(true).setColor('green', 'none');
-            //   d3.select('#start')
-            //     .attr('display', 'block')
-            //     .attr('fill', 'green');
+            start.display(true)
+            start.setColor('green', 'none');
           }, 1000);    
     }
 
     // Phase when users are reaching to the target
     function moving_phase() {
-        game_phase = MOVING;
+        game_phase = Phase.MOVING;
 
         // Record reaction time as time spent with target visible before moving
         rt = new Date() - begin;
@@ -1171,34 +1159,30 @@ function gameSetup(data) {
         begin = new Date();
 
         // Start circle disappears
-        //d3.select('#start').attr('display', 'block');
-        start.display(false);
-        // d3.select('#start').attr('fill', 'none');
+        // I am not sure why we would need to make the block visible but fill nothing?
+        start.display(true);
+        start.setFill('none');
     }
 
     // Phase where users have finished their reach and receive feedback
     function fb_phase() {
-        game_phase = FEEDBACK;
+        game_phase = Phase.FEEDBACK;
 
         // Record movement time as time spent reaching before intersecting target circle
         // Can choose to add audio in later if necessary
         mt = new Date() - begin;
         cursor.display(false);
-        // d3.select('#cursor').attr('display', 'none');
 
         if (mt > too_slow_time) {
-            // d3.select('#target').attr('fill', 'red');
+            target.setFill('red');
             if_slow = true;
             target.display(false);
             cursor.display(false);
             start.display(false);
-            // d3.select('#target').attr('display', 'none');
-            // d3.select('#cursor').attr('display', 'none');
-            // d3.select('#start').attr('display', 'none');
             d3.select('#too_slow_message').attr('display', 'block');
             reach_feedback = "too_slow";
         } else {
-            // d3.select('#target').attr('fill', 'green');
+            target.setFill('green');
             reach_feedback = "good_reach";
         }
 
@@ -1213,18 +1197,17 @@ function gameSetup(data) {
 
         // Display Cursor Endpoint Feedback
         if (clamped_fb[trial]) { // Clamped feedback
-            cursor_x = start.x + target_dist * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-            cursor_y = start.y - target_dist * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
+            const cursor_x = start.x + target_dist * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
+            const cursor_y = start.y - target_dist * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
             
             cursor.update(cursor_x, cursor_y);
             cursor.display(true);
-            // d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
             trial_type = "clamped_fb";
         } else if (endpt_fb[trial] || online_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
-            cursor_x = start.x + target_dist * Math.cos((hand_fb_angle + rotation[trial]) * Math.PI / 180);
-            cursor_y = start.y - target_dist * Math.sin((hand_fb_angle + rotation[trial]) * Math.PI / 180);
-            cursor.update(cursor_x, cursor_y).display(true);
-            // d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
+            const cursor_x = start.x + target_dist * Math.cos((hand_fb_angle + rotation[trial]) * Math.PI / 180);
+            const cursor_y = start.y - target_dist * Math.sin((hand_fb_angle + rotation[trial]) * Math.PI / 180);
+            cursor.update(cursor_x, cursor_y)
+            cursor.display(true);
             trial_type = "online_fb";
         } else {
             cursor.display(false);
@@ -1297,7 +1280,7 @@ function gameSetup(data) {
             endGame();
         } else if (bb_mess || counter == 1) {
             console.log(bb_mess);
-            game_phase = BETWEEN_BLOCKS;
+            game_phase = Phase.BETWEEN_BLOCKS;
             d3.select('#message-line-1').attr('display', 'block').text(messages[bb_mess][0]);
             d3.select('#message-line-2').attr('display', 'block').text(messages[bb_mess][1]);
             d3.select('#message-line-3').attr('display', 'block').text(messages[bb_mess][2]);
