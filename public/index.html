@@ -11,19 +11,20 @@
     connect-src * ws: wss:;" />
     <title>Playing a New Instrument!</title>
 
-    <link rel="stylesheet" href="/static/bootstrap.min.css" type="text/css" />
-    <link rel="stylesheet" href="/static/style.css" type="text/css" />
+    <link rel="stylesheet" href="./static/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="./static/style.css" type="text/css" />
 
+    <!-- TODO: Replace __ with correct url pathing -->
     <!-- update the version number as needed -->
-    <script src="/__/firebase/6.6.1/firebase-app.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <!-- include only the Firebase features as you need -->
-    <script src="/__/firebase/6.6.1/firebase-auth.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-database.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-firestore.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-messaging.js"></script>
-    <script src="/__/firebase/6.6.1/firebase-storage.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     <!-- initialize the SDK after all desired features are loaded -->
-    <script src="/__/firebase/init.js"></script>
+    <script defer src="./init-firebase.js"></script>
     <style>
         #vowelSquare {
             position: absolute;
@@ -41,16 +42,25 @@
             left: 50%;
             transform: translate(-50%, -50%);
         }
+
         #infoDisplay {
             margin-top: 20px;
             font-family: Arial, sans-serif;
             font-size: 16px;
         }
+
+        .btn-left {
+            margin-right: 60px;
+        }
+
+        .btn-right {
+            margin-left: 60px;
+        }
     </style>
 </head>
 
 <body>
-    <!-- Consent Page-->
+    <!-- Consent Page--> 
     <div id="container-consent">
         <div id="consent">
             <h1><b>Welcome!</b></h1>
@@ -59,31 +69,39 @@
             <div class="legal well">
                 <!-- **TODO** REPLACE COMPENSATION AND CONSENT FORM TO YOUR OWN-->
                 <p>
-                    We would like to invite you to take part in the following study named "Playing a New Instrument!"</p>
+                    We would like to invite you to take part in the following study named "Playing a New Instrument!"
+                </p>
                 <p>
                     This will take ~15 minutes, and you will be compensated upon completion.</p>
                 <p>
-                    Please understand that we <em>reserve the right to not compensate entries</em> that fail to follow instructions.</p>
+                    Please understand that we <em>reserve the right to not compensate entries</em> that fail to follow
+                    instructions.</p>
                 <p>
-                    <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned on.</b></p>
-                    <br>
+                    <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned
+                        on.</b>
+                </p>
+                <br>
                 <div id="consentForm">
-                    <iframe frameborder="1" id="consentForm" src="https://drive.google.com/file/d/1_jkO8vZMrpOrZMgEhpZuFgGcBjGE72Yg/preview"></iframe>
+                    <iframe frameborder="1" id="consentForm"
+                        src="https://drive.google.com/file/d/1_jkO8vZMrpOrZMgEhpZuFgGcBjGE72Yg/preview"></iframe>
                 </div>
                 <button type="button" class="btn btn-default btn-sm" onClick="window.print();">
-              <span class="glyphicon glyphicon-print"></span> Print a copy of this
-              </button>
+                    <span class="glyphicon glyphicon-print"></span> Print a copy of this
+                </button>
             </div>
-            <h4>If you agree and consent to these terms, please click "I Agree" to continue. 
-            <p>If you do not agree to these terms, simply exit the page.</p></h4>
+            <h4>If you agree and consent to these terms, please click "I Agree" to continue.
+                <p>If you do not agree to these terms, simply exit the page.</p>
+            </h4>
             <br />
             <center>
-                <button type="button" class="btn btn-danger btn-lg" onClick="return show('final-page', 'container-consent');">
-              <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
-              </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-instructions1', 'container-consent');">
-              <span class="glyphicon glyphicon-ok"></span> I Agree 
-              </button>
+                <button type="button" class="btn btn-danger btn-lg btn-left"
+                    onClick='return show("final-page");'>
+                    <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
+                </button>
+                <button type="button" class="btn btn-primary btn-lg btn-right"
+                    onClick='return show("container-instructions1");'>
+                    <span class="glyphicon glyphicon-ok"></span> I Agree
+                </button>
             </center>
         </div>
     </div>
@@ -94,67 +112,40 @@
         <hr>
         <div class="instructions well">
             <p><u>
-                This experiment has three steps for each trial:
+                    This experiment has three steps for each trial:
             </p></u>
             <p>
                 1. Listen to the sound generated by the computer while it plays the instrument.
             </p>
             <p>
-                2. Then, you play the instrument by moving your finger(s) on the trackpad to replicate the sound you heard.  
+                2. Then, you play the instrument by moving your finger(s) on the trackpad to replicate the sound you
+                heard.
             </p>
             <p>
                 3. PAUSE when you reach the target to let the computer know that's your final answer.
             </p>
-                Remember: 
-                <ul>
-                <li>Use a <strong>trackpad</strong> to complete the task.</li> <li>Sound will play only when you drag your fingers within the playing area. </li>
-                <li>When you feel you've reached the target sound, PAUSE for so we know that's your final answer. Then lift your fingers off the trackpad. The cursor will reappear in the center for the next trial. 
-                </ul></p>
-            
-                <b><em>NOTE:</em></b> There are attention checks, so be sure to read their instructions thoroughly! Failing these checks will result in an incomplete session!
+            Remember:
+            <ul>
+                <li>Use a <strong>trackpad</strong> to complete the task.</li>
+                <li>Sound will play only when you drag your fingers within the playing area. </li>
+                <li>When you feel you've reached the target sound, PAUSE for so we know that's your final answer. Then
+                    lift your fingers off the trackpad. The cursor will reappear in the center for the next trial.
+            </ul>
             </p>
-        </div>
-        <hr>
-        <center>
-            <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-consent', 'container-instructions1');">
-            <span class="glyphicon glyphicon-arrow-left"></span> Back 
-            </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-dpi', 'container-instructions1');">
-            <span class="glyphicon glyphicon-arrow-right"></span> Next
-            </button>
-        </center>
-    </div>
 
-    <!-- Instructions to measure DPI
-        **TODO** To integrate section, modify the "onClick" method in the previous segment as well as TODO comments in index.js-->
-    <div id="container-dpi" style="display:none">
-        <h1>Measure your device sensitivity</h1>
-        <hr>
-        <div class="instructions well">
-            <p>
-                We will be measuring your device (mouse or trackpad) sensitivity in units of dots per inch (DPI). To measure your DPI, please follow the instructions on this <a href="https://www.mouse-sensitivity.com/dpianalyzer/"
-                    target="_blank"> website</a>. See additional clarifying instructions below:  
-            </p>
-            <p style="color:rgb(0, 0, 0)">
-                1. Physically mark how far you will be moving on your mouse or trackpad in inches, and input that into "Target distance".
-                <br> 2. Set "Units" to Inches and Axis to "X+".
-                <br> 3. Using your device, drag the red circle on ruler located at the bottom of the website the same distance you have marked in step 1. Make sure you are dragging to the circle to the right side.
-                <br> 4. Record the number shown for "Actual DPI" and input that in the following text box.
+            <b><em>NOTE:</em></b> There are attention checks, so be sure to read their instructions thoroughly! Failing
+            these checks will result in an incomplete session!
             </p>
         </div>
-        <form id="dpiform">
-            <div class="questions" id="dpi">
-                Please input the "Actual DPI" number here:
-                <input id="dpi" type="text" name="dpi" value="">
-            </div>
-        </form>
         <hr>
         <center>
-            <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-instructions1', 'container-dpi');">
-            <span class="glyphicon glyphicon-arrow-left"></span> Back 
-            </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg" onClick="return saveDPI();">
-            <span class="glyphicon glyphicon-arrow-right"></span> Next
+            <button type="button" class="btn btn-primary btn-lg btn-left"
+                onClick="return show('container-consent');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" class="btn btn-primary btn-lg btn-right"
+                onClick="return show('container-instructions2')">
+                <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
         </center>
     </div>
@@ -172,29 +163,31 @@
                 1. Listen to the sound generated by the computer while it plays the instrument.
             </p>
             <p style="color:red">
-                2. Then, you play the instrument by moving your finger(s) on the trackpad to replicate the sound you heard.  
+                2. Then, you play the instrument by moving your finger(s) on the trackpad to replicate the sound you
+                heard.
             </p>
             <p style="color:red">
-                3. PAUSE when you reach the target to let the computer know that's your final answer. Then lift your fingers off the trackpad. The cursor will reappear in the center for the next trial.  
-            </p>
-            <p style="color:red">
-                <i> You'll need the code word "rice" on the next page to indicate you've read and understand these steps.</i>
+                3. PAUSE when you reach the target to let the computer know that's your final answer. Then lift your
+                fingers off the trackpad. The cursor will reappear in the center for the next trial.
             </p>
             <div class="row">
                 <center>
                     <div class="columnB2">
-                        <video controls autoplay loop muted src="images/finding_center.mov" alt="Game image" style="width:100%"></video>
+                        <video controls autoplay loop muted src="images/finding_center.mov" alt="Game image"
+                            style="width:100%"></video>
                     </div>
                 </center>
             </div>
         </div>
         <hr>
         <center>
-            <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-dpi', 'container-instructions2');">
-            <span class="glyphicon glyphicon-arrow-left"></span> Back 
-            </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" class="btn btn-primary btn-lg" onClick="return show('container-info', 'container-instructions2');">
-            <span class="glyphicon glyphicon-arrow-right"></span> Next
+            <button type="button" class="btn btn-primary btn-lg btn-left"
+                onClick="return show('container-instructions1');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" class="btn btn-primary btn-lg btn-right"
+                onClick="return show('container-info');">
+                <span class="glyphicon glyphicon-arrow-right"></span> Next
             </button>
         </center>
     </div>
@@ -209,100 +202,97 @@
         <form id='infoform'>
             <div class="row question">
 
-                <div class="questions" id="email">
+                <div class="questions" id="id">
                     MTURK WorkerID:
-                    <input id="email-input" type="text" name="email" value="">
+                    <input id="email-input" type="text" name="id" value="">
                 </div>
 
                 <div class="questions" id="age">
                     Age:
-                    <input id="age" type="text" name="age" value="">
+                    <input id="age" type="number" pattern="[0-9]" onkeypress="return isNumericKey(event)" name="age">
                 </div>
 
                 <div class="questions" id="sex">
                     Gender:
                     <select id="gender" name="gender">
-                      <option value=""></option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Genderqueer/Non-Binary</option>
-                  </select>
+                        <option value=""></option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Genderqueer/Non-Binary</option>
+                    </select>
                 </div>
 
                 <div class="questions" id="handedness">
                     Right or left handed:
                     <select id="hand" name="hand">
-                    <option value=""></option>
-                    <option value="righth">Right</option>
-                    <option value="lefth">Left</option>
-                    <option value="bothh">Ambidextrous</option>
-                </select>
+                        <option value=""></option>
+                        <option value="righth">Right</option>
+                        <option value="lefth">Left</option>
+                        <option value="bothh">Ambidextrous</option>
+                    </select>
                 </div>
 
                 <div class="questions" id="mouseQ">
                     What kind of mouse are you using (Please only use trackpads):
                     <select id="mousetype" name="mousetype">
-                    <option value="">
-                    <option value="optical">Optical mouse (standard mouse)</option>
-                    <option value="trackpad">Trackpad</option>
-                    <option value="trackball">Trackball mouse</option>
-                </select>
+                        <option value="">
+                        <option value="optical">Optical mouse (standard mouse)</option>
+                        <option value="trackpad">Trackpad</option>
+                        <option value="trackball">Trackball mouse</option>
+                    </select>
                 </div>
 
                 <div class="questions" id="returner">
                     Have you done our experiments before?
                     <select id="repeat" name="repeater">
-                    <option value=""></option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                    <option value="idk">I don't remember</option>
-                </select>
-                </div>
-
-                <div class="questions" id="startcode">
-                    What's the code from the last page (Reread the instructions page if you don't know):
-                    <input id="code" type="text" name="code" value="">
+                        <option value=""></option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                        <option value="idk">I don't remember</option>
+                    </select>
                 </div>
 
                 <hr>
 
                 <p>
-                    The following information is requested by the National Institute of Health. You are not <em>required</em>, but are encouraged to complete these.
+                    The following information is requested by the National Institute of Health. You are not
+                    <em>required</em>, but are encouraged to complete these.
                 </p>
 
                 <div class="questions" id="ethnicity">
                     Ethnic Origin:
                     <select id="ethnic" name="ethnic">
-                    <option value="">
-                    <option value="hispanic">Hispanic or Latino</option>
-                    <option value="non-hispanic">Not Hispanic or Latino</option>
-                </select>
+                        <option value="">
+                        <option value="hispanic">Hispanic or Latino</option>
+                        <option value="non-hispanic">Not Hispanic or Latino</option>
+                    </select>
                 </div>
 
                 <div class="questions" id="racial origin">
                     Racial Origin:
                     <select id="race" name="race">
-                    <option value="">
-                    <option value="indian/native">American Indian or Alaskan Native</option>
-                    <option value="asian">Asian</option>
-                    <option value="african-american">Black or African American</option>
-                    <option value="pacific-islander">Native Hawaiian or Other Pacific Islander</option>
-                    <option value="white">White or Caucasian</option>
-                    <option value="multiple">More than one race</option>
-                    <option value="unkown">Unknown</option>
-                </select>
+                        <option value="">
+                        <option value="indian/native">American Indian or Alaskan Native</option>
+                        <option value="asian">Asian</option>
+                        <option value="african-american">Black or African American</option>
+                        <option value="pacific-islander">Native Hawaiian or Other Pacific Islander</option>
+                        <option value="white">White or Caucasian</option>
+                        <option value="multiple">More than one race</option>
+                        <option value="unkown">Unknown</option>
+                    </select>
                 </div>
-
             </div>
         </form>
         <hr>
         <center>
             <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
             <hr> -->
-            <button type="button" id="back" value="back" class="btn btn-primary btn-lg previous" onClick="show('container-instructions2', 'container-info');">
-                <span class="glyphicon glyphicon-arrow-left"></span> Back 
-            </button> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg continue" onClick="checkInfo();">
+            <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
+                onClick="return show('container-instructions2');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
+                onClick="return checkInfo();">
                 Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
             </button>
         </center>
@@ -326,7 +316,8 @@
             <h2>Now just two more question and you're done!</h2>
             <form id="distractionForm">
                 <div class="question" id="distraction">
-                    Please check any items that you have engaged in during the task. Please answer truthfully (there will be no penalty). <br>
+                    Please check any items that you have engaged in during the task. Please answer truthfully (there
+                    will be no penalty). <br>
                     <input type="checkbox" id="distract1" name="distract1" value="Phone">
                     <label for="distract1"> I used my cellphone</label><br>
                     <input type="checkbox" id="distract2" name="distract2" value="internet">
@@ -354,16 +345,14 @@
                 </div>
             </form>
             <center>
-                <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
-                <hr> -->
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                 <button type="button" id="end" value="final" onClick="saveFeedback();">
-                    Submit 
+                    Submit
                 </button>
             </center>
             <!-- **TODO** Customize the message you want for your experiment -->
             <h2>If you do not receive compensation in 14 business days please reach out to ___.</h2>
-            <h2>You have a wonderful life now!</h2>
+            <h2>Have a wonderful day!</h2>
+            <!-- <h2>You have a wonderful life now!</h2> -->
         </div>
     </div>
 
@@ -400,6 +389,6 @@
 <script src="static/lib/d3.v3.min.js"></script>
 <script src="static/lib/underscore-min.js"></script>
 <script src="static/lib/backbone-min.js"></script>
-<script src="index.js"></script>
+<script defer src="index.js"></script>
 
 </html>

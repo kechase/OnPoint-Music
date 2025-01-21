@@ -10,56 +10,286 @@ Remember to update necessary fields before starting the game. All fields that re
 // Set to 'true' if you wish to only test the front-end (will not access databases)
 // **TODO** Make sure this is set to false before deploying!
 const noSave = true;
+// TODO: Replace this with your own experiment file! 
+// Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead.
+const fileName = "./tgt_files/testShort.json";
 
+//#region Components
+class Circle {
+    constructor(parent, point, radius, fill, stroke){
+        this.radius = radius;
+		this.point = new Point (point.x, point.y);
 
-var fileName;
+		this.visible = false;
+        this.element = parent.append('circle')
+        	.attr('r', radius)
+        	.attr('stroke-width', 2)
+			.attr('cx', this.point.x)
+			.attr('cy', this.point.y)
+			.attr('display', 'none');
 
-/* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
-try {
-    let app = firebase.app();
-} catch (e) {
-    console.error(e);
+        this.setFill(fill);
+        this.setStroke(stroke);
+    }
+
+    setFill(color) {
+        this.element.attr('fill', color);
+    }
+
+    setStroke(color) {
+        this.element.attr('stroke', color);
+    }
+
+    // control how the element is displayed
+    display(isVisible) {
+        this.visible = isVisible;
+        const value = this.visible ? 'block' : 'none';
+        this.element.attr('display', value);
+    }
+
+    // update position of the element
+    update(x, y) {
+		const width = self.screen.availWidth;
+		const height = self.screen.availHeight;
+
+		if (x > width) {
+            x = width + 0.0;
+        } else if (x < 0) {
+            x = 0.0;
+        }
+
+        if (y > height) {
+            y = height + 0.0;
+        } else if (y < 0) {
+            y = 0.0;
+        }
+        this.point.x = x;
+        this.point.y = y;
+        this.element.attr("cx", x).attr("cy", y);
+    }
 }
 
-// Setting up firebase variables
-const firestore = firebase.firestore(); // (a.k.a.) db
-const firebasestorage = firebase.storage();
-const subjectcollection = firestore.collection("Subjects");
-const trialcollection = firestore.collection("Trials");
+class MusicBox {
+    constructor(handler) {
+        this.isPlaying = false;
+        // audio controls. 
+        this.audioContext = new (handler.AudioContext || handler.webkitAudioContext)();
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.gain.value = 0.001;
+        
+        // oscillator
+        this.oscillator = this.audioContext.createOscillator();
+        this.oscillator.type = 'sawtooth';
+        this.oscillator.frequency.value = 220;
+
+        // filter 1
+        this.filter1 = this.audioContext.createBiquadFilter();
+        this.filter1.type = 'bandpass';
+
+        // filter 2
+        this.filter2 = this.audioContext.createBiquadFilter();
+        this.filter2.type = 'bandpass';
+
+        // connect
+        this.oscillator.connect(this.filter1);
+        this.filter1.connect(this.filter2);
+        this.filter2.connect(this.gainNode);
+        this.gainNode.connect(this.audioContext.destination);
+        
+        // start
+        this.oscillator.start();
+    }
+
+    play() {
+        this.isPlaying = true;
+        this.gainNode.gain.setValueAtTime(8, 0); 
+    }
+
+    update( pitch, f1, f2 ) {
+        if ( !this.isPlaying ) {
+            this.play();
+        }
+        const currentTime = this.audioContext.currentTime;
+        this.oscillator.frequency.setValueAtTime(pitch, currentTime);
+        this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
+        this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
+
+        this.filter1.Q.setValueAtTime(12, currentTime);
+        this.filter2.Q.setValueAtTime(12, currentTime);
+    }
+
+    pause() {
+        this.isPlaying = false;
+        this.gainNode.gain.setValueAtTime(0, 0);
+    }
+}
+
+function Point(x, y) {
+    this.x = x;
+    this.y = y;
+}
+
+// we will create line soon here - Just need to make sure all of this still works.
+
+//#endregion
+
+//#region Models
+
+// This will be used to help create inheritance to save to database structure
+class Database {
+    constructor(table_name) {
+        this.table_name = table_name;
+		// this.collection = firestore.collection(this.table_name);
+    }
+
+    save() {
+		// for now we could just save this as Json file format?
+		const data = JSON.stringify(this);
+		const fs = require('node:fs');
+		fs.writeFile(this.table_name + ".json", data, function(err){
+			if (err) {
+				console.log("Fail to save " + this.table_name + " to file!", err);
+			}
+		})
+
+		// return this.collection.doc(this.id).set(this)
+        // .then(function() {
+        //     console.log(this);
+        //     return true;
+        // })
+        // .catch(function(err) {
+        //     console.error(err);
+        //     throw err;
+        // });
+
+        // TODO: Impl. code to save data to table.
+        // take this class and save the structure to approprate database location
+        // e.g. class name should be used as target table name to save to
+    }
+}
+
+class Subject extends Database  {
+    constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race) {
+        super("subject");
+        this.id = id,
+        this.age = age,
+        this.sex = sex,
+        this.handedness = handedness,
+        this.mousetype = mousetype,
+        this.returner = returner,
+        // **TODO** Update the 'fileName' to path to targetfile
+        this.tgt_file = "tgt_files/testShort.json",
+        this.ethnicity = ethnicity,
+        this.race = race,
+        this.comments = null,
+        this.distractions = [],
+        this.distracto = null
+    }
+
+    // contains the basic information required to proceed
+    isValid() {
+        return !(!this.id || !this.age || !this.sex || !this.handedness || !this.mousetype )
+    }
+}
+
+class Trial extends Database {
+    constructor(experimentID, id) {
+        super("trial");
+        this.id = id; 
+        this.experimentID = experimentID;
+        this.cursor_data = [];
+        this.blocks = [];
+    }    
+
+    // return the current trial number (usually define as number of blocks we've created and stored)
+    getBlockNum() {
+        return this.blocks.length;
+    }
+
+    // array are treated as reference. https://stackoverflow.com/questions/6605640/javascript-by-reference-vs-by-value
+    appendTrialBlock(target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback, cursor_data ) {
+        const lastTrialNum = this.getBlockNum();
+        const block = new Block(
+            lastTrialNum + 1,   //  num
+            target_angle, 
+            trial_type,
+            rotation,
+            hand_angle,
+            rt,
+            mt, 
+            time,
+            feedback,
+        );
+
+        // does this create a new array or clears the reference to it?
+        // clone this array
+        const data = [...cursor_data];
+
+        // append newly copy data value.
+        this.cursor_data.push(data);
+
+        // append data to this trial block
+        this.blocks.push(block);
+    }
+}
+
+class Block extends Database {
+    constructor(num, target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback){
+        super("block");
+        // auto create the date
+        const d = new Date();
+        const current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
+        
+        this.trialNum = num;
+        this.currentDate = current_date;
+        this.target_angle = target_angle;
+        this.trial_type = trial_type;
+        this.rotation = rotation;
+        this.hand_fb_angle = hand_angle;
+        this.rt = rt;
+        this.mt = mt;
+        this.search_time = time;
+        this.reach_feedback = feedback;
+        // this.log = [];  // used to collect mouse movement
+    }
+} 
+
+// used to track mouse movement when conducting the experiment run.
+class Log extends Database {
+    constructor(timestamp, x, y) {
+        super("Log");
+        this.timestamp = timestamp;
+        this.x = x;
+        this.y = y;
+    }
+}
+
+//#endregion
+
+//#region html event functions
+
+// Function used on html side of code.
+function isNumericKey(event) {
+    const code = (event.which) ? event.which : event.keyCode;
+    return !(code > 31 && (code < 48 || code > 57));
+}
+
+// variable to hold current display page. Will be used to hide when show is called
+let prevpage = 'container-consent';
 
 // Function to switch between HTML pages
-function show(shown, hidden) {
+function show(shown) {
+    if ( prevpage !== null ) {
+        document.getElementById(prevpage).style.display = 'none';
+    }
     document.getElementById(shown).style.display = 'block';
-    document.getElementById(hidden).style.display = 'none';
+    prevpage = shown;
     return false;
-}
-
-// Function to save the dpi
-function saveDPI() {
-    if (noSave) {
-        show('container-instructions2', 'container-dpi')
-        return false;
-    }
-    var values = $("#dpiform").serializeArray();
-    var dpi = values[0].value;
-    dpi = +dpi;
-    if (!dpi) {
-        alert("Please input a valid number!");
-        return;
-    }
-    subject.dpi = dpi;
-    show('container-instructions2', 'container-dpi')
-    return false;
-}
-
-// Close window (function no longer in use for this version)
-function onexit() {
-    window.close();
 }
 
 // Function used to enter full screen mode
 function openFullScreen() {
-    elem = document.getElementById('container-info');
+    const elem = document.getElementById('container-info');
     if (elem.requestFullscreen) {
         elem.requestFullscreen();
         console.log("enter1")
@@ -78,7 +308,11 @@ function openFullScreen() {
 // Function used to exit full screen mode
 function closeFullScreen() {
     if (document.exitFullscreen) {
-        document.exitFullscreen();
+        try {
+            document.exitFullscreen();
+        } catch(e) {
+            console.log("Somehow the client was not in full screen mode but we're still calling this anyway?",e );
+        }
     } else if (document.mozCancelFullScreen) {
         document.mozCancelFullScreen();
     } else if (document.webkitExitFullscreen) {
@@ -88,82 +322,51 @@ function closeFullScreen() {
     }
 }
 
+//#endregion
 // Object used track subject data (uploaded to database)
-var subject = {
-    id: null,
-    age: null,
-    sex: null,
-    handedness: null,
-    mousetype: null,
-    returner: null,
-    currTrial: 0,
-    tgt_file: null,
-    ethnicity: null,
-    race: null,
-    comments: null,
-    distractions: [],
-    distracto: null,
-    dpi: null
-}
+let subject;    // : Subject  
 
 // Object used to track reaching data (updated every reach and uploaded to database)
-var subjTrials = {
-    id: null,
-    experimentID: null,
-    trialNum: [],
-    currentDate: [],
-    target_angle: [],
-    trial_type: [],
-    rotation: [],
-    hand_fb_angle: [],
-    rt: [],
-    mt: [],
-    search_time: [],
-    reach_feedback: [],
-    group_type: null
+let subjTrials; // : Trial
+
+/* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
+try {
+    let app = firebase.app();
+} catch (e) {
+    console.error(e);
 }
 
-// Function used to check if all questions were filled in info form, if so, starts the experiment 
-function checkInfo() {
-    var actualCode = "rice"; // **TODO: Update depending on the "code" set in index.html
-    var values = $("#infoform").serializeArray();
-    subject.id = values[0].value;
-    subject.age = values[1].value;
-    subject.sex = values[2].value;
-    subject.handedness = values[3].value;
-    subject.mousetype = values[4].value;
-    subject.returner = values[5].value;
-    var code = values[6].value;
-    subject.ethnicity = values[7].value;
-    subject.race = values[8].value;
-    if (noSave) {
-        show('container-exp', 'container-info');
-        openFullScreen();
-        startGame();
-        return;
-    }
-    console.log(subject.id);
-    console.log(subject.handedness);
-    console.log(values)
-    if (!subject.id || !subject.age || !subject.sex || !subject.handedness || !subject.mousetype) {
-        alert("Please fill out your basic information!");
-        return;
-    } else if (actualCode.localeCompare(code) != 0) {
-        alert("Make sure to find the code from the last page before proceeding!")
-        return;
-    } else {
-        show('container-exp', 'container-info');
-        createSubject(subjectcollection, subject);
-        openFullScreen();
-        startGame();
-    }
-}
+// this issue may have to do with the fact that I'm running in offline mode, no internet connected to provide me access to firebase data information?
+// Setting up firebase variables
+const firestore = firebase.firestore(); // (a.k.a.) db
+const firebasestorage = firebase.storage();
+const subjectcollection = firestore.collection("Subjects");
+const trialcollection = firestore.collection("Trials");
 
-// Function used to create/update subject data in the database
-function createSubject(collection, subject) {
+const Phase = Object.freeze({
+    UNINIT: -1, // to avoid handling keyboard inputs
+    SEARCHING: 0,   // Looking for the center after a reach
+    HOLDING: 1, // Holding at start to begin the next target
+    SHOW_TARGETS: 2,    // Displaying the target
+    MOVING: 3,  // The reaching motion 
+    FEEDBACK: 4,    // Displaying the feedback after reach
+    BETWEEN_BLOCKS: 5   // Displaying break messages if necessary
+});
+
+const TrialType = Object.freeze({
+    Clamped: "clamped_fb",
+    Online: "online_fb",
+    None: "no_fb",
+});
+
+
+// Function used to create/update data in the target collection
+function updateCollection(collection, subject) {
     if (noSave) {
         return null;
     }
+
+    // TODO: Test and verify this working
     return collection.doc(subject.id).set(subject)
         .then(function() {
             console.log(subject);
@@ -175,219 +378,124 @@ function createSubject(collection, subject) {
         });
 }
 
-// Function used to upload reach data in the database
-function recordTrialSubj(collection, subjTrials) {
-    if (noSave) {
-        return null;
+// Function used to save the feedback from the final HTML page
+function saveFeedback() {
+    let values = $("#feedbackForm").serializeArray();
+    for (let i = 0; i < values.length; i++) {
+        if (values[0].value != "") {
+            subject.comments = values[0].value;
+        }
+
+        values = $("#distractionForm").serializeArray();
+        subject.distractions.push(values[i].value);
+        if (values[i].value == "other") {
+            subject.distracto = values[i + 1].value;
+            break;
+        }
     }
-    return collection.doc(subjTrials.id).set(subjTrials)
-        .then(function() {
-            return true;
-        })
-        .catch(function(err) {
-            console.error(err);
-            throw err;
-        });
+
+	// we should be saving the subject here?
+    updateCollection(subjectcollection, subject);
+    show('final-page');
 }
 
-// Variables used throughout the experiment
-var svgContainer;
-var screen_height;
-var screen_width;
-var elem;
-var experiment_ID;
-var subject_ID;
-var target_dist;
-var trial_type;
-var start_x;
-var start_y;
-var start_radius;
-var start_color;
-var target_x;
-var target_y;
-var target_radius;
-var target_color;
-var hand_x;
-var hand_y;
-var hand_fb_x;
-var hand_fb_y;
-var r;
-var cursor_x;
-var cursor_y;
-var cursor_radius;
-var cursor_color;
-var messages;
-var line_size;
-var message_size;
-var counter; // current reach count (starts at 1)
-var target_file_data;
-var rotation;
-var target_angle;
-var online_fb;
-var endpt_fb;
-var clamped_fb;
-var between_blocks;
-var trial; // trial count (starts at 0)
-var num_trials;
-var search_tolerance;
-var hand_angle;
-var hand_fb_angle;
-var rt;
-var mt;
-var search_time;
-var feedback_time;
-var feedback_time_slow;
-var if_slow;
-var hold_time;
-var hold_timer;
-var fb_timer;
-var begin;
-var timing;
-var SEARCHING;
-var HOLDING;
-var SHOW_TARGETS;
-var MOVING;
-var FEEDBACK;
-var BETWEEN_BLOCKS;
-var game_phase = BETWEEN_BLOCKS;
-var reach_feedback;
-var bb_counter;
-var target_invisible;
-var cursor_show;
+// Function used to check if all questions were filled in info form, if so, starts the experiment 
+function checkInfo() {
 
-// Variables to track screen size
-var prev_height;
-var prev_width;
+    const values = $("#infoform").serializeArray();
+    // form data used to create subject info
+    const email = values[0].value;
+    const age = values[1].value;
+    const sex = values[2].value;
+    const handedness = values[3].value;
+    const mousetype = values[4].value;
+    const returner = values[5].value;
+    const ethnicity = values[6].value;
+    const race = values[7].value;
+    
+    subject = new Subject(
+        email, 
+        age, 
+        sex, 
+        handedness,
+        mousetype,
+        returner, 
+        ethnicity,
+        race,
+    );
+    
+    // validation proceed here
+    // if (!subject.isValid()) {
+    //     alert("Please fill out your basic information!");
+    //     return;
+    // }
+	
+	// so what are we doing here?
+    // updateCollection(subjectcollection, subject);
+    
+	show('container-exp');
+    openFullScreen();
+    startGame();
+}
+
+const deg2rad = Math.PI / 180;
+const rad2deg = 100 / Math.PI;
+
+// Function used to start running the game
+function startGame() {
+    // TODO: before we deploy this website - please serve this on NodeJS and see if we can load the file properly
+    $.getJSON(fileName, function(json) {
+        gameSetup(json);
+    });
+}
+
+// Function to monitor changes in screen size;
+// event is not used
+// TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
+let prev_screen_size = 0;
+    
+function monitorWindow(_event) {
+    const curr_size = self.innerHeight * self.innerWidth;
+    if (prev_screen_size > curr_size) {
+        alert("Please enter full screen and click your mouse to continue the experiment! (Shortcut for Mac users: Command + Control + F. Shortcut for PC users: F11) ");
+    }
+    prev_screen_size = curr_size;
+}
 
 // Function that sets up the game 
 // All game functions are defined within this main function, treat as "main"
 function gameSetup(data) {
-    /*********************
-     * Browser Settings  *
-     *********************/
-
-    // Initializations to make the screen full size and black background
-    $('html').css('height', '98%');
-    $('html').css('width', '100%');
-    $('html').css('background-color', 'black')
-    $('body').css('background-color', 'black')
-    $('body').css('height', '98%');
-    $('body').css('width', '100%');
-
-    // Hide the mouse from view 
-    $('html').css('cursor', 'none');
-    $('body').css('cursor', 'none');
-
-    // SVG container from D3.js to hold drawn items
-    svgContainer = d3.select("body").append("svg")
-        .attr("width", "100%")
-        .attr("height", "100%").attr('fill', 'black')
-        .attr('id', 'stage')
-        .attr('background-color', 'black');
-
-    // Getting the screen resolution
-    screen_height = window.screen.availHeight;
-    screen_width = window.screen.availWidth;
-    prev_height = screen_height;
-    prev_width = screen_width;
     // Experiment parameters, subject_ID is no obsolete
-    experiment_ID = "test"; // **TODO** Update experiment_ID to label your experiments
-    subject_ID = Math.floor(Math.random() * 10000000000);
+    // **TODO** Update experiment_ID to label your experiments
+    const experiment_ID = "test"; 
+    // This is not used anywhere? Where is this being used?
+    // const subject_ID = Math.floor(Math.random() * 10000000000);
+    // array of cursor position during trials
+    let handPositions = []; 
 
-    /***************************
-     * Drawn Element Properties *
-     ***************************/
+    // current trial
+    let trial = 0; 
 
-    // Setting the radius from center to target location 
-    target_dist = screen_height / 4;
-    trial_type;
+    // Circle objects
+    let calibration = null;
+    let target = null;
+    let cursor = null;
 
-
-    // Setting parameters and drawing the center start circle
-    start_x = screen_width / 2;
-    start_y = screen_height / 2;
-    start_radius = Math.round(target_dist * 4.5 / 80.0);
-    start_color = 'white';
-
-    svgContainer.append('circle')
-        .attr('cx', start_x)
-        .attr('cy', start_y)
-        .attr('r', start_radius)
-        .attr('fill', 'none')
-        .attr('stroke', start_color)
-        .attr('stroke-width', 2)
-        .attr('id', 'start')
-        .attr('display', 'none');
-
-    // Setting parameters and drawing the target 
-    target_x = screen_width / 2;
-    target_y = Math.round(screen_height / 10 * 2);
-    target_radius = Math.round(target_dist * 4.5 / 80.0);
-    target_color = 'blue';
-
-    svgContainer.append('circle')
-        .attr('cx', target_x)
-        .attr('cy', target_y)
-        .attr('r', target_radius)
-        .attr('fill', target_color)
-        .attr('id', 'target')
-        .attr('display', 'none');
-
-    /* Initializing variables for:
-        - Coordinates of the mouse 
-        - Coordinates where the mouse crosses the target distance
-        - Radius from center to hand coordinates
-        - Coordinates of the displayed cursor (different from mouse if rotated)
-        - Size of the displayed cursor
-    */
-    hand_x = 0;
-    hand_y = 0;
-    hand_fb_x = 0;
-    hand_fb_y = 0;
-    r = 0;
-    cursor_x = 0;
-    cursor_y = 0;
-    cursor_radius = Math.round(target_dist * 1.75 * 1.5 / 80.0);
-    cursor_color = 'white';
-
-
-    // Function to move cursor to random location near center
-    function moveCursor() {
-        var off_x = Math.random() * start_radius + start_radius;
-        var off_y = Math.random() * start_radius + start_radius;
-        var flip_x = Math.floor(Math.random() * 2);
-        var flip_y = Math.floor(Math.random() * 2);
-        if (flip_x) {
-            hand_x = start_x - off_x;
-        } else {
-            hand_x = start_x + off_y;
-        }
-        if (flip_y) {
-            hand_y = start_y - off_y;
-        } else {
-            hand_y = start_y + off_y;
-        }
-    }
-
-
-
-    console.log("Initial X: " + hand_x + " Initial Y: " + hand_y);
-    // Drawing the displayed cursor 
-    svgContainer.append('circle')
-        .attr('cx', hand_x)
-        .attr('cy', hand_y)
-        .attr('r', cursor_radius)
-        .attr('fill', cursor_color)
-        .attr('id', 'cursor')
-        .attr('display', 'none');
+    const feedback_time = 50;       // length of time feedback remains (ms)
+    const feedback_time_slow = 750; // length of "too slow" feedback (ms)
+    const hold_time = 500;  // length of time users must hold in start before next trial (ms)
+    const green_time = 1000;    // length of time the start circle in holding phase will turn to green (ms)
+    const search_too_slow = 3000; // Parameters and display for when users take too long to locate the center (ms)
+    const too_slow_time = 5000; // Setting up parameters and display when reach is too slow (ms)
 
     // The between block messages that will be displayed
     // **TODO** Update messages depending on your experiment
-    messages = [
+    // TODO: Talk to Katie if she wants to include messages inside JSON file?
+    const messages = [
         ["Dummy Message Test"],
-        ["The white dot will now be visible.", // Message displayed when bb_mess == 1
-            "Quickly move your white dot to the target.",
-            "Press 'b' when you are ready to proceed."
+        [ "Wait until the center circle turns green.", // Message displayed when bb_mess == 1
+        "Listen to the sound, then move in the direction that recreates the sound.",
+        "Press 'b' when you are ready to proceed."
         ],
         ["This is an instruction understanding check, you may proceed ONLY if you choose the correct choice.", // Message displayed when bb_mess == 2
             "Choosing the wrong choice will result in early game termination and an incomplete HIT!",
@@ -413,95 +521,237 @@ function gameSetup(data) {
         ]
     ];
 
-    // Setting size of the displayed letters and sentences
-    line_size = Math.round(screen_height / 30)
-    message_size = String(line_size).concat("px");
+    const musicBox = new MusicBox(self);
+    // Calculated hand angles
+    let hand_fb_angle = 0;
 
-    // Setting up first initial display once the game is launched 
-    // **TODO** Update the '.text' sections to change initial displayed message
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 - line_size)
-        .attr('fill', 'white')
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'message-line-1')
-        .attr('display', 'block')
-        .text('Move the white dot to the center.');
+    // Timing Variables
+    let rt = 0; // reaction time
+    let mt = 0; // movement time
+    let search_time = 0; // time to reset trial (includes hold time);
+    
+    // Initializing timer objects and variables
+    let hold_timer = null;
+    let green_timer = null;
+    let stop_target_music_timer = null; // timer used to stop the target music for audience to hear/listen to before moving
+    let target_display_timer = null;
+	let too_slow_timer = null;
+    // Phase is already declared before accessing, so why is it giving me the error message?
+    let game_phase = Phase.UNINIT;
+    let reach_feedback = "";	// could be made as a enum
+    let play_sound = true;
+    let begin = new Date();
 
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2)
-        .attr('fill', 'white')
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'message-line-2')
-        .attr('display', 'block')
-        .text('The white dot will be visible during your reach.');
+    const target_file_data = data;
 
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 + line_size)
-        .attr('fill', 'white')
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'message-line-3')
-        .attr('display', 'block')
-        .text('Quickly move your white dot to the target.');
+    /**
+     * Python generate script output the following JSON format
+    // May be obsolete 
+    "trialnum" = trialNums
+    "aiming_landmarks" = aimingLandmarks
+    "online_fb" = onlineFB
+    "endpoint_feedback" = endpointFB
+    "rotation" = rotation
+    "clamped_fb" = clampedFB
+    "tgt_angle" = anglesDict
+    "tgt_distance" = tgtDistance
+    "between_blocks" = betweenBlocks
+    "target_jump" = targetJump
+     */
+    
+    // Reading the json target file into the game
+    const online_fb = target_file_data.online_fb;
+    const endpt_fb = target_file_data.endpoint_feedback;
+    const rotation = target_file_data.rotation; // degrees
+    const clamped_fb = target_file_data.clamped_fb;
+    const tgt_angle = target_file_data.tgt_angle;
+    // not in use anywhere?
+	tgt_distance = target_file_data.tgt_distance;
+    const between_blocks = target_file_data.between_blocks;
+    target_jump = target_file_data.target_jump;
 
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2 + line_size * 2)
-        .attr('fill', 'white')
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'message-line-4')
-        .attr('display', 'block')
-        .text('Press SPACE BAR when you are ready to proceed.');
+    // there is missing variables unused - target_file_data.tgt_distance
 
-    // Setting up parameters and display when reach is too slow
-    too_slow_time = 300; // in milliseconds
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 2)
-        .attr('fill', 'red')
-        .attr('font-family', 'sans-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'too_slow_message')
-        .attr('display', 'none')
-        .text('Move Faster');
+    // Between blocks parameters
+    // TODO: Data normalization - what is this suppose to be?
+    let bb_mess = between_blocks[0];
 
-    // Parameters and display for when users take too long to locate the center
-    search_too_slow = 3000; // in milliseconds
-    svgContainer.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', screen_width / 2)
-        .attr('y', screen_height / 3 * 2)
-        .attr('fill', 'white')
-        .attr('font-family', 'san-serif')
-        .attr('font-size', message_size)
-        .attr('id', 'search_too_slow')
-        .attr('display', 'none')
-        .text('To find your cursor, try moving your mouse to the center of the screen.');
+    // [F] - Data optimization. We don't need to have a number of trials variable here. We would just rely on the number of trial we have in our collection in the database.
+    const num_trials = target_file_data.numtrials;
 
-    // Parameters and display for the reach counter located at the bottom right corner
-    counter = 1;
-    totalTrials = target_file_data.numtrials;
-    svgContainer.append('text')
-        .attr('text-anchor', 'end')
-        .attr('x', screen_width / 20 * 19)
-        .attr('y', screen_height / 20 * 19)
-        .attr('fill', 'white')
-        .attr('font-size', message_size)
-        .attr('id', 'trialcount')
-        .attr('display', 'none')
-        .text('Reach Number: ' + counter + ' / ' + totalTrials);
+    // TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
+    const screen_width = self.innerWidth;
+	const screen_height = self.innerHeight;
+	prev_screen_size = screen_width * screen_height;
 
+	// potential bug - what if some of the client plays in portrait mode?
+    const target_dist = screen_height / 3;
+    const center = new Point( screen_width / 2.0, screen_height / 2.0 );
+	
+	// Red box dimension
+	const squareLeft = center.x - target_dist;
+	const squareTop = center.y - target_dist;
+	const squareSize = 2 * target_dist;
+    
+    function setupPageRender(center) {
+        // Initializations to make the screen full size and black background
+        $('html').css('height', '98%');
+        $('html').css('width', '100%');
+        $('html').css('background-color', 'black')
+        $('body').css('background-color', 'black')
+        $('body').css('height', '98%');
+        $('body').css('width', '100%');
+
+        // Hide the mouse from view 
+        $('html').css('cursor', 'none');
+        $('body').css('cursor', 'none');
+
+        // SVG container from D3.js to hold drawn items
+        const svgContainer = d3.select("body").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%").attr('fill', 'black')
+            .attr('id', 'stage')
+            .attr('background-color', 'black');
+
+            // Setting size of the displayed letters and sentences
+        const line_size = Math.round(screen_height / 30)
+        const message_size = String(line_size).concat("px");
+
+        // Setting up first initial display once the game is launched 
+        // **TODO** Update the '.text' sections to change initial displayed message
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y - line_size)
+            .attr('fill', 'white')
+            .attr('font-family', 'sans-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'message-line-1')
+            .attr('display', 'block')
+            .text('Move the white dot to the center.');
+
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y)
+            .attr('fill', 'white')
+            .attr('font-family', 'sans-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'message-line-2')
+            .attr('display', 'block')
+            .text('Wait until the center circle turns green.');
+
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y + line_size)
+            .attr('fill', 'white')
+            .attr('font-family', 'sans-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'message-line-3')
+            .attr('display', 'block')
+            .text('Move to the blue target. Remember the sound.');
+
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y + line_size * 2)
+            .attr('fill', 'white')
+            .attr('font-family', 'sans-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'message-line-4')
+            .attr('display', 'block')
+            .text('Press SPACE BAR when you are ready to proceed.');
+
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y)
+            .attr('fill', 'red')
+            .attr('font-family', 'sans-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'too_slow_message')
+            .attr('display', 'none')
+            .text('Move Faster');
+
+        svgContainer.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('x', center.x)
+            .attr('y', center.y * 2)
+            .attr('fill', 'white')
+            .attr('font-family', 'san-serif')
+            .attr('font-size', message_size)
+            .attr('id', 'search_too_slow')
+            .attr('display', 'none')
+            .text('To find your cursor, try moving your mouse to the center of the screen.');
+
+        reach_number_point = new Point(center.x + ( squareSize / 2 ), squareTop + squareSize + line_size );
+        svgContainer.append('text')
+            .attr('text-anchor', 'end')
+            // why is this special? What does the magic number represent?
+            // .attr('x', center.x / 20 * 19)
+            // .attr('y', center.y / 20 * 19)
+            .attr('x', reach_number_point.x)
+            .attr('y', reach_number_point.y)
+            .attr('fill', 'white')
+            .attr('font-size', message_size)
+            .attr('id', 'trialcount')
+            .attr('display', 'block')
+            .text('Reach Number: ? / ?');
+
+        // Draw the red square
+        svgContainer.append('rect')
+            .attr('x', squareLeft) // Left boundary of the square
+            .attr('y', squareTop) // Top boundary of the square
+            .attr('width', squareSize) // Width of the square
+            .attr('height', squareSize) // Height of the square
+            .attr('fill', 'none') // Transparent fill
+            .attr('stroke', 'red') // Border color
+            .attr('stroke-width', 2) // Border thickness
+            .attr('id', 'targetSquare') // Unique ID for the square
+            .attr('display', 'block'); // Ensure it's visible
+
+        return svgContainer;
+    }
+
+    const handler = setupPageRender(center);    
+
+    // Setting the radius from center to target location 
+    let trial_type = TrialType.None;
+
+    // Setting parameters and drawing the center start circle
+    calibration = new Circle(
+        handler, // parent
+        center,   // point
+        Math.round(target_dist * 4.5 / 80.0), // radius
+    	'none', // color
+        'white' // stroke
+    ); 
+
+    // Setting parameters and drawing the target
+    target = new Circle(
+        handler, // parent
+        center,  // point
+        // this is confusing? How big is this suppose to be?
+        Math.round(target_dist * 4.5 / 80.0), // radius
+        'blue',  // color
+        'none'  // stroke
+    );
+	// not sure where the extra value is coming from?
+	// console.log("target", target, center);
+
+	// original code had to move the circle away from origin to avoid accidential start. Apply offset here.
+    // Draw the white circle mouse cursor 
+    cursor = new Circle(
+        handler, // parent
+        center, // point
+        // this is confusing? How big is this suppose to be?
+		// also what is the order of operation here? How are the number generated?
+        Math.round(target_dist * 1.75 * 1.5 / 80.0), // radius
+        'white', 
+        'none'
+    );
+        
     /***************************************
      * Pointer Lock Variables and Functions *
      ***************************************/
@@ -509,8 +759,9 @@ function gameSetup(data) {
     document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
     document.addEventListener('pointerlockchange', lockChangeAlert, false);
     document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
-    window.addEventListener('resize', monitorWindow, false);
+    self.addEventListener('resize', monitorWindow, false);
     document.addEventListener('click', setPointerLock, false);
+
     // Function to monitor changes in pointer lock
     function lockChangeAlert() {
         if (document.pointerLockElement === stage ||
@@ -530,88 +781,13 @@ function gameSetup(data) {
         console.log("Attempted to lock pointer");
         stage.requestPointerLock();
     }
+
     setPointerLock();
 
-    // Function to monitor changes in screen size;
-    function monitorWindow(event) {
-        var prev_size = prev_width * prev_height;
-        var curr_size = window.innerHeight * window.innerWidth;
-        console.log("prev size: " + prev_size + " curr size: " + curr_size);
-        if (prev_size > curr_size) {
-            alert("Please enter full screen and click your mouse to continue the experiment! (Shortcut for Mac users: Command + Control + F. Shortcut for PC users: F11) ");
-        }
-        prev_width = window.innerWidth;
-        prev_height = window.innerHeight;
-        return;
-    }
-    /*****************
-     * Task Variables *
-     *****************/
-
-    // Reading the json target file into the game
-    target_file_data = data;
-    rotation = target_file_data.rotation; // degrees
-    target_angle = target_file_data.tgt_angle; //degrees
-    online_fb = target_file_data.online_fb;
-    endpt_fb = target_file_data.endpoint_feedback;
-    clamped_fb = target_file_data.clamped_fb;
-    between_blocks = target_file_data.between_blocks;
-    target_jump = target_file_data.target_jump;
-    num_trials = target_file_data.numtrials;
-
-    // Initializing trial count
-    trial = 0;
-
     // The distance from start at which they can see their cursor while searching in between trials
-    search_tolerance = start_radius * 4 + cursor_radius * 4;
-
-    // Calculated hand angles
-    hand_angle = 0;
-    hand_fb_angle = 0;
-
-    // Timing Variables
-    rt = 0; // reaction time
-    mt = 0; // movement time
-    search_time = 0; // time to reset trial (includes hold time)
-    feedback_time = 50; // length of time feedback remains (ms)
-    feedback_time_slow = 750; // length of "too slow" feedback
-    hold_time = 500; // length of time users must hold in start before next trial (ms)
-
-    // Initializing timer objects and variables
-    hold_timer = null;
-    fb_timer = null;
-
-    // Variable to start clock for calculating time spent in states
-    begin;
-    /* Flag variables for
-        - Whether or not hand is within start circle
-        - Whether or not previous reach was too slow
-    */
-    timing = true;
-    if_slow = false;
-
-    // Game Phase Flags
-    SEARCHING = 0; // Looking for the center after a reach
-    HOLDING = 1; // Holding at start to begin the next target
-    SHOW_TARGETS = 2; // Displaying the target
-    MOVING = 3; // The reaching motion 
-    FEEDBACK = 4; // Displaying the feedback after reach
-    BETWEEN_BLOCKS = 5; // Displaying break messages if necessary
-    game_phase = BETWEEN_BLOCKS;
-
-    // Initializing between block parameters
-    reach_feedback;
-    bb_counter = 0;
-    bb_mess = between_blocks[0];
-
-    // Flags to determine whether we are showing the target and cursor (not mouse)
-    target_invisible = true; // for clicking to see target
-    cursor_show = false;
-
-    if (trial == 0) {
-        moveCursor();
-    }
-
+    // TODO: Talk to Katie if we still need this? Used as an indicator to display cursor before moving back to start.
+    // search_tolerance = start.radius * 4 + cursor.radius * 4;
+    
     /********************
     * Update Cursor Function*
     * This function gets called every time a participant moves their mouse.*
@@ -624,171 +800,187 @@ function gameSetup(data) {
     ********************/
     function update_cursor(event) {
         // Record the current mouse movement location
-        event = event || window.event;
-        hand_x += event.movementX;
-        hand_y += event.movementY;
+        event = event || self.event;
+        
+        const cursor_x = cursor.point.x + event.movementX;
+        const cursor_y = cursor.point.y + event.movementY;
 
         // Ensure we do not exceed screen boundaries
-        if (hand_x > screen_width) {
-            hand_x = screen_width;
-        } else if (hand_x < 0) {
-            hand_x = 0;
-        }
-        if (hand_y > screen_height) {
-            hand_y = screen_height;
-        } else if (hand_y < 0) {
-            hand_y = 0;
-        }
-        // Update radius between start and hand location
-        r = Math.sqrt(Math.pow(start_x - hand_x, 2) + Math.pow(start_y - hand_y, 2));
-
+        // update cursor position
+        cursor.update(cursor_x, cursor_y);
+        
+        // distance between cursor and start
+        const distance = Math.sqrt(Math.pow(calibration.point.x - cursor.point.x, 2.0) + Math.pow(calibration.point.y - cursor.point.y, 2.0));
+        
         // Update hand angle
-        hand_angle = Math.atan2(start_y - hand_y, hand_x - start_x) * 180 / Math.PI;
+        // no longer in use since the code down below is commented out, we're using hand_fb_angle instead?
+        // hand_angle = Math.atan2(calibration.point.y - cursor.point.y, cursor.point.x - calibration.point.x) * rad2deg;
+        
+		// let value = 0;
+		// if ( clamped_fb[trial]) {
+		// 	value = target_angle[trial];
+		// } else if (online_fb[trial]) {
+		// 	value = hand_angle;
+		// };
 
-        // Calculations done in the MOVING phase
-        if (game_phase == MOVING) {
-            console.log(target_jump[trial]); // Debugging message to check if there was supposed to be a target jump
-            /*
-              Jump target to clamp if target_jump[trial] == 1
-              Jump target away from clamp by target_jump[trial] if value is neither 0 || 1
-            */
-            if (target_jump[trial] == 1) {
-                target_x = start_x + target_dist * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-                target_y = start_y - target_dist * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-                d3.select('#target').attr('cx', target_x).attr('cy', target_y).attr('display', 'block');
-            } else if (target_jump[trial] != 0) {
-                target_x = start_x + target_dist * Math.cos((target_angle[trial] + target_jump[trial]) * Math.PI / 180);
-                target_y = start_y - target_dist * Math.sin((target_angle[trial] + target_jump[trial]) * Math.PI / 180);
-                d3.select('#target').attr('cx', target_x).attr('cy', target_y).attr('display', 'block');
-            }
+        const point = cursor.point;
+        switch ( game_phase) {
+            case Phase.HOLDING:
+                // Move from hold back to search phase if they move back beyond the search tolerance
+                if( distance > calibration.radius ) {
+                    search_phase();
+                } 
+                break;
 
-            // Updating cursor locations depending on clamp, fb, no_fb
-            if (clamped_fb[trial]) { // Clamped feedback
-                cursor_x = start_x + r * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-                cursor_y = start_y - r * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-            } else if (online_fb[trial]) { // Rotated feedback (vmr)
-                cursor_x = start_x + r * Math.cos((hand_angle + rotation[trial]) * Math.PI / 180);
-                cursor_y = start_y - r * Math.sin((hand_angle + rotation[trial]) * Math.PI / 180);
-            } else { // Veritical feedback
-                cursor_x = hand_x;
-                cursor_y = hand_y;
-            }
-        } else {
-            cursor_x = hand_x;
-            cursor_y = hand_y;
-        }
-
-        // Calculations done in the HOLDING phase
-        if (game_phase == HOLDING) {
-            if (r <= start_radius) { // Fill the center if within start radius
-                d3.select('#cursor').attr('display', 'none');
-                d3.select('#start').attr('fill', 'white');
-            } else { // Display cursor otherwise
-                d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-                d3.select('#start').attr('fill', 'none');
-            }
-            // Calculations done in SHOW_TARTETS phase
-        } else if (game_phase == SHOW_TARGETS) {
-            d3.select('#cursor').attr('display', 'none');
-            d3.select('#start').attr('fill', 'white');
-            // Flag cursor to display if within certain distance to center
-        } else if (game_phase == SEARCHING) {
-            if (r <= target_dist * 1) {
-                cursor_show = true;
-            }
-
-            // Display the cursor if flag is on 
-            if (cursor_show) {
-                d3.select('#cursor').attr('display', 'block'); // show cursor
-                d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-            } else {
-                $('html').css('cursor', 'none');
-                $('body').css('cursor', 'none'); //ensure mouse is hidden
-                d3.select('#cursor').attr('display', 'none'); // hide the cursor
-            }
-
-            // Displaying the start circle and trial count 
-            d3.select('#start').attr('display', 'block');
-            d3.select('#trialcount').attr('display', 'block');
-
-            // Displaying searching too slow message if threshold is crossed
-            if (new Date() - begin > search_too_slow) {
-                d3.select('#search_too_slow').attr('display', 'block');
-                if (new Date() - begin > search_too_slow + 2000) {
-                    // d3.select('#encouragement').attr('display', 'block')
+            case Phase.SHOW_TARGETS:
+                // Move from show targets to moving phase once user has begun their reach
+                if ( distance > calibration.radius) {
+                    // we could also control if we want to wait for the target to finish the demo before moving the cursor.
+                    // right now, if the mouse move out, we will stop the target and let the user conduct the experiment.
+                    moving_phase();
                 }
-            }
-            // Displaying the cursor during MOVING if targetfile indicates so for the reach
-        } else if (game_phase == MOVING) {
-            if (online_fb[trial] || clamped_fb[trial]) {
-                d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-            } else {
-                d3.select('#cursor').attr('display', 'none'); // hide the cursor
-            }
-        }
+                break;
 
-        // Trigger Game Phase Changes that are Dependent on Cursor Movement
+            case Phase.SEARCHING:    
+                // Move from search to hold phase if they move within search tolerance of the start circle
+                if( distance <= calibration.radius ) {
+                    hold_phase();
+                }
+                break;
 
-        // Move from search to hold phase if they move within search tolerance of the start circle 
-        if (game_phase == SEARCHING && r <= search_tolerance && cursor_show) {
-            d3.select('#search_too_slow').attr('display', 'none');
-            // d3.select('#encouragement').attr('display', 'none');
-            hold_phase();
+            case Phase.MOVING: 
 
+                // record mouse data
+                handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
+				
+				// {
+				// 	const angle = rotation[trial] * value * rad2deg;
+				// 	const x = calibration.point.x + distance * Math.cos(angle);
+				// 	const y = calibration.point.y + distance * Math.sin(angle);
+				// 	cursor.update(x, y);
+				// }
 
-            // Move from hold back to search phase if they move back beyond the search tolerance
-        } else if (game_phase == HOLDING && r > search_tolerance) {
-            search_phase();
+				// Updating cursor locations depending on clamp, fb, no_fb
+				// TODO Ask Katie to explain the difference between clamped_fb and online_fb trials?
+				// if (clamped_fb[trial]) { // Clamped feedback
+				//     const x = start.point.x + r * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
+				//     const y = start.point.y - r * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
+				//     cursor.update(x,y);
+				// } else if (online_fb[trial]) { // Rotated feedback (vmr)
+				//     const x = start.point.x + r * Math.cos((hand_angle + rotation[trial]) * Math.PI / 180);
+				//     const y = start.point.y - r * Math.sin((hand_angle + rotation[trial]) * Math.PI / 180);
+				//     cursor.update(x, y);
+				// } else { // Veritical feedback
+				//     cursor.update(hand_x, hand_y);
+				// }
 
-            // Start the hold timer if they are within the start circle
-            // Timing flag ensures the timer only gets started once
-        } else if (game_phase == HOLDING && r <= start_radius && !timing) {
-            timing = true;
-            hold_timer = setTimeout(show_targets, hold_time);
+                // Check if cursor is within the red square
+                if (point.x >= squareLeft &&
+                    point.x <= squareLeft + squareSize &&
+                    point.y >= squareTop &&
+                    point.y <= squareTop + squareSize
+                ) {
+                    // generate value for vowel formants
+                    const { f1, f2, _vowel } = getVowelFormants(point.y, squareTop, squareSize);
+                    const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
 
-            // Clear out timer if holding is completed
-        } else if (game_phase == HOLDING && r > start_radius && timing) {
-            timing = false;
-            d3.select('#message-line-1').attr('display', 'none');
-            clearTimeout(hold_timer);
+                    // update musicbox
+                    musicBox.update(pitch, f1, f2);
+                } else {
+                    musicBox.pause();
+                }
 
-            // Move from show targets to moving phase once user has begun their reach
-        } else if (game_phase == SHOW_TARGETS && r > start_radius && !target_invisible) { // for clicking
-            moving_phase();
-
-            // Move from moving to feedback phase once their reach intersects the target ring
-        } else if (game_phase == MOVING && r > target_dist) {
-            fb_phase();
+                // Move from moving to feedback phase once their reach intersects the target ring
+                if ( distance > target_dist ) {
+                    // stop audio
+                    musicBox.pause();
+                    fb_phase();
+                }
+                break;
         }
     }
 
     // Function called whenever a key is pressed
     // **TODO** Make sure the conditions match up to the messages displayed in "messages"
     function advance_block(event) {
-        var SPACE_BAR = 32;
-        var a = 65;
-        var e = 69;
-        var b = 66;
-        var f = 70;
-        // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
-        if ((game_phase == BETWEEN_BLOCKS && (bb_mess == 5 || bb_mess == 2) && event.keyCode == a) || bb_mess == 0) {
+        const SPACE_BAR = " ";//32;
+        const a = "a";//65;
+        const e = "e";//69;
+        const b = "b";//66;
+        // const f = 70;   // not in use?
+        // keyCode is marked deprecated - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode 
+        // use keyboardEvent.key instead - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key 
+        const key = event.key.toLowerCase(); 
+
+        // start of the trial - we do not ask for client keyboard feedback, immediately search_phase();
+        if ( bb_mess == 0 ) {
             search_phase();
-        } else if ((game_phase == BETWEEN_BLOCKS && bb_mess == 4 && event.keyCode == e)) {
-            search_phase();
-        } else if (game_phase == BETWEEN_BLOCKS && bb_mess == 1 && event.keyCode == b) {
-            search_phase();
-        } else if (game_phase == BETWEEN_BLOCKS && event.keyCode == SPACE_BAR && (bb_mess == 3 || bb_mess == 6)) {
-            search_phase();
-        } else if (game_phase != BETWEEN_BLOCKS) {
-            // Do nothing
-        } else {
-            console.log("premature end");
-            console.log(bb_mess);
-            window.removeEventListener('resize', monitorWindow, false);
-            document.removeEventListener('click', setPointerLock, false);
-            document.exitPointerLock();
+            return;
+        }
+        
+        // this could be converted as a separate block trial to run through.
+        if ( game_phase == Phase.BETWEEN_BLOCKS ) {
+            
+            // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
+            if ( bb_mess == 1 && key == b ) {
+                search_phase();
+                return;
+            }
+
+            if (( bb_mess == 2 || bb_mess == 5) && key == a) {
+                search_phase();
+                return;
+            }
+
+            if ( (bb_mess == 3 || bb_mess == 6 ) && key == SPACE_BAR ) {
+                search_phase();
+                return;
+            }
+            
+            if ( bb_mess == 4 && key == e ) {
+                search_phase();
+                return;
+            }
+
             badGame(); // Premature exit game if failed attention check
         }
+    
+        // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
+        // if ((game_phase == Phase.BETWEEN_BLOCKS && (bb_mess == 5 || bb_mess == 2) && event.keyCode == a) || bb_mess == 0) {
+        //     search_phase();
+        // } else if ((game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 4 && event.keyCode == e)) {
+        //     search_phase();
+        // } else if (game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 1 && event.keyCode == b) {
+        //     search_phase();
+        // } else if (game_phase == Phase.BETWEEN_BLOCKS && event.keyCode == SPACE_BAR && (bb_mess == 3 || bb_mess == 6)) {
+        //     search_phase();
+        // } else if (game_phase != Phase.BETWEEN_BLOCKS) {
+        //     // Do nothing
+        // } else {
+        //     // Hmm>
+        //     console.log("premature end");
+        //     console.log(bb_mess);
+        //     // self.removeEventListener('resize', monitorWindow, false);
+        //     // window.removeEventListener('resize', monitorWindow, false);
+        //     // document.removeEventListener('click', setPointerLock, false);
+        //     // document.exitPointerLock();
+        //     // badGame(); // Premature exit game if failed attention check
+        // }
+    }
+
+    function displayMessage(idx) {
+        // Load messages
+        d3.select('#message-line-1').attr('display', 'block').text(messages[idx][0]);
+        d3.select('#message-line-2').attr('display', 'block').text(messages[idx][1]);
+        d3.select('#message-line-3').attr('display', 'block').text(messages[idx][2]);
+        d3.select('#message-line-4').attr('display', 'block').text(messages[idx][3]);
+    }
+
+    function hideMessage() {
+        d3.select('#message-line-1').attr('display', 'none');
+        d3.select('#message-line-2').attr('display', 'none');
+        d3.select('#message-line-3').attr('display', 'none');
+        d3.select('#message-line-4').attr('display', 'none');
     }
 
     /***********************
@@ -798,36 +990,118 @@ function gameSetup(data) {
 
     // Phase when searching for the center start circle
     function search_phase() {
-        game_phase = SEARCHING;
+        // Clear out timer if holding was incomplete
+        if ( hold_timer != null ) {
+            clearTimeout(hold_timer);
+            hold_timer = null;
+        }
+
+		if ( too_slow_timer != null ) {
+			clearTimeout(too_slow_timer);
+			too_slow_timer = null;
+		}
 
         // Start of timer for search time
         begin = new Date();
 
-        // Start circle becomes visible, target, cursor invisible
-        d3.select('#start').attr('display', 'block').attr('fill', 'none');
-        d3.select('#target').attr('display', 'none').attr('fill', 'blue');
-        d3.select('#cursor').attr('display', 'none');
-        d3.select('#message-line-1').attr('display', 'none');
-        d3.select('#message-line-2').attr('display', 'none');
-        d3.select('#message-line-3').attr('display', 'none');
-        d3.select('#message-line-4').attr('display', 'none');
-        d3.select('#too_slow_message').attr('display', 'none');
-        d3.select('#trialcount').attr('display', 'block');
-    }
+        // Start circle becomes visible, target and cursor invisible
+        calibration.display(true);
+        calibration.setFill('none');
+        calibration.setStroke('white');
 
-    // Obsolete function
-    function end_game() {
-        game_phase = END_GAME;
+        // if we want to delay the target display then we can do it here?
+        target_display_timer = setTimeout(() => target.display(false), 2000 );
+        cursor.display(true);
+
+        hideMessage();
+        d3.select('#too_slow_message').attr('display', 'none');
+
+		// Displaying searching too slow message if threshold is crossed
+		// if (new Date() - begin > search_too_slow) {
+		too_slow_timer = setTimeout(() => {
+			d3.select('#search_too_slow').attr('display', 'block');
+		}, search_too_slow);
+		//  }
+
+        // update game_phase
+        game_phase = Phase.SEARCHING;
     }
 
     // Phase when users hold their cursors within the start circle
     function hold_phase() {
-        game_phase = HOLDING;
+        if ( target_display_timer != null ) {
+            clearTimeout(target_display_timer);
+            target_display_timer = null;
+        }
+
+        // Fill the center if within start radius
+        cursor.display(false);
+        calibration.display(true);
+        calibration.setFill('white');
+
+		clearTimeout(too_slow_timer);
+		too_slow_timer = null;
+
+        d3.select('#search_too_slow').attr('display', 'none');
+
+        hold_timer = setTimeout(show_targets, hold_time);
+        game_phase = Phase.HOLDING;
+    }
+
+    // Used to help interpolate start to end target points.
+    function animate(update, duration, onfinish) {
+        const start = performance.now();
+
+        requestAnimationFrame(function animate(time) {
+            let timeFraction = (time - start) / duration;
+            if ( timeFraction > 1 ) timeFraction = 1;
+            update(timeFraction);
+
+            if (timeFraction < 1 ) {
+                // How have we not reach stackoverflow here?
+                requestAnimationFrame(animate);
+            } else {
+                // callback once we're done with animation. 
+                onfinish();
+            }
+        });
+    }
+
+    // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
+    function play_sounds(center, angle, distance, time, update) {
+        // Find a way to mimic point variable to play the notes in that direction.
+        // const angle = tgt_angle[trial];
+        const x = Math.sin(angle * deg2rad) * distance;
+        const y = Math.cos(angle * deg2rad) * distance;
+
+        // this was used to indicate the start of the animation
+        const start = new Point ( center.x, center.y);
+        const end = new Point ( center.x + x, center.y + y );
+
+        function play_sound_along(t) {
+            // linear interpolate between two points over time (0-1)
+            // This can be changed using different kind of interpolation or animation curve - future features
+            const x = start.x + ( end.x - start.x) * t;
+            const y = start.y + ( end.y - start.y) * t;
+            console.log(x, y);
+        
+            update(x, y);   // callback to update others based on coordinate given.
+            const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
+            const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
+            // update musicbox
+            musicBox.update(pitch, f1, f2);
+        }
+
+        // TODO: How to stop this animation?
+        animate((t) => play_sound_along(t), 1000, () => musicBox.pause());
+
+        // this should be outside of frame update loop
+        // yeah why didn't this?
+        stop_target_music_timer = setTimeout(() => musicBox.pause(), time);
     }
 
     // Phase when users have held cursor in start circle long enough so target shows up 
     function show_targets() {
-        game_phase = SHOW_TARGETS;
 
         // Record search time as the time elapsed from the start of the search phase to the start of this phase
         d3.select('#message-line-1').attr('display', 'none');
@@ -836,206 +1110,213 @@ function gameSetup(data) {
         // Start of timer for reaction time
         begin = new Date();
 
-        // Target becomes visible
-        target_x = start_x + target_dist * Math.cos(target_angle[trial] * Math.PI / 180);
-        target_y = start_y - target_dist * Math.sin(target_angle[trial] * Math.PI / 180);
-        d3.select('#target').attr('display', 'block').attr('cx', target_x).attr('cy', target_y);
-        target_invisible = false;
+        // I'm a bit confused with the logic here.
+        // if this equals to one, this means no variation was added to this target.
+        const jump = target_jump[trial];
+        const angle = tgt_angle[trial];
+        target.setFill('blue');
+
+        if ( jump != 0.0 ) {
+            const offset = (jump == 1.0 ) ? rotation[trial] : jump;
+            
+            // Target becomes visible
+            const value = (angle + offset) * deg2rad;
+            const x = calibration.point.x + target_dist * Math.cos(value);
+            const y = calibration.point.y - target_dist * Math.sin(value);
+            
+            //Show the target.
+            target.update(x, y);
+            target.display(true);
+        } else {
+
+          // this is what I'm so confused about?
+          if(play_sound){
+            target.display(true); // go ahead and show the target
+            play_sounds(calibration.point, angle, target_dist, 1, (x,y) => target.update(x,y));
+            play_sound = false;
+          } 
+        }
+        
+        // Turn start circle green after a second
+        green_timer = setTimeout(function() {
+            calibration.setFill('green');
+            calibration.setStroke('none');
+        }, green_time); 
+        
+        game_phase = Phase.SHOW_TARGETS;
     }
 
     // Phase when users are reaching to the target
     function moving_phase() {
-        game_phase = MOVING;
+        if ( stop_target_music_timer != null ) {
+            clearTimeout(stop_target_music_timer);
+            stop_target_music_timer = null;
+        }
 
-        // Record reaction time as time spent with target visible before moving
-        rt = new Date() - begin;
+        // clear timer
+        if ( green_timer !== null ) {
+            clearTimeout(green_timer);
+            green_timer = null;
+        }
 
-        // Start of timer for movement time
-        begin = new Date();
+        // Do we want to control if the target should remain visible during moving phase?
+        target.display(false);
 
+        rt = new Date() - begin;    // Record reaction time as time spent with target visible before moving
+        begin = new Date();         // Start of timer for movement time
+        
+        // Play audio
+        musicBox.play();
+        
         // Start circle disappears
-        //d3.select('#start').attr('display', 'block');
-        d3.select('#start').attr('fill', 'none');
+        calibration.display(false);
+        const show_cursor = (online_fb[trial] || clamped_fb[trial]);
+        cursor.display(show_cursor);
+        game_phase = Phase.MOVING;
     }
 
     // Phase where users have finished their reach and receive feedback
     function fb_phase() {
-        game_phase = FEEDBACK;
-
         // Record movement time as time spent reaching before intersecting target circle
         // Can choose to add audio in later if necessary
         mt = new Date() - begin;
-        d3.select('#cursor').attr('display', 'none');
+        let timer = 0;
 
+        // hmm
         if (mt > too_slow_time) {
-            // d3.select('#target').attr('fill', 'red');
-            if_slow = true;
-            d3.select('#target').attr('display', 'none');
-            d3.select('#cursor').attr('display', 'none');
+			calibration.display(false);
             d3.select('#too_slow_message').attr('display', 'block');
-            d3.select('#start').attr('display', 'none');
+            target.setFill('red');
             reach_feedback = "too_slow";
+            timer = feedback_time_slow;
         } else {
-            // d3.select('#target').attr('fill', 'green');
+            target.setFill('green');
             reach_feedback = "good_reach";
+            timer = feedback_time;
         }
-
+        setTimeout(next_trial, timer);
+        
         // Record the hand location immediately after crossing target ring
         // projected back onto target ring (since mouse doesn't sample fast enough)
-        hand_fb_angle = Math.atan2(start_y - hand_y, hand_x - start_x) * 180 / Math.PI;
+        hand_fb_angle = Math.atan2(calibration.point.y - cursor.point.y, cursor.point.x - calibration.point.x) * rad2deg;
         if (hand_fb_angle < 0) {
-            hand_fb_angle = 360 + hand_fb_angle; // Corrected so that it doesn't have negative angles
+            hand_fb_angle = 360 + hand_fb_angle; // Corrected so that it doesn't have negative angles // can't imagine why it'd be negative?
         }
-        hand_fb_x = start_x + target_dist * Math.cos(hand_fb_angle * Math.PI / 180);
-        hand_fb_y = start_y - target_dist * Math.sin(hand_fb_angle * Math.PI / 180);
+        
+        hand_fb_x = calibration.point.x + target_dist * Math.cos(hand_fb_angle * deg2rad);
+        hand_fb_y = calibration.point.y - target_dist * Math.sin(hand_fb_angle * deg2rad);
 
-        // Display Cursor Endpoint Feedback
+        // Display Cursor Endpoint Feedback - this is what I was confused about? 
+        // I guess we're always randomizing where we're resetting the cursor?
         if (clamped_fb[trial]) { // Clamped feedback
-            cursor_x = start_x + target_dist * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-            cursor_y = start_y - target_dist * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-            d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-            trial_type = "clamped_fb";
+            const angle_rot = (tgt_angle[trial] + rotation[trial]) * deg2rad;
+            const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
+            const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
+            cursor.update(cursor_x, cursor_y);
+            cursor.display(true);
+            trial_type = TrialType.Clamped;
         } else if (endpt_fb[trial] || online_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
-            cursor_x = start_x + target_dist * Math.cos((hand_fb_angle + rotation[trial]) * Math.PI / 180);
-            cursor_y = start_y - target_dist * Math.sin((hand_fb_angle + rotation[trial]) * Math.PI / 180);
-            d3.select('#cursor').attr('cx', cursor_x).attr('cy', cursor_y).attr('display', 'block');
-            trial_type = "online_fb";
+            const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
+            const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
+            const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
+            cursor.update(cursor_x, cursor_y); 
+            cursor.display(true);
+            trial_type = TrialType.Online;
         } else {
-            d3.select('#cursor').attr('display', 'none');
-            trial_type = "no_fb";
+            cursor.display(false);
+            trial_type = TrialType.None;
         }
+
         // Start next trial after feedback time has elapsed
-        if (if_slow) {
-            if_slow = false;
-            fb_timer = setTimeout(next_trial, feedback_time_slow)
-        } else {
-            fb_timer = setTimeout(next_trial, feedback_time);
-        }
+        game_phase = Phase.FEEDBACK;
     }
 
+    function start_trial() {
+        subjTrials = new Trial(experiment_ID, subject.id);
+
+        d3.select('#too_slow_message').attr('display', 'none');
+        calibration.display(false);
+        
+        // Waiting for keyboard inputs to begin
+        search_phase();
+    }
+
+    function end_trial() {
+        // here we will upload the data we generated to the database.
+        console.log(subjTrials);
+        
+        self.removeEventListener('resize', monitorWindow, false);
+        document.removeEventListener('click', setPointerLock, false);
+        document.exitPointerLock();
+        endGame();
+    }
 
     // Function used to initiate the next trial after uploading reach data and subject data onto the database
     // Cleans up all the variables and displays to set up for the next reach
     function next_trial() {
-        var d = new Date();
-        var current_date = (parseInt(d.getMonth()) + 1).toString() + "/" + d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" + d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
-
-        cursor_show = false;
-        // Uploading reach data for this reach onto the database
-        //SubjTrials.group_type is defined in startGame
-        subjTrials.experimentID = experiment_ID;
-        subjTrials.id = subject.id;
-        subjTrials.currentDate.push(current_date);
-        subjTrials.trialNum.push(trial + 1);
-        subjTrials.target_angle.push(target_angle[trial]);
-        subjTrials.trial_type.push(trial_type);
-        subjTrials.rotation.push(rotation[trial]);
-        subjTrials.hand_fb_angle.push(hand_fb_angle);
-        subjTrials.rt.push(rt);
-        subjTrials.mt.push(mt);
-        subjTrials.search_time.push(search_time);
-        subjTrials.reach_feedback.push(reach_feedback);
-
-        // Updating subject data to display most recent reach on database
-        subject.currTrial = trial + 1;
+        // TODO: add data to append to block for this Trial
+        subjTrials.appendTrialBlock(
+            tgt_angle[trial],
+            trial_type, 
+            rotation[trial],
+            hand_fb_angle, 
+            rt,
+            mt,
+            search_time,
+            reach_feedback,
+            handPositions
+        );
+		// where do we save the hand position data?
 
         // Reset timing variables
         rt = 0;
         mt = 0;
         search_time = 0;
+        play_sound = true;
+
+        // this clears it.
+        handPositions = [];
 
         // Between Blocks Message Index
+        // may potentially be a problem?
+        // TODO, create a new trial that hold message block instead?
         bb_mess = between_blocks[trial];
-
-
+        
         // Increment the trial count
         trial += 1;
-        counter += 1;
-        d3.select('#trialcount').text('Reach Number: ' + counter + ' / ' + totalTrials);
 
-
-        // Ensure target, cursor invisible
-        d3.select('#target').attr('display', 'none');
-        d3.select('#cursor').attr('display', 'none');
-        target_invisible = true; // for clicking, currently not employed
+        // update trial count display
+        const totalTrials = target_file_data.numtrials;
+        d3.select('#trialcount').text('Reach Number: ' + trial + ' / ' + totalTrials);
+        
         // Teleport cursor back to center
-        setTimeout(moveCursor, 750);
+        // setTimeout(moveCursor, 750);
+
         // Checks whether the experiment is complete, if not continues to next trial
         if (trial == num_trials) {
-            window.removeEventListener('resize', monitorWindow, false);
-            document.removeEventListener('click', setPointerLock, false);
-            document.exitPointerLock();
-            endGame();
-        } else if (bb_mess || counter == 1) {
-            console.log(bb_mess);
-            game_phase = BETWEEN_BLOCKS;
-            d3.select('#message-line-1').attr('display', 'block').text(messages[bb_mess][0]);
-            d3.select('#message-line-2').attr('display', 'block').text(messages[bb_mess][1]);
-            d3.select('#message-line-3').attr('display', 'block').text(messages[bb_mess][2]);
-            d3.select('#message-line-4').attr('display', 'block').text(messages[bb_mess][3]);
-            d3.select('#too_slow_message').attr('display', 'none');
-            d3.select('#trialcount').attr('display', 'block');
-            d3.select('#start').attr('display', 'none');
-            bb_counter += 1;
+            end_trial();
+        // display between block message
+        } else if (bb_mess || trial == 1) {            
+            displayMessage(bb_mess);
+            game_phase = Phase.BETWEEN_BLOCKS;
         } else {
-            // Start next trial
             search_phase();
-
         }
     }
+
+    // start the trial
+    start_trial();
 }
 
-// Function used to start running the game
-// **TODO** Update the 'fileName' to path to targetfile
-function startGame() {
-    fileName = "tgt_files/testShort.json";
-    subject.tgt_file = fileName;
-    initAudio();
-    const vowelSquare = document.getElementById('vowelSquare');
-    const rect = vowelSquare.getBoundingClientRect();
-    const squareLeft = rect.left;
-    const squareTop = rect.top;
-    const squareSize = 600;
-
-    document.addEventListener('mousemove', (event) => {
-        const x = event.clientX;
-        const y = event.clientY;
-        const infoDisplay = document.getElementById('infoDisplay');
-
-        if (x >= squareLeft && x <= squareLeft + squareSize && 
-            y >= squareTop && y <= squareTop + squareSize) {
-            gainNode.gain.setValueAtTime(8, audioContext.currentTime);
-
-            const { f1, f2, vowel } = getVowelFormants(y, squareTop, squareSize);
-            const pitch = 100 * Math.pow(2, (x - squareLeft) / 97);
-
-            infoDisplay.textContent = `Mouse X: ${x}, Mouse Y: ${y}, F1: ${f1.toFixed(2)}, F2: ${f2.toFixed(2)}, Pitch: ${pitch.toFixed(2)}, Vowel: ${vowel}`;
-
-            oscillator.frequency.setValueAtTime(pitch, audioContext.currentTime);
-            filter1.frequency.setTargetAtTime(f1, audioContext.currentTime, 0.1);
-            filter2.frequency.setTargetAtTime(f2, audioContext.currentTime, 0.1);
-            filter1.Q.setValueAtTime(12, audioContext.currentTime);
-            filter2.Q.setValueAtTime(12, audioContext.currentTime);
-        } else {
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        }
-    });
-    subjTrials.group_type = "null"; // **TODO** update group_type to manage the groups
-    $.getJSON(fileName, function(json) {
-        target_file_data = json;
-        gameSetup(target_file_data);
-    });
-}
-const vowelFormants = {
-    i: { f1: 300, f2: 2300 },
-    u: { f1: 300, f2: 800 },
-    a: { f1: 700, f2: 1200 },
-    æ: { f1: 700, f2: 1800 }
-};
-
-let audioContext, oscillator, gainNode, filter1, filter2;
-
+// Y should not be null?
 function getVowelFormants(y, squareTop, squareSize) {
+    const vowelFormants = {
+        i: { f1: 300, f2: 2300 },
+        u: { f1: 300, f2: 800 },
+        a: { f1: 700, f2: 1200 },
+        æ: { f1: 700, f2: 1800 }
+    };
+    
     const vowels = Object.keys(vowelFormants);
     const segmentHeight = squareSize / (vowels.length - 1);
     const index = Math.min(Math.floor((y - squareTop) / segmentHeight), vowels.length - 2);
@@ -1046,84 +1327,36 @@ function getVowelFormants(y, squareTop, squareSize) {
     const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
     const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
 
-    return { f1, f2, vowel: t < 0.5 ? vowel1 : vowel2 };
-}
+    const currentVowel = t < 0.5 ? vowel1 : vowel2;
 
-function initAudio() {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = audioContext.createGain();
-    gainNode.gain.value = 0.5;
-
-    oscillator = audioContext.createOscillator();
-    oscillator.type = 'sawtooth';
-    oscillator.frequency.value = 220;
-
-    filter1 = audioContext.createBiquadFilter();
-    filter1.type = 'bandpass';
-    filter2 = audioContext.createBiquadFilter();
-    filter2.type = 'bandpass';
-
-    oscillator.connect(filter1);
-    filter1.connect(filter2);
-    filter2.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.start();
+    return { f1, f2, vowel: currentVowel };
 }
 
 // Helper function to end the game regardless good or bad
 function helpEnd() {
     closeFullScreen();
+    // return the cursor back
     $('html').css('cursor', 'auto');
     $('body').css('cursor', 'auto');
+
+    // restore the screen state.
     $('body').css('background-color', 'white');
     $('html').css('background-color', 'white');
 
-    d3.select('#start').attr('display', 'none');
-    d3.select('#target').attr('display', 'none');
-    d3.select('#cursor').attr('display', 'none');
-    d3.select('#message-line-1').attr('display', 'none');
-    d3.select('#message-line-2').attr('display', 'none');
-    d3.select('#message-line-3').attr('display', 'none');
-    d3.select('#message-line-4').attr('display', 'none');
-    d3.select('#too_slow_message').attr('display', 'none');
-    d3.select('#search_too_slow').attr('display', 'none');
-    d3.select('#countdown').attr('display', 'none');
-    d3.select('#trialcount').attr('display', 'none');
-
-    recordTrialSubj(trialcollection, subjTrials);
+    d3.select('#stage').attr('display', 'none');
+    updateCollection(trialcollection, subjTrials);
 }
+
 // Function that allows for the premature end of a game
 function badGame() {
+    show('container-failed');
     helpEnd();
-    show('container-failed', 'container-exp');
 }
 
 // Function that ends the game appropriately after the experiment has been completed
 function endGame() {
+    show('container-not-an-ad');
     helpEnd();
-    show('container-not-an-ad', 'container-exp');
-
-}
-
-// Function used to save the feedback from the final HTML page
-function saveFeedback() {
-    var values = $("#feedbackForm").serializeArray();
-    if (values[0].value != "") {
-        subject.comments = values[0].value;
-    }
-    values = $("#distractionForm").serializeArray();
-    var i;
-    for (i = 0; i < values.length; i++) {
-        subject.distractions.push(values[i].value);
-        if (values[i].value == "other") {
-            subject.distracto = values[i + 1].value;
-            break;
-        }
-    }
-
-    createSubject(subjectcollection, subject);
-    show('final-page', 'container-not-an-ad');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1136,6 +1369,4 @@ document.addEventListener('DOMContentLoaded', function() {
     // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
     //
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-
-
 });
