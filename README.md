@@ -1,3 +1,5 @@
+<!-- Include instruction to install deno - Also make sure that firebase/firestore  -->
+
 # OnPoint: A package for online experiments in motor control and motor learning
 
 The goal of the github repository is to help you host your motor learning
@@ -23,7 +25,7 @@ access.
 ## Dependencies
 
 1. [Python3](https://www.python.org/downloads/)
-2. [NPM](https://www.npmjs.com/get-npm): requirement to download Firebase
+2. [Deno](https://deno.com/): requirement to download Firebase
 3. [Firebase](https://firebase.google.com/docs/cli): functions needed to host
    your online experiment on Google's Firebase server.
 4. [Amazon Mechanical Turk Requester](https://requester.mturk.com/) &

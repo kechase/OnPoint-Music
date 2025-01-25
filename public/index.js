@@ -209,12 +209,11 @@ class Trial extends Database {
     }
 
     // array are treated as reference. https://stackoverflow.com/questions/6605640/javascript-by-reference-vs-by-value
-    appendTrialBlock(target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback, cursor_data ) {
+    appendTrialBlock(target_angle, rotation, hand_angle, rt, mt, time, feedback, cursor_data ) {
         const lastTrialNum = this.getBlockNum();
         const block = new Block(
             lastTrialNum + 1,   //  num
             target_angle, 
-            trial_type,
             rotation,
             hand_angle,
             rt,
@@ -236,7 +235,7 @@ class Trial extends Database {
 }
 
 class Block extends Database {
-    constructor(num, target_angle, trial_type, rotation, hand_angle, rt, mt, time, feedback){
+    constructor(num, target_angle, rotation, hand_angle, rt, mt, time, feedback){
         super("block");
         // auto create the date
         const d = new Date();
@@ -245,7 +244,8 @@ class Block extends Database {
         this.trialNum = num;
         this.currentDate = current_date;
         this.target_angle = target_angle;
-        this.trial_type = trial_type;
+        // TODO: Check the other end process to see if this is still in use! This is deprecated for this experiment.
+        this.trial_type = "online_fb";   // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
         this.rotation = rotation;
         this.hand_fb_angle = hand_angle;
         this.rt = rt;
@@ -358,12 +358,6 @@ const Phase = Object.freeze({
     MOVING: 3,  // The reaching motion 
     FEEDBACK: 4,    // Displaying the feedback after reach
     BETWEEN_BLOCKS: 5   // Displaying break messages if necessary
-});
-
-const TrialType = Object.freeze({
-    Clamped: "clamped_fb",
-    Online: "online_fb",
-    None: "no_fb",
 });
 
 
@@ -556,10 +550,8 @@ function gameSetup(data) {
     // May be obsolete 
     "trialnum" = trialNums
     "aiming_landmarks" = aimingLandmarks
-    "online_fb" = onlineFB
     "endpoint_feedback" = endpointFB
     "rotation" = rotation
-    "clamped_fb" = clampedFB
     "tgt_angle" = anglesDict
     "tgt_distance" = tgtDistance
     "between_blocks" = betweenBlocks
@@ -567,10 +559,8 @@ function gameSetup(data) {
      */
     
     // Reading the json target file into the game
-    const online_fb = target_file_data.online_fb;
     const endpt_fb = target_file_data.endpoint_feedback;
     const rotation = target_file_data.rotation; // degrees
-    const clamped_fb = target_file_data.clamped_fb;
     const tgt_angle = target_file_data.tgt_angle;
     // not in use anywhere?
 	tgt_distance = target_file_data.tgt_distance;
@@ -723,9 +713,6 @@ function gameSetup(data) {
 
     const handler = setupPageRender(center);    
 
-    // Setting the radius from center to target location 
-    let trial_type = TrialType.None;
-
     // Setting parameters and drawing the center start circle
     calibration = new Circle(
         handler, // parent
@@ -823,13 +810,6 @@ function gameSetup(data) {
         // no longer in use since the code down below is commented out, we're using hand_fb_angle instead?
         // hand_angle = Math.atan2(calibration.point.y - cursor.point.y, cursor.point.x - calibration.point.x) * rad2deg;
         
-		// let value = 0;
-		// if ( clamped_fb[trial]) {
-		// 	value = target_angle[trial];
-		// } else if (online_fb[trial]) {
-		// 	value = hand_angle;
-		// };
-
         const point = cursor.point;
         switch ( game_phase) {
             case Phase.HOLDING:
@@ -860,27 +840,6 @@ function gameSetup(data) {
                 // record mouse data
                 handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
 				
-				// {
-				// 	const angle = rotation[trial] * value * rad2deg;
-				// 	const x = calibration.point.x + distance * Math.cos(angle);
-				// 	const y = calibration.point.y + distance * Math.sin(angle);
-				// 	cursor.update(x, y);
-				// }
-
-				// Updating cursor locations depending on clamp, fb, no_fb
-				// TODO Ask Katie to explain the difference between clamped_fb and online_fb trials?
-				// if (clamped_fb[trial]) { // Clamped feedback
-				//     const x = start.point.x + r * Math.cos((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-				//     const y = start.point.y - r * Math.sin((target_angle[trial] + rotation[trial]) * Math.PI / 180);
-				//     cursor.update(x,y);
-				// } else if (online_fb[trial]) { // Rotated feedback (vmr)
-				//     const x = start.point.x + r * Math.cos((hand_angle + rotation[trial]) * Math.PI / 180);
-				//     const y = start.point.y - r * Math.sin((hand_angle + rotation[trial]) * Math.PI / 180);
-				//     cursor.update(x, y);
-				// } else { // Veritical feedback
-				//     cursor.update(hand_x, hand_y);
-				// }
-
                 // Check if cursor is within the red square
                 if (point.x >= squareLeft &&
                     point.x <= squareLeft + squareSize &&
@@ -1090,7 +1049,6 @@ function gameSetup(data) {
             // This can be changed using different kind of interpolation or animation curve - future features
             const x = start.x + ( end.x - start.x) * t;
             const y = start.y + ( end.y - start.y) * t;
-            console.log(x, y);
         
             update(x, y);   // callback to update others based on coordinate given.
             const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
@@ -1177,8 +1135,7 @@ function gameSetup(data) {
         
         // Start circle disappears
         calibration.display(false);
-        const show_cursor = (online_fb[trial] || clamped_fb[trial]);
-        cursor.display(show_cursor);
+        cursor.display(true);
         game_phase = Phase.MOVING;
     }
 
@@ -1215,23 +1172,14 @@ function gameSetup(data) {
 
         // Display Cursor Endpoint Feedback - this is what I was confused about? 
         // I guess we're always randomizing where we're resetting the cursor?
-        if (clamped_fb[trial]) { // Clamped feedback
-            const angle_rot = (tgt_angle[trial] + rotation[trial]) * deg2rad;
-            const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
-            const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
-            cursor.update(cursor_x, cursor_y);
-            cursor.display(true);
-            trial_type = TrialType.Clamped;
-        } else if (endpt_fb[trial] || online_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
+        if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
             const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
             const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
             const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
             cursor.update(cursor_x, cursor_y); 
             cursor.display(true);
-            trial_type = TrialType.Online;
         } else {
             cursor.display(false);
-            trial_type = TrialType.None;
         }
 
         // Start next trial after feedback time has elapsed
@@ -1264,7 +1212,6 @@ function gameSetup(data) {
         // TODO: add data to append to block for this Trial
         subjTrials.appendTrialBlock(
             tgt_angle[trial],
-            trial_type, 
             rotation[trial],
             hand_fb_angle, 
             rt,
