@@ -43,7 +43,10 @@
       "port": 9399,
       "dataDir": "dataconnect/.dataconnect/pgliteData"
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "storage": {
+      "port": 9199
+    }
   },
   "extensions": {},
   "functions": [
