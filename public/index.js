@@ -573,7 +573,7 @@ function gameSetup(data) {
      */
     
     // Reading the json target file into the game
-    const endpt_fb = target_file_data.endpoint_feedback;
+    // const endpt_fb = target_file_data.endpoint_feedback;
     const rotation = target_file_data.rotation; // degrees
     const tgt_angle = target_file_data.tgt_angle;
     // not in use anywhere?
@@ -1162,15 +1162,15 @@ function gameSetup(data) {
 
         // Display Cursor Endpoint Feedback - this is what I was confused about? 
         // I guess we're always randomizing where we're resetting the cursor?
-        if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
-            const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
-            const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
-            const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
-            cursor.update(cursor_x, cursor_y); 
+        // if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
+        //     const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
+        //     const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
+        //     const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
+        //     cursor.update(cursor_x, cursor_y); 
             cursor.display(true);
-        } else {
-            cursor.display(false);
-        }
+        // } else {
+        //     cursor.display(false);
+        // }
 
         // Start next trial after feedback time has elapsed
         game_phase = Phase.FEEDBACK;
