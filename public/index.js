@@ -9,10 +9,10 @@ Remember to update necessary fields before starting the game. All fields that re
 
 // Set to 'true' if you wish to only test the front-end (will not access databases)
 // **TODO** Make sure this is set to false before deploying!
-const noSave = true;
+const noSave = false;
 // TODO: Replace this with your own experiment file! 
-// Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead.
-const fileName = "./tgt_files/testShort.json";
+// Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
+const fileName
 
 //#region Components
 class Circle {
@@ -145,12 +145,14 @@ class Database {
     save() {
 		// for now we could just save this as Json file format?
 		const data = JSON.stringify(this);
-		const fs = require('node:fs');
-		fs.writeFile(this.table_name + ".json", data, function(err){
-			if (err) {
-				console.log("Fail to save " + this.table_name + " to file!", err);
-			}
-		})
+	//	const fs = require('node:fs');
+        fs.promises.writeFile(this.table_name + ".json", data)
+            .then(() => {
+            console.log(`Saved ${this.table_name}.json`);
+    })
+            .catch((err) => {
+             console.error(`Failed to save ${this.table_name}.json`, err);
+    });
 
 		// return this.collection.doc(this.id).set(this)
         // .then(function() {
@@ -178,7 +180,7 @@ class Subject extends Database  {
         this.mousetype = mousetype,
         this.returner = returner,
         // **TODO** Update the 'fileName' to path to targetfile
-        this.tgt_file = "tgt_files/testShort.json",
+        this.tgt_file = "/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/Katie2_csv_file.json",
         this.ethnicity = ethnicity,
         this.race = race,
         this.comments = null,
@@ -267,8 +269,8 @@ class Log extends Database {
 //#endregion
 
 //#region html event functions
-
-// Function used on html side of code.
+ 
+    // Function used on html side of code.
 function isNumericKey(event) {
     const code = (event.which) ? event.which : event.keyCode;
     return !(code > 31 && (code < 48 || code > 57));
@@ -278,14 +280,19 @@ function isNumericKey(event) {
 let prevpage = 'container-consent';
 
 // Function to switch between HTML pages
-function show(shown) {
-    if ( prevpage !== null ) {
-        document.getElementById(prevpage).style.display = 'none';
-    }
+// function show(shown) {
+//  if ( prevpage !== null ) {
+//        document.getElementById(prevpage).style.display = 'none';
+//    }
+//    document.getElementById(shown).style.display = 'block';
+//    prevpage = shown;
+//    return false;
+// }
+// Function to switch between HTML pages
+function show(shown, hidden) {
     document.getElementById(shown).style.display = 'block';
-    prevpage = shown;
+    document.getElementById(hidden).style.display = 'none';
     return false;
-}
 
 // Function used to enter full screen mode
 function openFullScreen() {
@@ -1363,10 +1370,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
     // // The Firebase SDK is initialized and available here!
     //
-    // firebase.auth().onAuthStateChanged(user => { });
-    // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-    // firebase.messaging().requestPermission().then(() => { });
-    // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+    firebase.auth().onAuthStateChanged(user => { });
+    firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+    firebase.messaging().requestPermission().then(() => { });
+    firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
     //
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
 });

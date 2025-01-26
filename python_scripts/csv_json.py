@@ -55,10 +55,14 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
 
 
 """
-Please reference 'tbt_tgtfile_04272020_V2.csv' for how csv files should be formatted.
+Please reference 'OnPoint-Music/csv_tgt_files/demo_csv_file.csv' for how csv files should be formatted.
 """
-csvFilePath = '../csv_tgt_files/multiclamp_demo_csv_file.csv'
-jsonFilePath = '../public/tgt_files/multiclamp_demo.json'
+#MANUALLY ENTER THIS REAL FILE PATH
+csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/csv_tgt_files/Katie2_csv_file.csv'
+
+#MANUALLY CREATE THIS NOT-YET-REAL FILEPATH SO THIS SCRIPT WILL CREATE THE FILE 
+jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/Katie2_csv_file.json'
 
 jsonFromCsv(csvFilePath, jsonFilePath)
+
 

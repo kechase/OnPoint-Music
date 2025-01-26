@@ -38,6 +38,28 @@
     },
     "ui": {
       "enabled": false
+    },
+    "dataconnect": {
+      "port": 9399,
+      "dataDir": "dataconnect/.dataconnect/pgliteData"
+    },
+    "singleProjectMode": true
+  },
+  "extensions": {},
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
     }
+  ],
+  "remoteconfig": {
+    "template": "remoteconfig.template.json"
   }
 }
