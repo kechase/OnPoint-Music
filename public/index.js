@@ -577,7 +577,6 @@ function gameSetup(data) {
     // const endpt_fb = target_file_data.endpoint_feedback;
     const rotation = target_file_data.rotation; // degrees
     const tgt_angle = target_file_data.tgt_angle;
-    // not in use anywhere?
 	tgt_distance = target_file_data.tgt_distance;
     const between_blocks = target_file_data.between_blocks;
     target_jump = target_file_data.target_jump;
@@ -969,7 +968,8 @@ function gameSetup(data) {
         calibration.setStroke('white');
 
         // if we want to delay the target display then we can do it here?
-        target_display_timer = setTimeout(() => target.display(false), 2000 );
+        // target_display_timer = setTimeout(() => target.display(false), 2000 );
+        target.display(false);
         cursor.display(true);
 
         hideMessage();
@@ -1071,6 +1071,7 @@ function gameSetup(data) {
         const jump = target_jump[trial];
         const angle = tgt_angle[trial];
         target.setFill('blue');
+        target.display(true);
 
         if ( jump != 0.0 ) {
             const offset = (jump == 1.0 ) ? rotation[trial] : jump;
@@ -1079,15 +1080,10 @@ function gameSetup(data) {
             const value = (angle + offset) * deg2rad;
             const x = calibration.point.x + target_dist * Math.cos(value);
             const y = calibration.point.y - target_dist * Math.sin(value);
-            
-            //Show the target.
             target.update(x, y);
-            target.display(true);
         } else {
-
           // this is what I'm so confused about?
           if(play_sound){
-            target.display(true); // go ahead and show the target
             play_sounds(calibration.point, angle, target_dist, 1, (x,y) => target.update(x,y));
             play_sound = false;
           } 
@@ -1115,8 +1111,10 @@ function gameSetup(data) {
             green_timer = null;
         }
 
-        // Do we want to control if the target should remain visible during moving phase?
-        target.display(false);
+        if ( target_jump[trial] != 1.0 )
+        {
+            target.display(false);
+        }
 
         rt = new Date() - begin;    // Record reaction time as time spent with target visible before moving
         begin = new Date();         // Start of timer for movement time
@@ -1161,17 +1159,7 @@ function gameSetup(data) {
         hand_fb_x = calibration.point.x + target_dist * Math.cos(hand_fb_angle * deg2rad);
         hand_fb_y = calibration.point.y - target_dist * Math.sin(hand_fb_angle * deg2rad);
 
-        // Display Cursor Endpoint Feedback - this is what I was confused about? 
-        // I guess we're always randomizing where we're resetting the cursor?
-        // if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
-        //     const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
-        //     const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
-        //     const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
-        //     cursor.update(cursor_x, cursor_y); 
-            cursor.display(true);
-        // } else {
-        //     cursor.display(false);
-        // }
+        cursor.display(true);
 
         // Start next trial after feedback time has elapsed
         game_phase = Phase.FEEDBACK;
