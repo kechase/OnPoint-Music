@@ -509,7 +509,7 @@ function gameSetup(data) {
     // The between block messages that will be displayed
     // **TODO** Update messages depending on your experiment
     const messages = [
-        ["Dummy Message Test"],
+        ["Way to go!"],
         [ "Wait until the center circle turns green.", // Message displayed when bb_mess == 1
         "Listen to the sound, then move in the direction that recreates the sound.",
         "Press 'b' when you are ready to proceed."
