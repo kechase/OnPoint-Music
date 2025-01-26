@@ -12,7 +12,7 @@ Remember to update necessary fields before starting the game. All fields that re
 const noSave = false;
 // TODO: Replace this with your own experiment file! 
 // Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
-const fileName
+const fileName = "./tgt_files/Katie2_csv_file.json";
 
 //#region Components
 class Circle {
@@ -144,25 +144,23 @@ class Database {
 
     save() {
 		// for now we could just save this as Json file format?
-		const data = JSON.stringify(this);
-	//	const fs = require('node:fs');
-        fs.promises.writeFile(this.table_name + ".json", data)
-            .then(() => {
-            console.log(`Saved ${this.table_name}.json`);
-    })
-            .catch((err) => {
-             console.error(`Failed to save ${this.table_name}.json`, err);
-    });
+		// const data = JSON.stringify(this);
+        // fs.promises.writeFile(this.table_name + ".json", data)
+        //     .then(() => {
+        //         console.log(`Saved ${this.table_name}.json`);
+        //     })
+        //     .catch((err) => {
+        //         console.error(`Failed to save ${this.table_name}.json`, err);
+        //     });
 
-		// return this.collection.doc(this.id).set(this)
-        // .then(function() {
-        //     console.log(this);
-        //     return true;
-        // })
-        // .catch(function(err) {
-        //     console.error(err);
-        //     throw err;
-        // });
+		return this.collection.doc(this.id).set(this)
+        .then(function() {
+            return true;
+        })
+        .catch(function(err) {
+            console.error(err);
+            throw err;
+        });
 
         // TODO: Impl. code to save data to table.
         // take this class and save the structure to approprate database location
@@ -179,8 +177,7 @@ class Subject extends Database  {
         this.handedness = handedness,
         this.mousetype = mousetype,
         this.returner = returner,
-        // **TODO** Update the 'fileName' to path to targetfile
-        this.tgt_file = "/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/Katie2_csv_file.json",
+        this.tgt_file = fileName,
         this.ethnicity = ethnicity,
         this.race = race,
         this.comments = null,
@@ -280,19 +277,14 @@ function isNumericKey(event) {
 let prevpage = 'container-consent';
 
 // Function to switch between HTML pages
-// function show(shown) {
-//  if ( prevpage !== null ) {
-//        document.getElementById(prevpage).style.display = 'none';
-//    }
-//    document.getElementById(shown).style.display = 'block';
-//    prevpage = shown;
-//    return false;
-// }
-// Function to switch between HTML pages
-function show(shown, hidden) {
-    document.getElementById(shown).style.display = 'block';
-    document.getElementById(hidden).style.display = 'none';
-    return false;
+function show(shown) {
+ if ( prevpage !== null ) {
+       document.getElementById(prevpage).style.display = 'none';
+   }
+   document.getElementById(shown).style.display = 'block';
+   prevpage = shown;
+   return false;
+}
 
 // Function used to enter full screen mode
 function openFullScreen() {
@@ -426,10 +418,10 @@ function checkInfo() {
     );
     
     // validation proceed here
-    // if (!subject.isValid()) {
-    //     alert("Please fill out your basic information!");
-    //     return;
-    // }
+    if (!subject.isValid()) {
+        alert("Please fill out your basic information!");
+        return;
+    }
 	
 	// so what are we doing here?
     // updateCollection(subjectcollection, subject);
