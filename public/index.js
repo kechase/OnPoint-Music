@@ -436,7 +436,6 @@ const rad2deg = 100 / Math.PI;
 
 // Function used to start running the game
 function startGame() {
-    // TODO: before we deploy this website - please serve this on NodeJS and see if we can load the file properly
     $.getJSON(fileName, function(json) {
         gameSetup(json);
     });
@@ -1309,10 +1308,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
     // // The Firebase SDK is initialized and available here!
     //
-    firebase.auth().onAuthStateChanged(user => { });
-    firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-    firebase.messaging().requestPermission().then(() => { });
-    firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+    // firebase.auth().onAuthStateChanged(user => { });
+    // firebase.database().ref('./').on('value', snapshot => { });
+    // firebase.messaging().requestPermission().then(() => { });
+    // firebase.storage().ref('./').getDownloadURL().then(() => { });
     //
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
 });
