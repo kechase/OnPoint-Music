@@ -14,6 +14,9 @@ const noSave = false;
 // Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
 const fileName = "./tgt_files/Katie2_csv_file.json";
 
+// TODO: Katie, add the json content below here:
+const fileContent = "TODO: Replace this with the content inside katie2_csv.json";
+
 //#region Components
 class Circle {
     constructor(parent, point, radius, fill, stroke){
@@ -436,9 +439,10 @@ const rad2deg = 100 / Math.PI;
 
 // Function used to start running the game
 function startGame() {
-    $.getJSON(fileName, function(json) {
-        gameSetup(json);
-    });
+    gameSetup(fileContent);
+    // $.getJSON(fileName, function(json) {
+    //     gameSetup(json);
+    // });
 }
 
 // Function to monitor changes in screen size;
