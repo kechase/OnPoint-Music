@@ -74,3 +74,6 @@ node_modules/
 
 # .DS_Store ignored
 .DS_Store
+
+# python libs
+./lib
