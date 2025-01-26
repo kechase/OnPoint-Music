@@ -544,7 +544,7 @@ function gameSetup(data) {
     let target_display_timer = null;
 	let too_slow_timer = null;
     // Phase is already declared before accessing, so why is it giving me the error message?
-    let game_phase = Phase.UNINIT;
+    let game_phase = -1;
     let reach_feedback = "";	// could be made as a enum
     let play_sound = true;
     let begin = new Date();
@@ -1323,10 +1323,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
     // // The Firebase SDK is initialized and available here!
     //
-    // firebase.auth().onAuthStateChanged(user => { });
-    // firebase.database().ref('./').on('value', snapshot => { });
-    // firebase.messaging().requestPermission().then(() => { });
-    // firebase.storage().ref('./').getDownloadURL().then(() => { });
+    firebase.auth().onAuthStateChanged(user => { });
+    firebase.database().ref('./').on('value', snapshot => { });
+    firebase.messaging().requestPermission().then(() => { });
+    firebase.storage().ref('./').getDownloadURL().then(() => { });
     //
     // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
 });
