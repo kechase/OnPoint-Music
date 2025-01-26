@@ -153,7 +153,6 @@ function Point(x, y) {
 class Database {
     constructor(table_name) {
         this.table_name = table_name;
-		// this.collection = firestore.collection(this.table_name);
     }
 
     save() {
@@ -175,10 +174,6 @@ class Database {
             console.error(err);
             throw err;
         });
-
-        // TODO: Impl. code to save data to table.
-        // take this class and save the structure to approprate database location
-        // e.g. class name should be used as target table name to save to
     }
 }
 
@@ -401,8 +396,23 @@ function saveFeedback() {
         }
     }
 
+    const subject_data = {
+        id: subject.id,
+        age: subject.age,
+        sex: subject.sex,
+        handedness: subject.handedness,
+        mousetype: subject.mousetype,
+        returner: subject.returner,
+        tgt_file: fileName,
+        ethnicity: subject.ethnicity,
+        race: subject.race,
+        comments: subject.comments,
+        distractions: subject.distractions,
+        distracto: subject.distracto,
+    }
+
 	// we should be saving the subject here?
-    updateCollection(subjectcollection, subject);
+    updateCollection(subjectcollection, subject_data);
     show('final-page');
 }
 
@@ -474,7 +484,7 @@ function monitorWindow(_event) {
 function gameSetup(data) {
     // Experiment parameters, subject_ID is no obsolete
     // **TODO** Update experiment_ID to label your experiments
-    const experiment_ID = "test"; 
+    const experiment_ID = "Katie2"; 
     // This is not used anywhere? Where is this being used?
     // const subject_ID = Math.floor(Math.random() * 10000000000);
     // array of cursor position during trials
@@ -497,7 +507,6 @@ function gameSetup(data) {
 
     // The between block messages that will be displayed
     // **TODO** Update messages depending on your experiment
-    // TODO: Talk to Katie if she wants to include messages inside JSON file?
     const messages = [
         ["Dummy Message Test"],
         [ "Wait until the center circle turns green.", // Message displayed when bb_mess == 1
@@ -543,7 +552,6 @@ function gameSetup(data) {
     let stop_target_music_timer = null; // timer used to stop the target music for audience to hear/listen to before moving
     let target_display_timer = null;
 	let too_slow_timer = null;
-    // Phase is already declared before accessing, so why is it giving me the error message?
     let game_phase = -1;
     let reach_feedback = "";	// could be made as a enum
     let play_sound = true;
@@ -565,7 +573,7 @@ function gameSetup(data) {
      */
     
     // Reading the json target file into the game
-    const endpt_fb = target_file_data.endpoint_feedback;
+    // const endpt_fb = target_file_data.endpoint_feedback;
     const rotation = target_file_data.rotation; // degrees
     const tgt_angle = target_file_data.tgt_angle;
     // not in use anywhere?
@@ -916,28 +924,6 @@ function gameSetup(data) {
 
             badGame(); // Premature exit game if failed attention check
         }
-    
-        // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
-        // if ((game_phase == Phase.BETWEEN_BLOCKS && (bb_mess == 5 || bb_mess == 2) && event.keyCode == a) || bb_mess == 0) {
-        //     search_phase();
-        // } else if ((game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 4 && event.keyCode == e)) {
-        //     search_phase();
-        // } else if (game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 1 && event.keyCode == b) {
-        //     search_phase();
-        // } else if (game_phase == Phase.BETWEEN_BLOCKS && event.keyCode == SPACE_BAR && (bb_mess == 3 || bb_mess == 6)) {
-        //     search_phase();
-        // } else if (game_phase != Phase.BETWEEN_BLOCKS) {
-        //     // Do nothing
-        // } else {
-        //     // Hmm>
-        //     console.log("premature end");
-        //     console.log(bb_mess);
-        //     // self.removeEventListener('resize', monitorWindow, false);
-        //     // window.removeEventListener('resize', monitorWindow, false);
-        //     // document.removeEventListener('click', setPointerLock, false);
-        //     // document.exitPointerLock();
-        //     // badGame(); // Premature exit game if failed attention check
-        // }
     }
 
     function displayMessage(idx) {
@@ -989,11 +975,9 @@ function gameSetup(data) {
         d3.select('#too_slow_message').attr('display', 'none');
 
 		// Displaying searching too slow message if threshold is crossed
-		// if (new Date() - begin > search_too_slow) {
 		too_slow_timer = setTimeout(() => {
 			d3.select('#search_too_slow').attr('display', 'block');
 		}, search_too_slow);
-		//  }
 
         // update game_phase
         game_phase = Phase.SEARCHING;
@@ -1178,15 +1162,15 @@ function gameSetup(data) {
 
         // Display Cursor Endpoint Feedback - this is what I was confused about? 
         // I guess we're always randomizing where we're resetting the cursor?
-        if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
-            const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
-            const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
-            const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
-            cursor.update(cursor_x, cursor_y); 
+        // if (endpt_fb[trial]) { // Visible feedback (may be rotated depending on rotation)
+        //     const angle_rot = (hand_fb_angle + rotation[trial]) * deg2rad;
+        //     const cursor_x = calibration.point.x + target_dist * Math.cos(angle_rot);
+        //     const cursor_y = calibration.point.y - target_dist * Math.sin(angle_rot);
+        //     cursor.update(cursor_x, cursor_y); 
             cursor.display(true);
-        } else {
-            cursor.display(false);
-        }
+        // } else {
+        //     cursor.display(false);
+        // }
 
         // Start next trial after feedback time has elapsed
         game_phase = Phase.FEEDBACK;
@@ -1202,10 +1186,7 @@ function gameSetup(data) {
         search_phase();
     }
 
-    function end_trial() {
-        // here we will upload the data we generated to the database.
-        console.log(subjTrials);
-        
+    function end_trial() {        
         self.removeEventListener('resize', monitorWindow, false);
         document.removeEventListener('click', setPointerLock, false);
         document.exitPointerLock();
@@ -1304,7 +1285,48 @@ function helpEnd() {
     $('html').css('background-color', 'white');
 
     d3.select('#stage').attr('display', 'none');
-    updateCollection(trialcollection, subjTrials);
+
+    const trialNum = [];
+    const currentDate = [];
+    const target_angle = [];
+    const trial_type = [];
+    const rotation = [];
+    const hand_fb_angle =[];
+    const rt = [];
+    const mt = [];
+    const search_time = [];
+    const reach_feedback = [];
+
+    subjTrials.blocks.forEach((e) => {
+        trialNum.push(e.trialNum);
+        currentDate.push(e.currentDate);
+        target_angle.push(e.target_angle);
+        trial_type.push(e.trial_type);
+        rotation.push(e.rotation);
+        hand_fb_angle.push(e.hand_fb_angle);
+        rt.push(e.rt);
+        mt.push(e.mt);
+        search_time.push(e.search_time);
+        reach_feedback.push(e.reach_feedback)
+    });
+
+    const subjTrial_data = {
+        id: subjTrials.id,
+        experimentID: subjTrials.experimentID,
+        // cursor_data: subjTrials.cursor_data,
+        trialNum,
+        currentDate,
+        target_angle,
+        trial_type,
+        rotation,
+        hand_fb_angle,
+        rt,
+        mt,
+        search_time,
+        reach_feedback
+    };
+
+    updateCollection(trialcollection, subjTrial_data);
 }
 
 // Function that allows for the premature end of a game
