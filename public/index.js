@@ -967,8 +967,7 @@ function gameSetup(data) {
         calibration.setStroke('white');
 
         // if we want to delay the target display then we can do it here?
-        // target_display_timer = setTimeout(() => target.display(false), 2000 );
-        target.display(false);
+        target_display_timer = setTimeout(() => target.display(false), 500 );
         cursor.display(true);
 
         hideMessage();
@@ -988,6 +987,7 @@ function gameSetup(data) {
         if ( target_display_timer != null ) {
             clearTimeout(target_display_timer);
             target_display_timer = null;
+            target.display(false);
         }
 
         // Fill the center if within start radius
@@ -1024,16 +1024,7 @@ function gameSetup(data) {
     }
 
     // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
-    function play_sounds(center, angle, distance, time, update) {
-        // Find a way to mimic point variable to play the notes in that direction.
-        // const angle = tgt_angle[trial];
-        const x = Math.sin(angle * deg2rad) * distance;
-        const y = Math.cos(angle * deg2rad) * distance;
-
-        // this was used to indicate the start of the animation
-        const start = new Point ( center.x, center.y);
-        const end = new Point ( center.x + x, center.y + y );
-
+    function play_sounds(start, end, duration, update) {
         function play_sound_along(t) {
             // linear interpolate between two points over time (0-1)
             // This can be changed using different kind of interpolation or animation curve - future features
@@ -1051,8 +1042,7 @@ function gameSetup(data) {
         animate((t) => play_sound_along(t), 1000, () => musicBox.pause());
 
         // this should be outside of frame update loop
-        // yeah why didn't this?
-        stop_target_music_timer = setTimeout(() => musicBox.pause(), time);
+        stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
     }
 
     // Phase when users have held cursor in start circle long enough so target shows up 
@@ -1070,22 +1060,28 @@ function gameSetup(data) {
         const jump = target_jump[trial];
         const angle = tgt_angle[trial];
         target.setFill('blue');
-        target.display(true);
 
-        if ( jump != 0.0 ) {
-            const offset = (jump == 1.0 ) ? rotation[trial] : jump;
-            
-            // Target becomes visible
-            const value = (angle + offset) * deg2rad;
-            const x = calibration.point.x + target_dist * Math.cos(value);
-            const y = calibration.point.y - target_dist * Math.sin(value);
-            target.update(x, y);
-        } else {
-          // this is what I'm so confused about?
-          if(play_sound){
-            play_sounds(calibration.point, angle, target_dist, 1, (x,y) => target.update(x,y));
+        // If we are not in practice trial, display the target?
+        if ( jump == 1.0 ) {
+            target.display(true);
+        }
+        
+        const offset = (jump == 1.0 ) ? rotation[trial] : jump;
+        const value = (angle + offset);
+        const start = calibration.point;
+        const x = start.x + target_dist * Math.cos(value * deg2rad);
+        const y = start.y - target_dist * Math.sin(value * deg2rad);
+        const end = new Point(x, y);
+
+        target.update(x, y);
+        if (play_sound) {
+            play_sounds(start, end, 1, (x,y) => {
+                // this gets called every frame. Part of the animation process. X, y are midpoint values between start and end over duration.
+                if( jump != 1.0 ) {
+                    target.update(x,y)
+                }
+            });
             play_sound = false;
-          } 
         }
         
         // Turn start circle green after a second
@@ -1217,9 +1213,6 @@ function gameSetup(data) {
         // update trial count display
         const totalTrials = target_file_data.numtrials;
         d3.select('#trialcount').text('Reach Number: ' + trial + ' / ' + totalTrials);
-        
-        // Teleport cursor back to center
-        // setTimeout(moveCursor, 750);
 
         // Checks whether the experiment is complete, if not continues to next trial
         if (trial == num_trials) {
@@ -1248,7 +1241,8 @@ function getVowelFormants(y, squareTop, squareSize) {
     
     const vowels = Object.keys(vowelFormants);
     const segmentHeight = squareSize / (vowels.length - 1);
-    const index = Math.min(Math.floor((y - squareTop) / segmentHeight), vowels.length - 2);
+    const offset = Math.max(y-squareTop, 0);
+    const index = Math.min(Math.floor( offset / segmentHeight), vowels.length - 2);
     const t = ((y - squareTop) % segmentHeight) / segmentHeight;
     const vowel1 = vowels[index];
     const vowel2 = vowels[index + 1];
