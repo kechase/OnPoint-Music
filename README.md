@@ -1,34 +1,30 @@
-<!-- Include instruction to install deno - Also make sure that firebase/firestore  -->
+# OnPoint-Music: A package for online experiments in auditory-motor mapping
 
-# OnPoint: A package for online experiments in motor control and motor learning
-
-The goal of the github repository is to help you host your motor learning
+The goal of the github repository is to help you host your auditory-motor mapping
 experiment online. For a detailed step-by-step breakdown, please visit the
-[OnPoint Manual for Online Experiment Hosting](https://docs.google.com/document/d/1E5XzQU2dJw7m880P7VhmESPpUNQlEdMcf9fweHLtG0o/edit?usp=sharing).
+[OnPoint-Music: Manual for Hosting Online Experiments in Auditory Motor-Mapping]
+(https://docs.google.com/document/d/1QTiHfO1I2paq13dnur4GfYfo-IfTUwdt1AQebZ6CTWo/edit?tab=t.0)
 The experiment is in essence a website coded in Javascript/HTML/CSS and hosted
 on the [Firebase server](https://firebase.google.com/). Participants can be
 recruited using
 [Amazon Mechanical Turk Requester](https://requester.mturk.com/),
 [Prolific](https://www.prolific.co/), or any other crowdsourcing platform.
 
-[Try out one of our experiments here.](https://multiclamp-c2.web.app/)
+[Try out one of our experiments here.](https://onpoint-music.web.app/)
 
 <img src="public/images/sampleOut.gif" width="720" height="404" />
 
 ## To run the experiment local host
 
-Deno was install and added to help start development mode on local machine. To
-serve the file as a web service, run `deno run serve` in terminal. This will
-instruct deno to run file-server.ts, allowing file read access and network
-access.
+Once you're logged into Firebase you can run 'Firebase serve' via terminal or your command line 
+to see the local version of the website before you push it live (or change the live version). 
 
 ## Dependencies
 
 1. [Python3](https://www.python.org/downloads/)
-2. [Deno](https://deno.com/): requirement to download Firebase
-3. [Firebase](https://firebase.google.com/docs/cli): functions needed to host
+2. [Firebase](https://firebase.google.com/docs/cli): functions needed to host
    your online experiment on Google's Firebase server.
-4. [Amazon Mechanical Turk Requester](https://requester.mturk.com/) &
+3. [Amazon Mechanical Turk Requester](https://requester.mturk.com/) &
    [Prolific](https://www.prolific.co/): Crowdsourcing websites used to recruit
    participants.
 
@@ -50,8 +46,8 @@ access.
 ## Need help?
 
 If you are stuck, please make a comment on the
-[Manual](https://docs.google.com/document/d/1E5XzQU2dJw7m880P7VhmESPpUNQlEdMcf9fweHLtG0o/edit?usp=sharing)
-or use the
+[Manual] (https://docs.google.com/document/d/1QTiHfO1I2paq13dnur4GfYfo-IfTUwdt1AQebZ6CTWo/edit?tab=t.0)
+or use the original code base at 
 [github's issue tab](https://github.com/alan-s-lee/Reaching_Exp_Online/issues)!
 
 ## Acknowledgements
