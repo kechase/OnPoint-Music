@@ -509,7 +509,7 @@ function gameSetup(data) {
     // The between block messages that will be displayed
     // **TODO** Update messages depending on your experiment
     const messages = [
-        ["Way to go!"],
+        ["Way to go! Press any key to continue."],
         [ "Wait until the center circle turns green.", // Message displayed when bb_mess == 1
         "Listen to the sound, then move in the direction that recreates the sound.",
         "Press 'b' when you are ready to proceed."
