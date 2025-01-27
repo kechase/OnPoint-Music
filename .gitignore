@@ -84,6 +84,9 @@ node_modules/
 #Security Key
 onpoint-music-firebase-adminsdk-*.json
 
+#Specific data files I'm trying Out
+/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/Katie3_csv_file.json
+
 # bin
 /bin
 
