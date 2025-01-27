@@ -14,11 +14,6 @@ recruited using
 
 <img src="public/images/sampleOut.gif" width="720" height="404" />
 
-## To run the experiment local host
-
-Once you're logged into Firebase you can do 'Firebase serve' to see the 
-local version of the website before you push it live (or change the live version). 
-
 ## Dependencies
 
 1. [Python3](https://www.python.org/downloads/)
