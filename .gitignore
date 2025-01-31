@@ -90,4 +90,4 @@ onpoint-music-firebase-adminsdk-*.json
 # bin
 /bin
 
-/venv
+**/.venv
