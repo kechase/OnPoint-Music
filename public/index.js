@@ -1035,7 +1035,7 @@ function gameSetup(data) {
             const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
             const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
             // update musicbox
-            musicBox.update(pitch, f1, f2);
+            musicBox.update(pitch, f1, f2); // understand this theory but I don't like what I'm getting, there are repeated tones; bring back the legend so I can see what's happening (x and y values for f1 and f2)
         }
 
         // TODO: How to stop this animation?
@@ -1238,21 +1238,21 @@ function getVowelFormants(y, squareTop, squareSize) {
         a: { f1: 700, f2: 1200 },
         æ: { f1: 700, f2: 1800 }
     };
-    
+// need to be explicit about which segment these are delinating    
     const vowels = Object.keys(vowelFormants);
     const segmentHeight = squareSize / (vowels.length - 1);
     const offset = Math.max(y-squareTop, 0);
-    const index = Math.min(Math.floor( offset / segmentHeight), vowels.length - 2);
-    const t = ((y - squareTop) % segmentHeight) / segmentHeight;
-    const vowel1 = vowels[index];
-    const vowel2 = vowels[index + 1];
+    const index = Math.min(Math.floor( offset / segmentHeight), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
+    const t = ((y - squareTop) % segmentHeight) / segmentHeight; // where we are in the segment
+    const vowel1 = vowels[index]; // first fencepost for this segment
+    const vowel2 = vowels[index + 1]; // second fencepost for this segment
 
-    const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
+    const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t; 
     const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
 
-    const currentVowel = t < 0.5 ? vowel1 : vowel2;
+    const currentVowel = t < 0.5 ? vowel1 : vowel2; // ? is an if then statement = "condition ? valueIfTrue : valueIfFalse"
 
-    return { f1, f2, vowel: currentVowel };
+    return { f1, f2, vowel: currentVowel }; // final answer of what vowel we're in
 }
 
 // Helper function to end the game regardless good or bad
