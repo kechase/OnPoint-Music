@@ -115,15 +115,20 @@ class MusicBox {
     }
 
     play() {
+        this.play(0)
+    }
+
+    play(currentTime) {
         this.isPlaying = true;
-        this.gainNode.gain.setValueAtTime(8, 0); 
+        this.gainNode.gain.setValueAtTime(8, currentTime); 
     }
 
     update( pitch, f1, f2 ) {
-        if ( !this.isPlaying ) {
-            this.play();
-        }
         const currentTime = this.audioContext.currentTime;
+        if ( !this.isPlaying ) {
+            this.play(currentTime);
+        }
+        this.gainNode.gain.setValueAtTime(8, currentTime);
         this.oscillator.frequency.setValueAtTime(pitch, currentTime);
         this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
         this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
@@ -859,10 +864,12 @@ function gameSetup(data) {
                     point.y >= squareTop &&
                     point.y <= squareTop + squareSize
                 ) {
+                    console.log(`point ${JSON.stringify(point)}`)
                     // generate value for vowel formants
                     const { f1, f2, _vowel } = getVowelFormants(point.y, squareTop, squareSize);
                     const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
 
+                    console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`)
                     // update musicbox
                     musicBox.update(pitch, f1, f2);
                 } else {
@@ -1115,7 +1122,7 @@ function gameSetup(data) {
         begin = new Date();         // Start of timer for movement time
         
         // Play audio
-        musicBox.play();
+        musicBox.play(0);
         
         // Start circle disappears
         calibration.display(false);
