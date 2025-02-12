@@ -125,16 +125,16 @@ class MusicBox {
 
     update( pitch, f1, f2 ) {
         const currentTime = this.audioContext.currentTime;
-        if ( !this.isPlaying ) {
-            this.play(currentTime);
-        }
+        // if ( !this.isPlaying ) {
+        //     this.play(currentTime);
+        //}
         this.gainNode.gain.setValueAtTime(8, currentTime);
         this.oscillator.frequency.setValueAtTime(pitch, currentTime);
         this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
         this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
 
-        this.filter1.Q.setValueAtTime(12, currentTime);
-        this.filter2.Q.setValueAtTime(12, currentTime);
+        this.filter1.Q.setValueAtTime(4, currentTime);
+        this.filter2.Q.setValueAtTime(4, currentTime);
     }
 
     pause() {
@@ -147,8 +147,6 @@ function Point(x, y) {
     this.x = x;
     this.y = y;
 }
-
-// we will create line soon here - Just need to make sure all of this still works.
 
 //#endregion
 
@@ -461,7 +459,7 @@ function checkInfo() {
 }
 
 const deg2rad = Math.PI / 180;
-const rad2deg = 100 / Math.PI;
+const rad2deg = 180 / Math.PI;
 
 // Function used to start running the game
 function startGame() {
@@ -864,12 +862,17 @@ function gameSetup(data) {
                     point.y >= squareTop &&
                     point.y <= squareTop + squareSize
                 ) {
-                    console.log(`point ${JSON.stringify(point)}`)
+                    console.log(`point ${JSON.stringify(point)}`);
                     // generate value for vowel formants
                     const { f1, f2, _vowel } = getVowelFormants(point.y, squareTop, squareSize);
-                    const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
+                    const lo_pitch = 150;
+                    const hi_pitch = 800;
 
-                    console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`)
+                    const x_proportion = (point.x - squareLeft) / squareSize;
+                    const pitch = (hi_pitch - lo_pitch)*(Math.pow(2, x_proportion)-1) + lo_pitch;
+                    // const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
+
+                    console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
                     // update musicbox
                     musicBox.update(pitch, f1, f2);
                 } else {
@@ -1042,7 +1045,7 @@ function gameSetup(data) {
             const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
             const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
             // update musicbox
-            musicBox.update(pitch, f1, f2); // understand this theory but I don't like what I'm getting, there are repeated tones; bring back the legend so I can see what's happening (x and y values for f1 and f2)
+            musicBox.update(pitch, f1, f2); 
         }
 
         // TODO: How to stop this animation?
@@ -1068,7 +1071,7 @@ function gameSetup(data) {
         const angle = tgt_angle[trial];
         target.setFill('blue');
 
-        // If we are not in practice trial, display the target?
+        // If we are not in practice trial display target (0.0 = invisible, 1.0 = visible)
         if ( jump == 1.0 ) {
             target.display(true);
         }
@@ -1136,13 +1139,14 @@ function gameSetup(data) {
         // Can choose to add audio in later if necessary
         mt = new Date() - begin;
         let timer = 0;
+        musicBox.pause();
 
-        // hmm
+        // Gives "hurry" message upon completing a trial that was done too slowly
         if (mt > too_slow_time) {
 			calibration.display(false);
             d3.select('#too_slow_message').attr('display', 'block');
             target.setFill('red');
-            reach_feedback = "too_slow";
+            reach_feedback = "let's pick up the pace!";
             timer = feedback_time_slow;
         } else {
             target.setFill('green');
@@ -1241,9 +1245,9 @@ function gameSetup(data) {
 function getVowelFormants(y, squareTop, squareSize) {
     const vowelFormants = {
         i: { f1: 300, f2: 2300 },
-        u: { f1: 300, f2: 800 },
+       // u: { f1: 300, f2: 800 },
         a: { f1: 700, f2: 1200 },
-        æ: { f1: 700, f2: 1800 }
+       // æ: { f1: 700, f2: 1800 }
     };
 // need to be explicit about which segment these are delinating    
     const vowels = Object.keys(vowelFormants);
