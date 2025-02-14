@@ -35,30 +35,30 @@ class Circle {
 		this.point = new Point (point.x, point.y);
 
 		this.visible = false;
-        this.element = parent.append('circle')
-        	.attr('r', radius)
-        	.attr('stroke-width', 2)
-			.attr('cx', this.point.x)
-			.attr('cy', this.point.y)
-			.attr('display', 'none');
+        this.element = parent.append("circle")
+        .attr("r", radius)
+        .attr("stroke-width", 2)
+        .attr("cx", this.point.x)
+        .attr("cy", this.point.y)
+        .attr("display", "none");
 
         this.setFill(fill);
         this.setStroke(stroke);
     }
 
     setFill(color) {
-        this.element.attr('fill', color);
+        this.element.attr("fill", color);
     }
 
     setStroke(color) {
-        this.element.attr('stroke', color);
+        this.element.attr("stroke", color);
     }
 
     // control how the element is displayed
     display(isVisible) {
         this.visible = isVisible;
-        const value = this.visible ? 'block' : 'none';
-        this.element.attr('display', value);
+        const value = this.visible ? "block" : "none";
+    this.element.attr("display", value);
     }
 
     // update position of the element
@@ -93,16 +93,16 @@ class MusicBox {
         
         // oscillator
         this.oscillator = this.audioContext.createOscillator();
-        this.oscillator.type = 'sawtooth';
+        this.oscillator.type = "sawtooth";
         this.oscillator.frequency.value = 220;
 
         // filter 1
         this.filter1 = this.audioContext.createBiquadFilter();
-        this.filter1.type = 'bandpass';
+        this.filter1.type = "bandpass";
 
         // filter 2
         this.filter2 = this.audioContext.createBiquadFilter();
-        this.filter2.type = 'bandpass';
+        this.filter2.type = "bandpass";
 
         // connect
         this.oscillator.connect(this.filter1);
@@ -114,13 +114,10 @@ class MusicBox {
         this.oscillator.start();
     }
 
-    play() {
-        this.play(0)
-    }
-
     play(currentTime) {
         this.isPlaying = true;
         this.gainNode.gain.setValueAtTime(8, currentTime); 
+        this.audioContext.resume();
     }
 
     update( pitch, f1, f2 ) {
@@ -133,22 +130,21 @@ class MusicBox {
         this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
         this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
 
-        this.filter1.Q.setValueAtTime(12, currentTime);
-        this.filter2.Q.setValueAtTime(12, currentTime);
+        this.filter1.Q.setValueAtTime(5, currentTime);
+        this.filter2.Q.setValueAtTime(5, currentTime);
     }
 
     pause() {
         this.isPlaying = false;
         this.gainNode.gain.setValueAtTime(0, 0);
-    }
+        this.audioContext.suspend();
+        }
 }
 
 function Point(x, y) {
     this.x = x;
     this.y = y;
 }
-
-// we will create line soon here - Just need to make sure all of this still works.
 
 //#endregion
 
@@ -196,7 +192,7 @@ class Subject extends Database  {
         this.race = race,
         this.comments = null,
         this.distractions = [],
-        this.distracto = null
+        this.distracto = null;
     }
 
     // contains the basic information required to proceed
@@ -220,10 +216,10 @@ class Trial extends Database {
     }
 
     // array are treated as reference. https://stackoverflow.com/questions/6605640/javascript-by-reference-vs-by-value
-    appendTrialBlock(target_angle, rotation, hand_angle, rt, mt, time, feedback, cursor_data ) {
+    appendTrialBlock(target_angle, rotation, hand_angle, rt, mt, time, feedback, cursor_data, ) {
         const lastTrialNum = this.getBlockNum();
         const block = new Block(
-            lastTrialNum + 1,   //  num
+            lastTrialNum + 1, //  num
             target_angle, 
             rotation,
             hand_angle,
@@ -256,7 +252,7 @@ class Block extends Database {
         this.currentDate = current_date;
         this.target_angle = target_angle;
         // TODO: Check the other end process to see if this is still in use! This is deprecated for this experiment.
-        this.trial_type = "online_fb";   // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
+        this.trial_type = "online_fb"; // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
         this.rotation = rotation;
         this.hand_fb_angle = hand_angle;
         this.rt = rt;
@@ -700,7 +696,10 @@ function gameSetup(data) {
             .attr('display', 'none')
             .text('To find your cursor, try moving your mouse to the center of the screen.');
 
-        reach_number_point = new Point(center.x + ( squareSize / 2 ), squareTop + squareSize + line_size );
+        reach_number_point = new Point(
+            center.x + (squareSize / 2), 
+            squareTop + squareSize + line_size,
+         );
         svgContainer.append('text')
             .attr('text-anchor', 'end')
             // why is this special? What does the magic number represent?
@@ -822,7 +821,10 @@ function gameSetup(data) {
         cursor.update(cursor_x, cursor_y);
         
         // distance between cursor and start
-        const distance = Math.sqrt(Math.pow(calibration.point.x - cursor.point.x, 2.0) + Math.pow(calibration.point.y - cursor.point.y, 2.0));
+        const distance = Math.sqrt(
+            Math.pow(calibration.point.x - cursor.point.x, 2.0) +
+            Math.pow(calibration.point.y - cursor.point.y, 2.0),
+        );
         
         // Update hand angle
         // no longer in use since the code down below is commented out, we're using hand_fb_angle instead?
@@ -839,7 +841,7 @@ function gameSetup(data) {
 
             case Phase.SHOW_TARGETS:
                 // Move from show targets to moving phase once user has begun their reach
-                if ( distance > calibration.radius) {
+                if (distance > calibration.radius) {
                     // we could also control if we want to wait for the target to finish the demo before moving the cursor.
                     // right now, if the mouse move out, we will stop the target and let the user conduct the experiment.
                     moving_phase();
@@ -848,7 +850,7 @@ function gameSetup(data) {
 
             case Phase.SEARCHING:    
                 // Move from search to hold phase if they move within search tolerance of the start circle
-                if( distance <= calibration.radius ) {
+                if(distance <= calibration.radius) {
                     hold_phase();
                 }
                 break;
@@ -859,14 +861,19 @@ function gameSetup(data) {
                 handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
 				
                 // Check if cursor is within the red square
-                if (point.x >= squareLeft &&
+                if (
+                    point.x >= squareLeft &&
                     point.x <= squareLeft + squareSize &&
                     point.y >= squareTop &&
                     point.y <= squareTop + squareSize
                 ) {
-                    console.log(`point ${JSON.stringify(point)}`)
+                    console.log(`point ${JSON.stringify(point)}`);
                     // generate value for vowel formants
-                    const { f1, f2, _vowel } = getVowelFormants(point.y, squareTop, squareSize);
+                    const { f1, f2, _vowel } = getVowelFormants(
+                        point.y, 
+                        squareTop,
+                        squareSize,
+                    );
                     const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
 
                     console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`)
@@ -974,7 +981,7 @@ function gameSetup(data) {
         calibration.setStroke('white');
 
         // if we want to delay the target display then we can do it here?
-        target_display_timer = setTimeout(() => target.display(false), 500 );
+        target_display_timer = setTimeout(() => target.display(false), 500);
         cursor.display(true);
 
         hideMessage();
@@ -1035,14 +1042,14 @@ function gameSetup(data) {
         function play_sound_along(t) {
             // linear interpolate between two points over time (0-1)
             // This can be changed using different kind of interpolation or animation curve - future features
-            const x = start.x + ( end.x - start.x) * t;
-            const y = start.y + ( end.y - start.y) * t;
+            const x = start.x + (end.x - start.x) * t;
+            const y = start.y + (end.y - start.y) * t;
         
             update(x, y);   // callback to update others based on coordinate given.
             const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
             const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
             // update musicbox
-            musicBox.update(pitch, f1, f2); // understand this theory but I don't like what I'm getting, there are repeated tones; bring back the legend so I can see what's happening (x and y values for f1 and f2)
+            musicBox.update(pitch, f1, f2); 
         }
 
         // TODO: How to stop this animation?
@@ -1068,13 +1075,13 @@ function gameSetup(data) {
         const angle = tgt_angle[trial];
         target.setFill('blue');
 
-        // If we are not in practice trial, display the target?
+        // If we are not in practice trial display target (0.0 = invisible, 1.0 = visible)
         if ( jump == 1.0 ) {
             target.display(true);
         }
         
         const offset = (jump == 1.0 ) ? rotation[trial] : jump;
-        const value = (angle + offset);
+        const value = angle + offset;
         const start = calibration.point;
         const x = start.x + target_dist * Math.cos(value * deg2rad);
         const y = start.y - target_dist * Math.sin(value * deg2rad);
@@ -1084,7 +1091,7 @@ function gameSetup(data) {
         if (play_sound) {
             play_sounds(start, end, 1, (x,y) => {
                 // this gets called every frame. Part of the animation process. X, y are midpoint values between start and end over duration.
-                if( jump != 1.0 ) {
+                if(jump != 1.0) {
                     target.update(x,y)
                 }
             });
@@ -1136,13 +1143,14 @@ function gameSetup(data) {
         // Can choose to add audio in later if necessary
         mt = new Date() - begin;
         let timer = 0;
+        musicBox.pause();
 
-        // hmm
+        // Gives "hurry" message upon completing a trial that was done too slowly
         if (mt > too_slow_time) {
 			calibration.display(false);
             d3.select('#too_slow_message').attr('display', 'block');
             target.setFill('red');
-            reach_feedback = "too_slow";
+            reach_feedback = "let's pick up the pace!";
             timer = feedback_time_slow;
         } else {
             target.setFill('green');
@@ -1153,13 +1161,18 @@ function gameSetup(data) {
         
         // Record the hand location immediately after crossing target ring
         // projected back onto target ring (since mouse doesn't sample fast enough)
-        hand_fb_angle = Math.atan2(calibration.point.y - cursor.point.y, cursor.point.x - calibration.point.x) * rad2deg;
+        hand_fb_angle = Math.atan2(
+            calibration.point.y - cursor.point.y,
+            cursor.point.x - calibration.point.x,
+        ) * rad2deg;
         if (hand_fb_angle < 0) {
             hand_fb_angle = 360 + hand_fb_angle; // Corrected so that it doesn't have negative angles // can't imagine why it'd be negative?
         }
         
-        hand_fb_x = calibration.point.x + target_dist * Math.cos(hand_fb_angle * deg2rad);
-        hand_fb_y = calibration.point.y - target_dist * Math.sin(hand_fb_angle * deg2rad);
+        hand_fb_x = calibration.point.x +
+        target_dist * Math.cos(hand_fb_angle * deg2rad);
+        hand_fb_y = calibration.point.y -
+        target_dist * Math.sin(hand_fb_angle * deg2rad);
 
         cursor.display(true);
 
@@ -1219,7 +1232,9 @@ function gameSetup(data) {
 
         // update trial count display
         const totalTrials = target_file_data.numtrials;
-        d3.select('#trialcount').text('Reach Number: ' + trial + ' / ' + totalTrials);
+        d3.select('#trialcount').text(
+            "Reach Number: " + trial + " / " + totalTrials,
+        );
 
         // Checks whether the experiment is complete, if not continues to next trial
         if (trial == num_trials) {
@@ -1248,8 +1263,8 @@ function getVowelFormants(y, squareTop, squareSize) {
 // need to be explicit about which segment these are delinating    
     const vowels = Object.keys(vowelFormants);
     const segmentHeight = squareSize / (vowels.length - 1);
-    const offset = Math.max(y-squareTop, 0);
-    const index = Math.min(Math.floor( offset / segmentHeight), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
+    const offset = Math.max(y - squareTop, 0);
+    const index = Math.min(Math.floor(offset / segmentHeight), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
     const t = ((y - squareTop) % segmentHeight) / segmentHeight; // where we are in the segment
     const vowel1 = vowels[index]; // first fencepost for this segment
     const vowel2 = vowels[index + 1]; // second fencepost for this segment
@@ -1312,7 +1327,7 @@ function helpEnd() {
         rt,
         mt,
         search_time,
-        reach_feedback
+        reach_feedback,
     };
 
     updateCollection(trialcollection, subjTrial_data);
