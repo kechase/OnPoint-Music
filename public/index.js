@@ -9,7 +9,7 @@ Remember to update necessary fields before starting the game. All fields that re
 
 // Set to 'true' if you wish to only test the front-end (will not access databases)
 // **TODO** Make sure this is set to false before deploying!
-const noSave = true;
+const noSave = false;
 // TODO: Replace this with your own experiment file!
 // Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
 const fileName = "./tgt_files/Katie2_csv_file.json";
