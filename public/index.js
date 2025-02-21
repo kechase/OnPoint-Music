@@ -505,7 +505,7 @@ class MusicBox {
 
     // oscillator
     this.oscillator = this.audioContext.createOscillator();
-    this.oscillator.type = "sawtooth";
+    this.oscillator.type = "square";
     this.oscillator.frequency.value = 220;
 
     // filter 1
