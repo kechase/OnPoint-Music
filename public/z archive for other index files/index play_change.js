@@ -503,26 +503,18 @@ class MusicBox {
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = 0.001;
 
-    // Create main oscillator for f0 control
+    // oscillator
     this.oscillator = this.audioContext.createOscillator();
-    this.oscillator.type = "sawtooth"; // Sawtooth, square.
+    this.oscillator.type = "sawtooth";
     this.oscillator.frequency.value = 220;
 
-    // Create filters for spectral shaping
-    // Filter bank for enhanced spectral control
     // filter 1
     this.filter1 = this.audioContext.createBiquadFilter();
     this.filter1.type = "bandpass";
-    this.filter1.Q.value = 8; // Sharper resonance for formant simulation
 
     // filter 2
     this.filter2 = this.audioContext.createBiquadFilter();
     this.filter2.type = "bandpass";
-    this.filter2.Q.value = 8;
-
-    // Additional filters for spectral centroid control
-    this.centroidFilter = this.audioContext.createBiquadFilter();
-    this.centroidFilter.type = 'highshelf';
 
     // connect
     this.oscillator.connect(this.filter1);
