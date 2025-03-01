@@ -373,7 +373,7 @@ const fileContent = {
     "16": 0.0,
     "17": 0.0,
     "18": 0.0,
-    "19": 0.0,
+    "19": 2.0, // 2 will be the number to trigger the chance of phase message to TESTING
     "20": 0.0,
     "21": 0.0,
     "22": 0.0,
@@ -951,10 +951,9 @@ function gameSetup(data) {
       "Press 'b' when you are ready to proceed.",
     ],
     [
-      "This is an instruction understanding check, you may proceed ONLY if you choose the correct choice.", // Message displayed when bb_mess == 2
-      "Choosing the wrong choice will result in early game termination and an incomplete HIT!",
-      "Press 'a' if you should ignore the white dot and aim directly towards the target.",
-      "Press 'b' if you should be aiming away from the target.",
+      "Now the instrument will play itself and then you get to RECREATE that sound. Each sound will be played for you once, and then you'll move your cursor along the line you believe makes that sound.", // Message displayed when bb_mess == 2
+      "Don't worry if you miss one -- it takes a littel practice!",
+      "Press 'a' to continue.",
     ],
     [
       "The white dot will now be hidden.", // bb_mess == 3
@@ -1349,9 +1348,9 @@ function gameSetup(data) {
   // **TODO** Make sure the conditions match up to the messages displayed in "messages"
   function advance_block(event) {
     const SPACE_BAR = " "; //32;
-    const a = "a"; //65;
-    const e = "e"; //69;
-    const b = "b"; //66;
+    const a = "a"; //97;
+    const e = "e"; //101;
+    const b = "b"; //98;
     // const f = 70;   // not in use?
     // keyCode is marked deprecated - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode
     // use keyboardEvent.key instead - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
