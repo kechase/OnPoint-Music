@@ -497,13 +497,16 @@ class Circle {
 class MusicBox {
   constructor(handler) {
     this.isPlaying = false;
-    // Audio context setup
+    // Audio context setup - don't start it yet, needs user gesture
     this.audioContext = new (handler.AudioContext || handler.webkitAudioContext)();
     
-    // Initialize synth components
-    this.initialized = false;
+    // Force audio context to be suspended initially
+    if (this.audioContext.state !== 'suspended') {
+      this.audioContext.suspend();
+    }
     
-    // Current position tracking for generating sounds
+    // Initialize properties
+    this.initialized = false;
     this.lastPosition = { x: 0.5, y: 0.5 }; // Normalized position (0-1)
     
     // Rhythm patterns with increasing complexity
@@ -515,79 +518,135 @@ class MusicBox {
       [1, 0, 1, 0, 1, 1, 0, 1, 0, 1]    // Very complex
     ];
     
-    // Setup components
-    this.initializeAudio();
-  }
-  
-  async initializeAudio() {
-    if (this.initialized) return;
-    
-    // Create percussion instruments
-    // Kick drum
-    this.kickSynth = this.audioContext.createOscillator();
-    this.kickGain = this.audioContext.createGain();
-    this.kickSynth.type = 'sine';
-    this.kickSynth.frequency.value = 150;
-    this.kickGain.gain.value = 0.001;
-    this.kickSynth.connect(this.kickGain);
-    this.kickGain.connect(this.audioContext.destination);
-    this.kickSynth.start();
-    
-    // Hihat
-    this.hihatSynth = this.audioContext.createOscillator();
-    this.hihatGain = this.audioContext.createGain();
-    this.hihatFilter = this.audioContext.createBiquadFilter();
-    this.hihatSynth.type = 'square';
-    this.hihatSynth.frequency.value = 800;
-    this.hihatFilter.type = 'highpass';
-    this.hihatFilter.frequency.value = 700;
-    this.hihatFilter.Q.value = 15;
-    this.hihatGain.gain.value = 0.001;
-    this.hihatSynth.connect(this.hihatFilter);
-    this.hihatFilter.connect(this.hihatGain);
-    this.hihatGain.connect(this.audioContext.destination);
-    this.hihatSynth.start();
-    
-    // Tone synth (for Bohlen-Pierce scale)
-    this.toneSynth = this.audioContext.createOscillator();
-    this.toneGain = this.audioContext.createGain();
-    this.toneSynth.type = 'sine';
-    this.toneSynth.frequency.value = 130.81; // C3
-    this.toneGain.gain.value = 0.001;
-    this.toneSynth.connect(this.toneGain);
-    this.toneGain.connect(this.audioContext.destination);
-    this.toneSynth.start();
-    
     // Sequence control
     this.currentStep = 0;
     this.currentPattern = this.rhythmPatterns[0];
     this.sequenceInterval = null;
     
-    this.initialized = true;
+    // Audio nodes - initialize them to null, but don't create them yet
+    this.kickSynth = null;
+    this.kickGain = null;
+    this.hihatSynth = null;
+    this.hihatGain = null;
+    this.hihatFilter = null;
+    this.toneSynth = null;
+    this.toneGain = null;
+
+    // Debug flag - set to true to enable console logs
+    this.debug = true;
   }
   
-  play(currentTime) {
+  log(...args) {
+    if (this.debug) {
+      console.log(...args);
+    }
+  }
+  
+  // Safe initialization of audio components
+  async initializeAudio() {
+    if (this.initialized) return true;
+    
+    try {
+      // Resume audio context (requires user gesture)
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
+      
+      this.log("AudioContext state:", this.audioContext.state);
+      
+      // Create all audio nodes
+      
+      // Kick drum
+      this.kickGain = this.audioContext.createGain();
+      this.kickGain.gain.value = 0.001; // Start silent
+      this.kickGain.connect(this.audioContext.destination);
+      
+      this.kickSynth = this.audioContext.createOscillator();
+      this.kickSynth.type = 'sine';
+      this.kickSynth.frequency.value = 150;
+      this.kickSynth.connect(this.kickGain);
+      this.kickSynth.start();
+      
+      // Hihat
+      this.hihatGain = this.audioContext.createGain();
+      this.hihatGain.gain.value = 0.001; // Start silent
+      
+      this.hihatFilter = this.audioContext.createBiquadFilter();
+      this.hihatFilter.type = 'highpass';
+      this.hihatFilter.frequency.value = 700;
+      this.hihatFilter.Q.value = 15;
+      this.hihatFilter.connect(this.hihatGain);
+      this.hihatGain.connect(this.audioContext.destination);
+      
+      this.hihatSynth = this.audioContext.createOscillator();
+      this.hihatSynth.type = 'square';
+      this.hihatSynth.frequency.value = 800;
+      this.hihatSynth.connect(this.hihatFilter);
+      this.hihatSynth.start();
+      
+      // Tone for Bohlen-Pierce scale
+      this.toneGain = this.audioContext.createGain();
+      this.toneGain.gain.value = 0.001; // Start silent
+      this.toneGain.connect(this.audioContext.destination);
+      
+      this.toneSynth = this.audioContext.createOscillator();
+      this.toneSynth.type = 'sine';
+      this.toneSynth.frequency.value = 130.81; // C3
+      this.toneSynth.connect(this.toneGain);
+      this.toneSynth.start();
+      
+      this.initialized = true;
+      this.log("Audio initialized successfully");
+      return true;
+    } catch (error) {
+      console.error("Error initializing audio:", error);
+      return false;
+    }
+  }
+  
+  // Start playing with proper timing
+  async play(currentTime) {
     if (!this.initialized) {
-      this.initializeAudio();
+      if (!await this.initializeAudio()) {
+        console.error("Failed to initialize audio!");
+        return;
+      }
+    }
+    
+    this.log("Starting playback...");
+    
+    // Make sure audio context is running
+    if (this.audioContext.state !== 'running') {
+      try {
+        await this.audioContext.resume();
+        this.log("AudioContext resumed:", this.audioContext.state);
+      } catch (error) {
+        console.error("Error resuming audio context:", error);
+        return;
+      }
     }
     
     this.isPlaying = true;
-    this.audioContext.resume();
     
     // Start the rhythm sequence
     this.startRhythmSequence();
   }
   
-  // New method to handle rhythm sequences
+  // Handle rhythm sequencing
   startRhythmSequence() {
+    // Clear any existing interval
     if (this.sequenceInterval) {
       clearInterval(this.sequenceInterval);
+      this.sequenceInterval = null;
     }
     
     this.currentStep = 0;
     const tempo = this.getTempoForYValue(this.lastPosition.y);
-    const stepTime = 60000 / tempo / 2; // Convert BPM to milliseconds per 8th note
+    const stepTime = Math.floor(60000 / tempo / 2); // Convert BPM to milliseconds per 8th note
     
+    this.log("Starting sequence with tempo:", tempo, "BPM, step time:", stepTime, "ms");
+    
+    // Create a new interval for the rhythm
     this.sequenceInterval = setInterval(() => {
       this.playNextStep();
     }, stepTime);
@@ -597,14 +656,15 @@ class MusicBox {
   playNextStep() {
     if (!this.isPlaying) return;
     
-    const currentTime = this.audioContext.currentTime;
     const pattern = this.currentPattern;
     const patternIndex = this.currentStep % pattern.length;
     
+    // If this step has a beat (1), play appropriate sounds
     if (pattern[patternIndex]) {
-      // Play sounds based on instruments determined by Y position
       const instruments = this.getInstrumentsForYValue(this.lastPosition.y);
+      const currentTime = this.audioContext.currentTime;
       
+      // Play each active instrument
       if (instruments.includes('kick')) {
         this.playKick(currentTime);
       }
@@ -613,80 +673,108 @@ class MusicBox {
         this.playHihat(currentTime);
       }
       
-      // Always play a tone based on X position
+      // Always play the tone based on X position
       this.playTone(currentTime);
     }
     
     this.currentStep++;
   }
   
-  // Play kick drum sound
+  // Play kick drum sound with proper envelope
   playKick(time) {
-    const kickAttack = 0.01;
-    const kickRelease = 0.5;
+    if (!this.kickSynth || !this.kickGain) return;
     
-    this.kickSynth.frequency.setValueAtTime(150, time);
-    this.kickSynth.frequency.exponentialRampToValueAtTime(55, time + 0.15);
+    const attackTime = 0.001;
+    const releaseTime = 0.3;
     
-    this.kickGain.gain.cancelScheduledValues(time);
-    this.kickGain.gain.setValueAtTime(0.001, time);
-    this.kickGain.gain.exponentialRampToValueAtTime(2, time + kickAttack);
-    this.kickGain.gain.exponentialRampToValueAtTime(0.001, time + kickAttack + kickRelease);
+    try {
+      // Set frequency envelope for 'thump' effect
+      this.kickSynth.frequency.cancelScheduledValues(time);
+      this.kickSynth.frequency.setValueAtTime(150, time);
+      this.kickSynth.frequency.exponentialRampToValueAtTime(60, time + 0.1);
+      
+      // Set amplitude envelope
+      this.kickGain.gain.cancelScheduledValues(time);
+      this.kickGain.gain.setValueAtTime(0.001, time);
+      this.kickGain.gain.exponentialRampToValueAtTime(1, time + attackTime);
+      this.kickGain.gain.exponentialRampToValueAtTime(0.001, time + attackTime + releaseTime);
+    } catch (error) {
+      console.error("Error playing kick:", error);
+    }
   }
   
-  // Play hihat sound
+  // Play hihat sound with proper envelope
   playHihat(time) {
-    const hihatAttack = 0.001;
-    const hihatRelease = 0.1;
+    if (!this.hihatSynth || !this.hihatGain) return;
     
-    this.hihatGain.gain.cancelScheduledValues(time);
-    this.hihatGain.gain.setValueAtTime(0.001, time);
-    this.hihatGain.gain.exponentialRampToValueAtTime(0.3, time + hihatAttack);
-    this.hihatGain.gain.exponentialRampToValueAtTime(0.001, time + hihatAttack + hihatRelease);
+    const attackTime = 0.001;
+    const releaseTime = 0.1;
+    
+    try {
+      // Set amplitude envelope
+      this.hihatGain.gain.cancelScheduledValues(time);
+      this.hihatGain.gain.setValueAtTime(0.001, time);
+      this.hihatGain.gain.exponentialRampToValueAtTime(0.3, time + attackTime);
+      this.hihatGain.gain.exponentialRampToValueAtTime(0.001, time + attackTime + releaseTime);
+    } catch (error) {
+      console.error("Error playing hihat:", error);
+    }
   }
   
-  // Play tone based on Bohlen-Pierce scale
+  // Play tone with proper envelope
   playTone(time) {
+    if (!this.toneSynth || !this.toneGain) return;
+    
     const frequency = this.getNoteForXValue(this.lastPosition.x);
-    const attack = 0.02;
-    const release = 0.3;
+    const attackTime = 0.02;
+    const releaseTime = 0.3;
     
-    this.toneSynth.frequency.cancelScheduledValues(time);
-    this.toneSynth.frequency.setValueAtTime(frequency, time);
-    
-    this.toneGain.gain.cancelScheduledValues(time);
-    this.toneGain.gain.setValueAtTime(0.001, time);
-    this.toneGain.gain.exponentialRampToValueAtTime(0.5, time + attack);
-    this.toneGain.gain.exponentialRampToValueAtTime(0.001, time + attack + release);
+    try {
+      // Set frequency
+      this.toneSynth.frequency.cancelScheduledValues(time);
+      this.toneSynth.frequency.setValueAtTime(frequency, time);
+      
+      // Set amplitude envelope
+      this.toneGain.gain.cancelScheduledValues(time);
+      this.toneGain.gain.setValueAtTime(0.001, time);
+      this.toneGain.gain.exponentialRampToValueAtTime(0.4, time + attackTime);
+      this.toneGain.gain.exponentialRampToValueAtTime(0.001, time + attackTime + releaseTime);
+    } catch (error) {
+      console.error("Error playing tone:", error);
+    }
   }
   
-  // This replaces the original update method
+  // Update sound based on cursor position
   update(x, y, squareLeft, squareTop, squareSize) {
     // Normalize position to 0-1 range
     const normalizedX = (x - squareLeft) / squareSize;
     const normalizedY = (y - squareTop) / squareSize;
     
-    // Update current position
+    // Constrain to 0-1 range
     this.lastPosition.x = Math.max(0, Math.min(1, normalizedX));
     this.lastPosition.y = Math.max(0, Math.min(1, normalizedY));
     
-    // Make sure the audio context is running
+    // Initialize and start if not already playing
     if (!this.isPlaying) {
       this.play(this.audioContext.currentTime);
+      return;
     }
     
     // Update pattern based on Y position
-    this.currentPattern = this.getPatternForYValue(this.lastPosition.y);
+    const newPattern = this.getPatternForYValue(this.lastPosition.y);
+    if (newPattern !== this.currentPattern) {
+      this.currentPattern = newPattern;
+    }
     
-    // Update tempo based on Y position
-    const tempo = this.getTempoForYValue(this.lastPosition.y);
-    const stepTime = 60000 / tempo / 2; // Convert BPM to milliseconds per 8th note
+    // Update tempo if it has changed significantly
+    const newTempo = this.getTempoForYValue(this.lastPosition.y);
+    const currentTempo = this.currentTempo || 150;
     
-    // Restart sequence with new tempo
-    clearInterval(this.sequenceInterval);
-    this.sequenceInterval = setInterval(() => {
-      this.playNextStep();
-    }, stepTime);
+    // Only update sequence if tempo changed by more than 5 BPM
+    if (Math.abs(newTempo - currentTempo) > 5) {
+      this.currentTempo = newTempo;
+      this.startRhythmSequence(); // Restart with new tempo
+    }
   }
   
   // Map Y value to rhythm pattern
@@ -720,23 +808,20 @@ class MusicBox {
   
   // Map X value to Bohlen-Pierce scale note
   getNoteForXValue(x) {
-    // Bohlen-Pierce scale divides the tritave (3:1 frequency ratio) into 13 equal steps
     // Base frequency (C3 = 130.81 Hz)
     const baseFrequency = 130.81;
     
     // Bohlen-Pierce scale has 13 steps in a tritave (3:1 ratio)
-    // Each step is 3^(1/13) ≈ 1.08818 times the previous frequency
     const step = Math.pow(3, 1/13);
     
-    // Map x from 0-1 to 0-25 for a wider range (about 2 tritaves)
+    // Map x from 0-1 to 0-25 for about 2 tritaves
     const bpSteps = Math.floor(x * 25);
     
-    // Calculate frequency
-    const frequency = baseFrequency * Math.pow(step, bpSteps);
-    
-    return frequency;
+    // Calculate and return frequency
+    return baseFrequency * Math.pow(step, bpSteps);
   }
   
+  // Stop all sounds and clean up
   pause() {
     this.isPlaying = false;
     
@@ -746,13 +831,28 @@ class MusicBox {
       this.sequenceInterval = null;
     }
     
-    // Silence all sounds
-    if (this.kickGain) this.kickGain.gain.value = 0.001;
-    if (this.hihatGain) this.hihatGain.gain.value = 0.001;
-    if (this.toneGain) this.toneGain.gain.value = 0.001;
+    // Silence all sounds immediately
+    const now = this.audioContext.currentTime;
+    
+    if (this.kickGain) {
+      this.kickGain.gain.cancelScheduledValues(now);
+      this.kickGain.gain.setValueAtTime(0.001, now);
+    }
+    
+    if (this.hihatGain) {
+      this.hihatGain.gain.cancelScheduledValues(now);
+      this.hihatGain.gain.setValueAtTime(0.001, now);
+    }
+    
+    if (this.toneGain) {
+      this.toneGain.gain.cancelScheduledValues(now);
+      this.toneGain.gain.setValueAtTime(0.001, now);
+    }
     
     // Suspend the audio context to save resources
     this.audioContext.suspend();
+    
+    this.log("Playback paused");
   }
 }
 
@@ -1100,7 +1200,11 @@ function monitorWindow(_event) {
   }
   prev_screen_size = curr_size;
 }
-
+// Constructor for Point objects
+function Point(x, y) {
+  this.x = x;
+  this.y = y;
+}
 // Function that sets up the game
 // All game functions are defined within this main function, treat as "main"
 function gameSetup(data) {
@@ -1667,29 +1771,41 @@ function gameSetup(data) {
   }
 
   // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
-  function play_sounds(start, end, duration, update) {
-    function play_sound_along(t) {
-      // linear interpolate between two points over time (0-1)
-      const x = start.x + (end.x - start.x) * t;
-      const y = start.y + (end.y - start.y) * t;
-      
-      update(x, y); // callback to update others based on coordinate given
-      
-      // Check if the point is within the red square
-      if (
-        x >= squareLeft && 
-        x <= squareLeft + squareSize && 
-        y >= squareTop && 
-        y <= squareTop + squareSize
-      ) {
-        musicBox.update(x, y, squareLeft, squareTop, squareSize);
-      }
+  // Updated play_sounds function to work better with the new MusicBox
+function play_sounds(start, end, duration, update) {
+  function play_sound_along(t) {
+    // linear interpolate between two points over time (0-1)
+    const x = start.x + (end.x - start.x) * t;
+    const y = start.y + (end.y - start.y) * t;
+    
+    update(x, y); // callback to update others based on coordinate given
+    
+    // Check if the point is within the red square
+    if (
+      x >= squareLeft && 
+      x <= squareLeft + squareSize && 
+      y >= squareTop && 
+      y <= squareTop + squareSize
+    ) {
+      musicBox.update(x, y, squareLeft, squareTop, squareSize);
     }
-  
-    animate((t) => play_sound_along(t), 1000, () => musicBox.pause());
-  
-    stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
   }
+
+  // First ensure musicBox is initialized
+  musicBox.initializeAudio().then(() => {
+    // Start animation
+    animate((t) => play_sound_along(t), 1000, () => {
+      // Make sure we stop correctly
+      if (stop_target_music_timer) {
+        clearTimeout(stop_target_music_timer);
+      }
+      musicBox.pause();
+    });
+    
+    // Set a backup timer to ensure audio stops
+    stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
+  });
+}
 
   // Phase when users have held cursor in start circle long enough so target shows up
   function show_targets() {
@@ -1739,33 +1855,36 @@ function gameSetup(data) {
   }
 
   // Phase when users are reaching to the target
-  function moving_phase() {
-    if (stop_target_music_timer != null) {
-      clearTimeout(stop_target_music_timer);
-      stop_target_music_timer = null;
-    }
-
-    // clear timer
-    if (green_timer !== null) {
-      clearTimeout(green_timer);
-      green_timer = null;
-    }
-
-    if (target_jump[trial] != 1.0) {
-      target.display(false);
-    }
-
-    rt = new Date() - begin; // Record reaction time as time spent with target visible before moving
-    begin = new Date(); // Start of timer for movement time
-
-    // Play audio
-    musicBox.play(0);
-
-    // Start circle disappears
-    calibration.display(false);
-    cursor.display(true);
-    game_phase = Phase.MOVING;
+  // Updated moving_phase function with explicit audio initialization
+function moving_phase() {
+  if (stop_target_music_timer != null) {
+    clearTimeout(stop_target_music_timer);
+    stop_target_music_timer = null;
   }
+
+  // clear timer
+  if (green_timer !== null) {
+    clearTimeout(green_timer);
+    green_timer = null;
+  }
+
+  if (target_jump[trial] != 1.0) {
+    target.display(false);
+  }
+
+  rt = new Date() - begin; // Record reaction time as time spent with target visible before moving
+  begin = new Date(); // Start of timer for movement time
+
+  // Initialize audio and then play
+  musicBox.initializeAudio().then(() => {
+    musicBox.play(0);
+  });
+
+  // Start circle disappears
+  calibration.display(false);
+  cursor.display(true);
+  game_phase = Phase.MOVING;
+}
 
   // Phase where users have finished their reach and receive feedback
   function fb_phase() {
