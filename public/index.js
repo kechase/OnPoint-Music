@@ -497,78 +497,264 @@ class Circle {
 class MusicBox {
   constructor(handler) {
     this.isPlaying = false;
-    // audio controls.
-    this.audioContext =
-      new (handler.AudioContext || handler.webkitAudioContext)();
-    this.gainNode = this.audioContext.createGain();
-    this.gainNode.gain.value = 0.001;
-
-    // Create main oscillator for f0 control
-    this.oscillator = this.audioContext.createOscillator();
-    this.oscillator.type = "sawtooth"; // Sawtooth, square.
-    this.oscillator.frequency.value = 220;
-
-    // Create filters for spectral shaping
-    // Filter bank for enhanced spectral control
-    // filter 1
-    this.filter1 = this.audioContext.createBiquadFilter();
-    this.filter1.type = "bandpass";
-    this.filter1.Q.value = 8; // Sharper resonance for formant simulation
-
-    // filter 2
-    this.filter2 = this.audioContext.createBiquadFilter();
-    this.filter2.type = "bandpass";
-    this.filter2.Q.value = 8;
-
-    // Additional filters for spectral centroid control
-    this.centroidFilter = this.audioContext.createBiquadFilter();
-    this.centroidFilter.type = 'highshelf';
-
-    // connect
-    this.oscillator.connect(this.filter1);
-    this.filter1.connect(this.filter2);
-    this.filter2.connect(this.gainNode);
-    this.gainNode.connect(this.audioContext.destination);
-
-    // start
-    this.oscillator.start();
+    // Audio context setup
+    this.audioContext = new (handler.AudioContext || handler.webkitAudioContext)();
+    
+    // Initialize synth components
+    this.initialized = false;
+    
+    // Current position tracking for generating sounds
+    this.lastPosition = { x: 0.5, y: 0.5 }; // Normalized position (0-1)
+    
+    // Rhythm patterns with increasing complexity
+    this.rhythmPatterns = [
+      [1, 0, 0, 0],                     // Simplest
+      [1, 0, 1, 0],                     // Basic
+      [1, 0, 1, 0, 0, 1, 0, 0],         // Medium
+      [1, 0, 1, 1, 0, 1, 0, 1],         // Complex
+      [1, 0, 1, 0, 1, 1, 0, 1, 0, 1]    // Very complex
+    ];
+    
+    // Setup components
+    this.initializeAudio();
   }
-
+  
+  async initializeAudio() {
+    if (this.initialized) return;
+    
+    // Create percussion instruments
+    // Kick drum
+    this.kickSynth = this.audioContext.createOscillator();
+    this.kickGain = this.audioContext.createGain();
+    this.kickSynth.type = 'sine';
+    this.kickSynth.frequency.value = 150;
+    this.kickGain.gain.value = 0.001;
+    this.kickSynth.connect(this.kickGain);
+    this.kickGain.connect(this.audioContext.destination);
+    this.kickSynth.start();
+    
+    // Hihat
+    this.hihatSynth = this.audioContext.createOscillator();
+    this.hihatGain = this.audioContext.createGain();
+    this.hihatFilter = this.audioContext.createBiquadFilter();
+    this.hihatSynth.type = 'square';
+    this.hihatSynth.frequency.value = 800;
+    this.hihatFilter.type = 'highpass';
+    this.hihatFilter.frequency.value = 700;
+    this.hihatFilter.Q.value = 15;
+    this.hihatGain.gain.value = 0.001;
+    this.hihatSynth.connect(this.hihatFilter);
+    this.hihatFilter.connect(this.hihatGain);
+    this.hihatGain.connect(this.audioContext.destination);
+    this.hihatSynth.start();
+    
+    // Tone synth (for Bohlen-Pierce scale)
+    this.toneSynth = this.audioContext.createOscillator();
+    this.toneGain = this.audioContext.createGain();
+    this.toneSynth.type = 'sine';
+    this.toneSynth.frequency.value = 130.81; // C3
+    this.toneGain.gain.value = 0.001;
+    this.toneSynth.connect(this.toneGain);
+    this.toneGain.connect(this.audioContext.destination);
+    this.toneSynth.start();
+    
+    // Sequence control
+    this.currentStep = 0;
+    this.currentPattern = this.rhythmPatterns[0];
+    this.sequenceInterval = null;
+    
+    this.initialized = true;
+  }
+  
   play(currentTime) {
-    this.isPlaying = true;
-    this.gainNode.gain.setValueAtTime(8, currentTime);
-    this.audioContext.resume();
-  }
-
-  update(pitch, f1, f2) {
-    const currentTime = this.audioContext.currentTime;
-    if (!this.isPlaying) {
-      this.play(currentTime);
+    if (!this.initialized) {
+      this.initializeAudio();
     }
-    this.gainNode.gain.setValueAtTime(8, currentTime);
-    this.oscillator.frequency.setValueAtTime(pitch, currentTime);
-    this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
-    this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
-
-    this.filter1.Q.setValueAtTime(4, currentTime);
-    this.filter2.Q.setValueAtTime(4, currentTime);
+    
+    this.isPlaying = true;
+    this.audioContext.resume();
+    
+    // Start the rhythm sequence
+    this.startRhythmSequence();
   }
-
+  
+  // New method to handle rhythm sequences
+  startRhythmSequence() {
+    if (this.sequenceInterval) {
+      clearInterval(this.sequenceInterval);
+    }
+    
+    this.currentStep = 0;
+    const tempo = this.getTempoForYValue(this.lastPosition.y);
+    const stepTime = 60000 / tempo / 2; // Convert BPM to milliseconds per 8th note
+    
+    this.sequenceInterval = setInterval(() => {
+      this.playNextStep();
+    }, stepTime);
+  }
+  
+  // Play a single step in the rhythm pattern
+  playNextStep() {
+    if (!this.isPlaying) return;
+    
+    const currentTime = this.audioContext.currentTime;
+    const pattern = this.currentPattern;
+    const patternIndex = this.currentStep % pattern.length;
+    
+    if (pattern[patternIndex]) {
+      // Play sounds based on instruments determined by Y position
+      const instruments = this.getInstrumentsForYValue(this.lastPosition.y);
+      
+      if (instruments.includes('kick')) {
+        this.playKick(currentTime);
+      }
+      
+      if (instruments.includes('hihat')) {
+        this.playHihat(currentTime);
+      }
+      
+      // Always play a tone based on X position
+      this.playTone(currentTime);
+    }
+    
+    this.currentStep++;
+  }
+  
+  // Play kick drum sound
+  playKick(time) {
+    const kickAttack = 0.01;
+    const kickRelease = 0.5;
+    
+    this.kickSynth.frequency.setValueAtTime(150, time);
+    this.kickSynth.frequency.exponentialRampToValueAtTime(55, time + 0.15);
+    
+    this.kickGain.gain.cancelScheduledValues(time);
+    this.kickGain.gain.setValueAtTime(0.001, time);
+    this.kickGain.gain.exponentialRampToValueAtTime(2, time + kickAttack);
+    this.kickGain.gain.exponentialRampToValueAtTime(0.001, time + kickAttack + kickRelease);
+  }
+  
+  // Play hihat sound
+  playHihat(time) {
+    const hihatAttack = 0.001;
+    const hihatRelease = 0.1;
+    
+    this.hihatGain.gain.cancelScheduledValues(time);
+    this.hihatGain.gain.setValueAtTime(0.001, time);
+    this.hihatGain.gain.exponentialRampToValueAtTime(0.3, time + hihatAttack);
+    this.hihatGain.gain.exponentialRampToValueAtTime(0.001, time + hihatAttack + hihatRelease);
+  }
+  
+  // Play tone based on Bohlen-Pierce scale
+  playTone(time) {
+    const frequency = this.getNoteForXValue(this.lastPosition.x);
+    const attack = 0.02;
+    const release = 0.3;
+    
+    this.toneSynth.frequency.cancelScheduledValues(time);
+    this.toneSynth.frequency.setValueAtTime(frequency, time);
+    
+    this.toneGain.gain.cancelScheduledValues(time);
+    this.toneGain.gain.setValueAtTime(0.001, time);
+    this.toneGain.gain.exponentialRampToValueAtTime(0.5, time + attack);
+    this.toneGain.gain.exponentialRampToValueAtTime(0.001, time + attack + release);
+  }
+  
+  // This replaces the original update method
+  update(x, y, squareLeft, squareTop, squareSize) {
+    // Normalize position to 0-1 range
+    const normalizedX = (x - squareLeft) / squareSize;
+    const normalizedY = (y - squareTop) / squareSize;
+    
+    // Update current position
+    this.lastPosition.x = Math.max(0, Math.min(1, normalizedX));
+    this.lastPosition.y = Math.max(0, Math.min(1, normalizedY));
+    
+    // Make sure the audio context is running
+    if (!this.isPlaying) {
+      this.play(this.audioContext.currentTime);
+    }
+    
+    // Update pattern based on Y position
+    this.currentPattern = this.getPatternForYValue(this.lastPosition.y);
+    
+    // Update tempo based on Y position
+    const tempo = this.getTempoForYValue(this.lastPosition.y);
+    const stepTime = 60000 / tempo / 2; // Convert BPM to milliseconds per 8th note
+    
+    // Restart sequence with new tempo
+    clearInterval(this.sequenceInterval);
+    this.sequenceInterval = setInterval(() => {
+      this.playNextStep();
+    }, stepTime);
+  }
+  
+  // Map Y value to rhythm pattern
+  getPatternForYValue(y) {
+    // Invert Y (since 0 is top, 1 is bottom in DOM)
+    const invertedY = 1 - y;
+    const patternIndex = Math.floor(invertedY * this.rhythmPatterns.length);
+    return this.rhythmPatterns[Math.min(patternIndex, this.rhythmPatterns.length - 1)];
+  }
+  
+  // Map Y value to tempo
+  getTempoForYValue(y) {
+    // Invert Y (since 0 is top, 1 is bottom in DOM)
+    const invertedY = 1 - y;
+    // Map to a range of 150-300 BPM
+    return 150 + invertedY * 150;
+  }
+  
+  // Map Y value to instrument selection
+  getInstrumentsForYValue(y) {
+    // Invert Y (since 0 is top, 1 is bottom in DOM)
+    const invertedY = 1 - y;
+    
+    const instruments = [];
+    instruments.push('kick');
+    
+    if (invertedY > 0.3) instruments.push('hihat');
+    
+    return instruments;
+  }
+  
+  // Map X value to Bohlen-Pierce scale note
+  getNoteForXValue(x) {
+    // Bohlen-Pierce scale divides the tritave (3:1 frequency ratio) into 13 equal steps
+    // Base frequency (C3 = 130.81 Hz)
+    const baseFrequency = 130.81;
+    
+    // Bohlen-Pierce scale has 13 steps in a tritave (3:1 ratio)
+    // Each step is 3^(1/13) ≈ 1.08818 times the previous frequency
+    const step = Math.pow(3, 1/13);
+    
+    // Map x from 0-1 to 0-25 for a wider range (about 2 tritaves)
+    const bpSteps = Math.floor(x * 25);
+    
+    // Calculate frequency
+    const frequency = baseFrequency * Math.pow(step, bpSteps);
+    
+    return frequency;
+  }
+  
   pause() {
     this.isPlaying = false;
-    this.gainNode.gain.setValueAtTime(0, 0);
+    
+    // Stop the sequence
+    if (this.sequenceInterval) {
+      clearInterval(this.sequenceInterval);
+      this.sequenceInterval = null;
+    }
+    
+    // Silence all sounds
+    if (this.kickGain) this.kickGain.gain.value = 0.001;
+    if (this.hihatGain) this.hihatGain.gain.value = 0.001;
+    if (this.toneGain) this.toneGain.gain.value = 0.001;
+    
+    // Suspend the audio context to save resources
     this.audioContext.suspend();
   }
 }
-
-function Point(x, y) {
-  this.x = x;
-  this.y = y;
-}
-
-//#endregion
-
-//#region Models
 
 // This will be used to help create inheritance to save to database structure
 class Database {
@@ -948,13 +1134,12 @@ function gameSetup(data) {
     [
       // Message displayed when bb_mess == 1
       "Wait until the center circle turns green.", 
-      "Listen to the sound, then move in the direction that recreates the sound.",
+      "Listen to the sound and rhythms, then move in the direction that recreates them.",
       "Press 'b' when you are ready to proceed.",
     ],
     [
       // Message displayed when bb_mess == 2
-      "Phase 2: Listen to the sound, then move in the direction that recreates the sound.", 
-      "Don't worry if you miss one -- it takes a little practice!",
+      "Phase 2: Listen to the sound and rhythms, then move in the direction that recreates them.", "Don't worry if you miss one -- it takes a little practice!",
       "Press 'a' to continue.",
     ],
     [
@@ -1306,7 +1491,7 @@ function gameSetup(data) {
       case Phase.MOVING:
         // record mouse data
         handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
-
+        
         // Check if cursor is within the red square
         if (
           point.x >= squareLeft &&
@@ -1314,28 +1499,12 @@ function gameSetup(data) {
           point.y >= squareTop &&
           point.y <= squareTop + squareSize
         ) {
-          console.log(`point ${JSON.stringify(point)}`);
-          // generate value for vowel formants
-          const { f1, f2, _vowel } = getVowelFormants(
-            point.y,
-            squareTop,
-            squareSize,
-          );
-          const lo_pitch = 80;
-          const hi_pitch = 350;
-
-          const x_proportion = (point.x - squareLeft) / squareSize;
-          const pitch =
-            (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
-          // const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
-
-          console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
-          // update musicbox
-          musicBox.update(pitch, f1, f2);
+        // Update the musicBox with normalized position within square
+          musicBox.update(point.x, point.y, squareLeft, squareTop, squareSize);
         } else {
           musicBox.pause();
         }
-
+        
         // Move from moving to feedback phase once their reach intersects the target ring
         if (distance > target_dist) {
           // stop audio
@@ -1501,21 +1670,24 @@ function gameSetup(data) {
   function play_sounds(start, end, duration, update) {
     function play_sound_along(t) {
       // linear interpolate between two points over time (0-1)
-      // This can be changed using different kind of interpolation or animation curve - future features
       const x = start.x + (end.x - start.x) * t;
       const y = start.y + (end.y - start.y) * t;
-
-      update(x, y); // callback to update others based on coordinate given.
-      const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
-      const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
-      // update musicbox
-      musicBox.update(pitch, f1, f2);
+      
+      update(x, y); // callback to update others based on coordinate given
+      
+      // Check if the point is within the red square
+      if (
+        x >= squareLeft && 
+        x <= squareLeft + squareSize && 
+        y >= squareTop && 
+        y <= squareTop + squareSize
+      ) {
+        musicBox.update(x, y, squareLeft, squareTop, squareSize);
+      }
     }
-
-    // TODO: How to stop this animation?
+  
     animate((t) => play_sound_along(t), 1000, () => musicBox.pause());
-
-    // this should be outside of frame update loop
+  
     stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
   }
 
@@ -1710,30 +1882,6 @@ function gameSetup(data) {
   start_trial();
 }
 
-// Y should not be null?
-function getVowelFormants(y, squareTop, squareSize) {
-  const vowelFormants = {
-    i: { f1: 300, f2: 2300 },
-    // u: { f1: 300, f2: 800 },
-    a: { f1: 700, f2: 1200 },
-    // æ: { f1: 700, f2: 1800 }
-  };
-  // need to be explicit about which segment these are delinating
-  const vowels = Object.keys(vowelFormants);
-  const segmentHeight = squareSize / (vowels.length - 1);
-  const offset = Math.max(y - squareTop, 0);
-  const index = Math.min(Math.floor(offset / segmentHeight), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
-  const t = ((y - squareTop) % segmentHeight) / segmentHeight; // where we are in the segment
-  const vowel1 = vowels[index]; // first fencepost for this segment
-  const vowel2 = vowels[index + 1]; // second fencepost for this segment
-
-  const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
-  const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
-
-  const currentVowel = t < 0.5 ? vowel1 : vowel2; // ? is an if then statement = "condition ? valueIfTrue : valueIfFalse"
-
-  return { f1, f2, vowel: currentVowel }; // final answer of what vowel we're in
-}
 
 // Helper function to end the game regardless good or bad
 function helpEnd() {
