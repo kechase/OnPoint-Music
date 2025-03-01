@@ -946,13 +946,15 @@ function gameSetup(data) {
   const messages = [
     ["Way to go! Press any key to continue."],
     [
-      "Wait until the center circle turns green.", // Message displayed when bb_mess == 1
+      // Message displayed when bb_mess == 1
+      "Wait until the center circle turns green.", 
       "Listen to the sound, then move in the direction that recreates the sound.",
       "Press 'b' when you are ready to proceed.",
     ],
     [
-      "Now the instrument will play itself and then you get to RECREATE that sound. Each sound will be played for you once, and then you'll move your cursor along the line you believe makes that sound.", // Message displayed when bb_mess == 2
-      "Don't worry if you miss one -- it takes a littel practice!",
+      // Message displayed when bb_mess == 2
+      "Phase 2: Listen to the sound, then move in the direction that recreates the sound.", 
+      "Don't worry if you miss one -- it takes a little practice!",
       "Press 'a' to continue.",
     ],
     [
@@ -1319,8 +1321,8 @@ function gameSetup(data) {
             squareTop,
             squareSize,
           );
-          const lo_pitch = 150;
-          const hi_pitch = 800;
+          const lo_pitch = 80;
+          const hi_pitch = 350;
 
           const x_proportion = (point.x - squareLeft) / squareSize;
           const pitch =
