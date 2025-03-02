@@ -439,61 +439,10 @@ const fileContent = {
   },
 };
 
-//#region Components
-class Circle {
-  constructor(parent, point, radius, fill, stroke) {
-    this.radius = radius;
-    this.point = new Point(point.x, point.y);
+// Spatial Rhythm Sonification Experiment for Firebase
+// Combines experiment structure with spatial rhythm sonification
 
-    this.visible = false;
-    this.element = parent.append("circle")
-      .attr("r", radius)
-      .attr("stroke-width", 2)
-      .attr("cx", this.point.x)
-      .attr("cy", this.point.y)
-      .attr("display", "none");
-
-    this.setFill(fill);
-    this.setStroke(stroke);
-  }
-
-  setFill(color) {
-    this.element.attr("fill", color);
-  }
-
-  setStroke(color) {
-    this.element.attr("stroke", color);
-  }
-
-  // control how the element is displayed
-  display(isVisible) {
-    this.visible = isVisible;
-    const value = this.visible ? "block" : "none";
-    this.element.attr("display", value);
-  }
-
-  // update position of the element
-  update(x, y) {
-    const width = self.screen.availWidth;
-    const height = self.screen.availHeight;
-
-    if (x > width) {
-      x = width + 0.0;
-    } else if (x < 0) {
-      x = 0.0;
-    }
-
-    if (y > height) {
-      y = height + 0.0;
-    } else if (y < 0) {
-      y = 0.0;
-    }
-    this.point.x = x;
-    this.point.y = y;
-    this.element.attr("cx", x).attr("cy", y);
-  }
-}
-
+// MusicBox class for audio sonification
 class MusicBox {
   constructor(handler) {
     this.isPlaying = false;
@@ -509,13 +458,13 @@ class MusicBox {
     this.initialized = false;
     this.lastPosition = { x: 0.5, y: 0.5 }; // Normalized position (0-1)
     
-    // Rhythm patterns with increasing complexity
+    // Rhythm patterns with increasing complexity (slightly less dense)
     this.rhythmPatterns = [
-      [1, 0, 0, 0],                     // Simplest
-      [1, 0, 1, 0],                     // Basic
-      [1, 0, 1, 0, 0, 1, 0, 0],         // Medium
+      [1, 0, 1, 0],                     // Simplest
+      [1, 0, 1, 0, 1, 0],               // Basic
+      [1, 1, 0, 0, 1, 0, 1, 0],         // Medium
       [1, 0, 1, 1, 0, 1, 0, 1],         // Complex
-      [1, 0, 1, 0, 1, 1, 0, 1, 0, 1]    // Very complex
+      [1, 1, 0, 1, 0, 1, 1, 0, 1, 0]    // Very complex
     ];
     
     // Sequence control
@@ -532,8 +481,8 @@ class MusicBox {
     this.toneSynth = null;
     this.toneGain = null;
 
-    // Debug flag - set to true to enable console logs
-    this.debug = true;
+    // Debug flag
+    this.debug = false;
   }
   
   log(...args) {
@@ -751,6 +700,7 @@ class MusicBox {
     const normalizedY = (y - squareTop) / squareSize;
     
     // Constrain to 0-1 range
+    // Converts the cursor position to normalized values (0-1 range) relative to the square
     this.lastPosition.x = Math.max(0, Math.min(1, normalizedX));
     this.lastPosition.y = Math.max(0, Math.min(1, normalizedY));
     
@@ -760,7 +710,8 @@ class MusicBox {
       return;
     }
     
-    // Update pattern based on Y position
+    // Uses the vertical (Y) position to select a pattern with getPatternForYValue()
+    // Updates the current pattern only if it's different from the previous one
     const newPattern = this.getPatternForYValue(this.lastPosition.y);
     if (newPattern !== this.currentPattern) {
       this.currentPattern = newPattern;
@@ -789,8 +740,8 @@ class MusicBox {
   getTempoForYValue(y) {
     // Invert Y (since 0 is top, 1 is bottom in DOM)
     const invertedY = 1 - y;
-    // Map to a range of 150-300 BPM
-    return 150 + invertedY * 150;
+    // Map to a range of 150-400 BPM
+    return 150 + invertedY * 250;
   }
   
   // Map Y value to instrument selection
@@ -808,17 +759,31 @@ class MusicBox {
   
   // Map X value to Bohlen-Pierce scale note
   getNoteForXValue(x) {
-    // Base frequency (C3 = 130.81 Hz)
-    const baseFrequency = 130.81;
+    // The Bohlen-Pierce scale divides the tritave (3:1 ratio) into 13 equal steps
     
-    // Bohlen-Pierce scale has 13 steps in a tritave (3:1 ratio)
-    const step = Math.pow(3, 1/13);
+    // Define the BP scale frequencies
+    const bpScale = [
+      146.3, // Base note (around D3)
+      158.9,
+      172.7,
+      187.5,
+      203.8,
+      221.4,
+      240.5,
+      261.3,
+      283.9,
+      308.4,
+      335.0,
+      363.9,
+      395.4,
+      439.0  // Tritave (3x the base frequency)
+    ];
     
-    // Map x from 0-1 to 0-25 for about 2 tritaves
-    const bpSteps = Math.floor(x * 25);
+    // Map x (0-1) directly to an index in the BP scale array
+    const index = Math.floor(x * (bpScale.length - 1));
     
-    // Calculate and return frequency
-    return baseFrequency * Math.pow(step, bpSteps);
+    // Return the corresponding BP frequency
+    return bpScale[index];
   }
   
   // Stop all sounds and clean up
@@ -856,58 +821,958 @@ class MusicBox {
   }
 }
 
-// This will be used to help create inheritance to save to database structure
+// Circle class for visual elements
+class Circle {
+  constructor(parent, point, radius, fill, stroke) {
+    this.radius = radius;
+    this.point = { x: point.x, y: point.y };
+    
+    this.visible = false;
+    this.element = parent.append("circle")
+      .attr("r", radius)
+      .attr("stroke-width", 2)
+      .attr("cx", this.point.x)
+      .attr("cy", this.point.y)
+      .attr("display", "none");
+    
+    this.setFill(fill);
+    this.setStroke(stroke);
+  }
+  
+  setFill(color) {
+    this.element.attr("fill", color);
+  }
+  
+  setStroke(color) {
+    this.element.attr("stroke", color);
+  }
+  
+  display(isVisible) {
+    this.visible = isVisible;
+    const value = this.visible ? "block" : "none";
+    this.element.attr("display", value);
+  }
+  
+  update(x, y) {
+    const width = window.screen.availWidth;
+    const height = window.screen.availHeight;
+    
+    // Constrain within screen boundaries
+    if (x > width) {
+      x = width;
+    } else if (x < 0) {
+      x = 0;
+    }
+    
+    if (y > height) {
+      y = height;
+    } else if (y < 0) {
+      y = 0;
+    }
+    
+    this.point.x = x;
+    this.point.y = y;
+    this.element.attr("cx", x).attr("cy", y);
+  }
+}
+
+// Main Experiment Class
+class SpatialRhythmExperiment {
+  constructor() {
+    // Experiment phases
+    this.Phase = Object.freeze({
+      UNINIT: -1,        // Uninitialized
+      SEARCHING: 0,      // Looking for the center 
+      HOLDING: 1,        // Holding at start to begin the next target
+      SHOW_TARGETS: 2,   // Displaying the target and playing demo sound
+      MOVING: 3,         // The reaching motion with sonification
+      FEEDBACK: 4,       // Displaying feedback after reach
+      BETWEEN_BLOCKS: 5  // Displaying break messages if necessary
+    });
+    
+    // Current experiment state
+    this.game_phase = this.Phase.UNINIT;
+    this.trial = 0;
+    this.experimentID = "SpatialRhythmExperiment";
+    
+    // Timing variables
+    this.rt = 0;              // reaction time
+    this.mt = 0;              // movement time
+    this.search_time = 0;     // time to reset trial
+    this.begin = new Date();  // timestamp for timing measurements
+    
+    // Timer objects
+    this.hold_timer = null;
+    this.green_timer = null;
+    this.stop_target_music_timer = null;
+    this.target_display_timer = null;
+    this.too_slow_timer = null;
+    
+    // Timing constants (ms)
+    this.feedback_time = 50;         // regular feedback duration
+    this.feedback_time_slow = 750;   // "too slow" feedback duration
+    this.hold_time = 500;            // hold duration before target appears
+    this.green_time = 1000;          // time until start circle turns green
+    this.search_too_slow = 3000;     // threshold for search taking too long
+    this.too_slow_time = 5000;       // threshold for reach taking too long
+    
+    // Screen size and layout
+    this.screen_width = window.innerWidth;
+    this.screen_height = window.innerHeight;
+    this.center = { x: this.screen_width / 2, y: this.screen_height / 2 };
+    this.target_dist = this.screen_height / 3;
+    
+    // Interactive area (red square) dimensions
+    this.squareLeft = this.center.x - this.target_dist;
+    this.squareTop = this.center.y - this.target_dist;
+    this.squareSize = 2 * this.target_dist;
+    
+    // Circle objects (will be initialized in setupUI)
+    this.calibration = null;  // center/start circle
+    this.target = null;       // target circle
+    this.cursor = null;       // cursor circle
+    
+    // Audio system
+    this.musicBox = null;
+    this.play_sound = true;
+    
+    // Data collection
+    this.handPositions = [];
+    this.hand_fb_angle = 0;
+    this.reach_feedback = "";
+    this.subject = null;
+    this.subjTrials = null;
+    
+    // Experiment configuration
+    this.experimentConfig = {
+      numtrials: 40,
+      // Training phase: Trials 0-19
+      // Testing phase: Trials 20-39
+      target_jump: Array(40).fill(0).map((_, i) => i < 20 ? 1.0 : 0.0),
+      between_blocks: Array(40).fill(0).map((_, i) => i === 19 ? 2.0 : 0.0),
+      rotation: Array(40).fill(0.0),
+      tgt_angle: Array(40).fill(0).map((_, i) => {
+        // Rotate through 4 angles: 45, 135, 225, 315
+        const angles = [45, 135, 225, 315];
+        return angles[i % 4];
+      }),
+      tgt_distance: Array(40).fill(80)
+    };
+    
+    // Between-block messages
+    this.messages = [
+      ["Way to go! Press SPACE BAR to continue."],
+      [
+        "Wait until the center circle turns green.", 
+        "Listen to the sound and rhythms, then move in the direction that recreates them.",
+        "Press 'b' when you are ready to proceed.",
+      ],
+      [
+        "Phase 2: Testing Phase", 
+        "You'll hear the target sound but the target will be hidden.", 
+        "Listen carefully, then try to move in a way that recreates the sound you heard.",
+        "Press SPACE BAR to continue.",
+      ]
+    ];
+    
+    // Track screen size
+    this.prev_screen_size = this.screen_width * this.screen_height;
+    
+    // Bind methods
+    this.update_cursor = this.update_cursor.bind(this);
+    this.advance_block = this.advance_block.bind(this);
+    this.monitorWindow = this.monitorWindow.bind(this);
+    this.setPointerLock = this.setPointerLock.bind(this);
+    this.lockChangeAlert = this.lockChangeAlert.bind(this);
+  }
+  
+  // Initialize experiment and UI
+  async initialize() {
+    console.log("Initializing experiment...");
+    
+    // Create subject and trials objects
+    this.subject = new Subject("test_subject", "25", "other", "right", "mouse", "no", "none", "none");
+    this.subjTrials = new Trial(this.experimentID, this.subject.id);
+    
+    // Set up UI elements
+    this.setupUI();
+    
+    // Initialize audio system
+    this.musicBox = new MusicBox(window);
+    
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    // Start the experiment
+    this.start_trial();
+  }
+  
+  // Set up the UI elements
+  setupUI() {
+    const svgContainer = this.setupPageRender();
+    
+    // Create circle objects
+    this.calibration = new Circle(
+      svgContainer,
+      this.center,
+      Math.round(this.target_dist * 4.5 / 80.0),
+      "none",
+      "white"
+    );
+    
+    this.target = new Circle(
+      svgContainer,
+      this.center,
+      Math.round(this.target_dist * 4.5 / 80.0),
+      "blue",
+      "none"
+    );
+    
+    this.cursor = new Circle(
+      svgContainer,
+      this.center,
+      Math.round(this.target_dist * 1.75 * 1.5 / 80.0),
+      "white",
+      "none"
+    );
+  }
+  
+  // Set up the main rendering container and initial messages
+  setupPageRender() {
+    // Initialize full-screen black background
+    document.querySelector("html").style.height = "98%";
+    document.querySelector("html").style.width = "100%";
+    document.querySelector("html").style.backgroundColor = "black";
+    document.querySelector("body").style.height = "98%";
+    document.querySelector("body").style.width = "100%";
+    document.querySelector("body").style.backgroundColor = "black";
+    
+    // Hide mouse cursor
+    document.querySelector("html").style.cursor = "none";
+    document.querySelector("body").style.cursor = "none";
+    
+    // Create SVG container with D3
+    const svgContainer = d3.select("body").append("svg")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("fill", "black")
+      .attr("id", "stage")
+      .attr("background-color", "black");
+    
+    // Calculate text size based on screen height
+    const line_size = Math.round(this.screen_height / 30);
+    const message_size = String(line_size) + "px";
+    
+    // Add message lines
+    svgContainer.append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", this.center.x)
+      .attr("y", this.center.y - line_size)
+      .attr("fill", "white")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", message_size)
+      .attr("id", "message-line-1")
+      .attr("display", "block")
+      .text("Move the white dot to the center.");
+    
+    svgContainer.append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", this.center.x)
+      .attr("y", this.center.y)
+      .attr("fill", "white")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", message_size)
+      .attr("id", "message-line-2")
+      .attr("display", "block")
+      .text("Wait until the center circle turns green.");
+    
+    svgContainer.append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", this.center.x)
+      .attr("y", this.center.y + line_size)
+      .attr("fill", "white")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", message_size)
+      .attr("id", "message-line-3")
+      .attr("display", "block")
+      .text("Move to the blue target. Remember the sound.");
+    
+    svgContainer.append("text")
+      .attr("text-anchor", "middle")
+      .attr("x", this.center.x)
+      .attr("y", this.center.y + line_size * 2)
+      .attr("fill", "white")
+      .attr("font-family", "sans-serif")
+      .attr("font-size", message_size)
+      .attr("id", "message-line-4")
+      .attr("display", "block")
+      .text("Press SPACE BAR when you are ready to proceed.");
+    
+    // Add trial counter
+    const reach_number_point = {
+      x: this.center.x + (this.squareSize / 2),
+      y: this.squareTop + this.squareSize + line_size
+    };
+    
+    svgContainer.append("text")
+      .attr("text-anchor", "end")
+      .attr("x", reach_number_point.x)
+      .attr("y", reach_number_point.y)
+      .attr("fill", "white")
+      .attr("font-size", message_size)
+      .attr("id", "trialcount")
+      .attr("display", "block")
+      .text("Reach Number: ? / ?");
+    
+    // Draw the red square (interactive area)
+    svgContainer.append("rect")
+      .attr("x", this.squareLeft)
+      .attr("y", this.squareTop)
+      .attr("width", this.squareSize)
+      .attr("height", this.squareSize)
+      .attr("fill", "none")
+      .attr("stroke", "red")
+      .attr("stroke-width", 2)
+      .attr("id", "targetSquare")
+      .attr("display", "block");
+    
+    return svgContainer;
+  }
+  
+  // Set up event listeners
+  setupEventListeners() {
+    // Pointer lock setup
+    document.addEventListener("pointerlockchange", this.lockChangeAlert, false);
+    document.addEventListener("mozpointerlockchange", this.lockChangeAlert, false);
+    window.addEventListener("resize", this.monitorWindow, false);
+    document.addEventListener("click", this.setPointerLock, false);
+  }
+  
+  // Monitor changes in pointer lock
+  lockChangeAlert() {
+    const stage = document.getElementById("stage");
+    if (
+      document.pointerLockElement === stage ||
+      document.mozPointerLockElement === stage
+    ) {
+      console.log("Pointer lock active");
+      document.addEventListener("mousemove", this.update_cursor, false);
+      document.addEventListener("keydown", this.advance_block, false);
+    } else {
+      console.log("Pointer lock inactive");
+      document.removeEventListener("mousemove", this.update_cursor, false);
+      document.removeEventListener("keydown", this.advance_block, false);
+    }
+  }
+  
+  // Set pointer lock on the stage element
+  setPointerLock() {
+    console.log("Attempting to lock pointer");
+    const stage = document.getElementById("stage");
+    stage.requestPointerLock = stage.requestPointerLock || stage.mozRequestPointerLock;
+    stage.requestPointerLock();
+  }
+  
+  // Monitor window size changes
+  monitorWindow(event) {
+    const curr_size = window.innerHeight * window.innerWidth;
+    if (this.prev_screen_size > curr_size) {
+      alert(
+        "Please enter full screen and click your mouse to continue the experiment! (Shortcut for Mac users: Command + Control + F. Shortcut for PC users: F11)"
+      );
+    }
+    this.prev_screen_size = curr_size;
+  }
+  
+  // Update cursor position based on mouse movement
+  update_cursor(event) {
+    // Get mouse movement and update cursor position
+    event = event || window.event;
+    const cursor_x = this.cursor.point.x + event.movementX;
+    const cursor_y = this.cursor.point.y + event.movementY;
+    
+    // Update cursor position (will handle screen boundaries)
+    this.cursor.update(cursor_x, cursor_y);
+    
+    // Calculate distance between cursor and calibration (center) point
+    const distance = Math.sqrt(
+      Math.pow(this.calibration.point.x - this.cursor.point.x, 2) +
+      Math.pow(this.calibration.point.y - this.cursor.point.y, 2)
+    );
+    
+    // Update hand angle calculation
+    this.hand_fb_angle = Math.atan2(
+      this.calibration.point.y - this.cursor.point.y,
+      this.cursor.point.x - this.calibration.point.x
+    ) * (180 / Math.PI);
+    
+    if (this.hand_fb_angle < 0) {
+      this.hand_fb_angle = 360 + this.hand_fb_angle;
+    }
+    
+    // Handle different phases
+    switch (this.game_phase) {
+      case this.Phase.HOLDING:
+        // Move back to search if they move out of the start circle
+        if (distance > this.calibration.radius) {
+          this.search_phase();
+        }
+        break;
+        
+      case this.Phase.SHOW_TARGETS:
+        // Start moving once they move out of the start circle
+        if (distance > this.calibration.radius) {
+          this.moving_phase();
+        }
+        break;
+        
+      case this.Phase.SEARCHING:
+        // Move to hold phase when they reach the start circle
+        if (distance <= this.calibration.radius) {
+          this.hold_phase();
+        }
+        break;
+        
+      case this.Phase.MOVING:
+        // Record cursor position
+        this.handPositions.push(new Log(new Date() - this.begin, cursor_x, cursor_y));
+        
+        // Update sonification if cursor is within red square
+        const point = this.cursor.point;
+        if (
+          point.x >= this.squareLeft &&
+          point.x <= this.squareLeft + this.squareSize &&
+          point.y >= this.squareTop &&
+          point.y <= this.squareTop + this.squareSize
+        ) {
+          // Update music based on position in square
+          this.musicBox.update(
+            point.x, 
+            point.y, 
+            this.squareLeft, 
+            this.squareTop, 
+            this.squareSize
+          );
+        } else {
+          this.musicBox.pause();
+        }
+        
+      // Calculate distance to target
+      // Calculate distance to target 
+      const targetDistance = Math.sqrt(
+        Math.pow(this.target.point.x - this.cursor.point.x, 2) + 
+        Math.pow(this.target.point.y - this.cursor.point.y, 2)
+      ); 
+
+      // Check if we're in training phase (Phase 1) or testing phase (Phase 2)
+      const isTrainingPhase = this.experimentConfig.target_jump[this.trial] === 1.0;
+
+      // Different trial ending conditions based on phase:
+      // - Phase 1 (Training): Only end when cursor is close enough to target
+      // - Phase 2 (Testing): End when either reach distance exceeds target_dist OR when close to target
+      if ((isTrainingPhase && targetDistance < this.target.radius * 2) || 
+          (!isTrainingPhase && (distance > this.target_dist || targetDistance < this.target.radius * 2))) {
+        this.musicBox.pause();
+        this.fb_phase();
+}
+        break;
+    }
+  }
+  
+  // Handle keyboard input for advancing between blocks
+  advance_block(event) {
+    // Handle key presses
+    const key = event.key.toLowerCase();
+    const SPACE_BAR = " ";
+    const a = "a";
+    const b = "b";
+    
+    // Get current between-block message
+    const bb_mess = this.experimentConfig.between_blocks[this.trial];
+    
+    // Start first trial immediately
+    if (bb_mess === 0 && this.trial === 0) {
+      this.search_phase();
+      return;
+    }
+    
+    // Handle keys during between-blocks phase
+    if (this.game_phase === this.Phase.BETWEEN_BLOCKS) {
+      if (bb_mess === 1 && key === b) {
+        this.search_phase();
+        return;
+      }
+      
+      if (bb_mess === 2 && key === SPACE_BAR) {
+        this.search_phase();
+        return;
+      }
+      
+      if (key === SPACE_BAR) {
+        this.search_phase();
+        return;
+      }
+    }
+  }
+  
+  // Display messages for between-block phases
+  displayMessage(idx) {
+    const messages = this.messages[idx] || ["Press any key to continue"];
+    
+    // Update message lines
+    for (let i = 0; i < 4; i++) {
+      const messageElement = d3.select(`#message-line-${i+1}`);
+      if (i < messages.length) {
+        messageElement.attr("display", "block").text(messages[i]);
+      } else {
+        messageElement.attr("display", "none");
+      }
+    }
+  }
+  
+  // Hide all message lines
+  hideMessage() {
+    d3.select("#message-line-1").attr("display", "none");
+    d3.select("#message-line-2").attr("display", "none");
+    d3.select("#message-line-3").attr("display", "none");
+    d3.select("#message-line-4").attr("display", "none");
+  }
+  
+  // Phase when searching for the center start circle
+  search_phase() {
+    // Clear any existing timers
+    if (this.hold_timer !== null) {
+      clearTimeout(this.hold_timer);
+      this.hold_timer = null;
+    }
+    
+    if (this.too_slow_timer !== null) {
+      clearTimeout(this.too_slow_timer);
+      this.too_slow_timer = null;
+    }
+    
+    // Start timer for search time
+    this.begin = new Date();
+    
+    // Show start circle, hide target
+    this.calibration.display(true);
+    this.calibration.setFill("none");
+    this.calibration.setStroke("white");
+    
+    if (this.target_display_timer) {
+      clearTimeout(this.target_display_timer);
+    }
+    this.target_display_timer = setTimeout(() => this.target.display(false), 500);
+    
+    // Show cursor
+    this.cursor.display(true);
+    
+    // Hide messages
+    this.hideMessage();
+    
+    // Update game phase
+    this.game_phase = this.Phase.SEARCHING;
+  }
+  
+  // Phase when holding in the start circle
+  hold_phase() {
+    // Clear target display timer if it exists
+    if (this.target_display_timer !== null) {
+      clearTimeout(this.target_display_timer);
+      this.target_display_timer = null;
+      this.target.display(false);
+    }
+    
+    // Fill the start circle to indicate holding
+    this.cursor.display(false);
+    this.calibration.display(true);
+    this.calibration.setFill("white");
+    
+    // Clear any remaining timers
+    if (this.too_slow_timer !== null) {
+      clearTimeout(this.too_slow_timer);
+      this.too_slow_timer = null;
+    }
+    
+    // Set timer to show targets after hold time
+    this.hold_timer = setTimeout(() => this.show_targets(), this.hold_time);
+    
+    // Update game phase
+    this.game_phase = this.Phase.HOLDING;
+  }
+  
+  // Helper function to animate between two points
+  animate(update, duration, onfinish) {
+    const start = performance.now();
+    
+    const animateFrame = function(time) {
+      let timeFraction = (time - start) / duration;
+      if (timeFraction > 1) timeFraction = 1;
+      
+      update(timeFraction);
+      
+      if (timeFraction < 1) {
+        requestAnimationFrame(animateFrame);
+      } else {
+        onfinish();
+      }
+    };
+    
+    requestAnimationFrame(animateFrame);
+  }
+  
+  // Play sounds along a path from start to end
+  play_sounds(start, end, duration, update) {
+    const self = this;
+    
+    // Ensure audio is initialized before starting
+    this.musicBox.initializeAudio().then(() => {
+      console.log("Audio initialized for sound demo");
+      
+      // Make sure the music box is playing
+      this.musicBox.play(this.audioContext?.currentTime || 0);
+      
+      function play_sound_along(t) {
+        // Linear interpolation between start and end
+        const x = start.x + (end.x - start.x) * t;
+        const y = start.y + (end.y - start.y) * t;
+        
+        // Update callback
+        update(x, y);
+        
+        // Play sound if point is within red square
+        if (
+          x >= self.squareLeft && 
+          x <= self.squareLeft + self.squareSize && 
+          y >= self.squareTop && 
+          y <= self.squareTop + self.squareSize
+        ) {
+          self.musicBox.update(x, y, self.squareLeft, self.squareTop, self.squareSize);
+          console.log("Playing sound at position:", x, y);
+        }
+      }
+      
+      // Animate through points on the path
+      this.animate((t) => play_sound_along(t), duration, () => {
+        // Stop sound when animation completes
+        if (this.stop_target_music_timer) {
+          clearTimeout(this.stop_target_music_timer);
+        }
+        console.log("Sound demo complete, pausing music");
+        this.musicBox.pause();
+      });
+      
+      // Set a backup timer to stop audio
+      this.stop_target_music_timer = setTimeout(() => {
+        console.log("Backup timer triggered to stop sound");
+        this.musicBox.pause();
+      }, duration + 100);
+    }).catch(err => {
+      console.error("Failed to initialize audio for demo:", err);
+    });
+  }
+  
+  // Phase when target is shown and demo sound is played
+  show_targets() {
+    // Record search time
+    this.hideMessage();
+    this.search_time = new Date() - this.begin;
+    
+    // Start timer for reaction time
+    this.begin = new Date();
+    
+    // Get trial configuration
+    const jump = this.experimentConfig.target_jump[this.trial];
+    const angle = this.experimentConfig.tgt_angle[this.trial];
+    const isTrainingPhase = jump === 1.0;
+    
+    // Calculate target position
+    const offset = isTrainingPhase ? this.experimentConfig.rotation[this.trial] : jump;
+    const value = angle + offset;
+    const rad = value * (Math.PI / 180);
+    
+    const start = this.calibration.point;
+    const x = start.x + this.target_dist * Math.cos(rad);
+    const y = start.y - this.target_dist * Math.sin(rad);
+    const end = { x, y };
+    
+    // Update target position
+    this.target.update(x, y);
+    this.target.setFill("blue");
+    
+    // In Phase 1 (Training): Show target visually, no pre-movement sound demo
+    // In Phase 2 (Testing): Hide target, play sound demo first
+    if (isTrainingPhase) {
+      // Training phase - show target, no pre-movement sound
+      this.target.display(true);
+    } else {
+      // Testing phase - hide target, play sound demo first
+      this.target.display(false);
+      
+      // For testing phase (Phase 2), we need clear audio demo
+      if (jump !== 1.0) {
+        // Show a message that sound is playing
+        d3.select("#message-line-1").attr("display", "block")
+          .text("Listen to the sound pattern...");
+        
+        // Play sound demonstration with more deliberate sound
+        this.play_sounds(start, end, 3000, (x, y) => {
+          // No visual updates during sound demonstration
+        });
+        
+        // Hide the message after demo
+        setTimeout(() => {
+          d3.select("#message-line-1").attr("display", "none");
+        }, 3000);
+      } else {
+        // In training phase, just play the sound when they move
+      }
+    }
+    
+    // Turn start circle green after appropriate delay:
+    // - Training phase: standard delay
+    // - Testing phase: 1 second after sound demo completes
+    const greenDelay = isTrainingPhase ? this.green_time : 4000; // 3sec demo + 1sec wait
+    this.green_timer = setTimeout(() => {
+      this.calibration.setFill("green");
+      this.calibration.setStroke("none");
+    }, greenDelay);
+    
+    // Update game phase
+    this.game_phase = this.Phase.SHOW_TARGETS;
+  }
+  
+  // Phase when users are moving/reaching to the target
+  moving_phase() {
+    // Clear target demo timer if it exists
+    if (this.stop_target_music_timer !== null) {
+      clearTimeout(this.stop_target_music_timer);
+      this.stop_target_music_timer = null;
+    }
+    
+    // Clear green circle timer if it exists
+    if (this.green_timer !== null) {
+      clearTimeout(this.green_timer);
+      this.green_timer = null;
+    }
+    
+    // Record reaction time
+    this.rt = new Date() - this.begin;
+    
+    // Start timer for movement time
+    this.begin = new Date();
+    
+    // Always play sound during movement in both phases
+    // Initialize audio for movement
+    this.musicBox.initializeAudio().then(() => {
+      this.musicBox.play(0);
+    });
+    
+    // Hide start circle, show cursor
+    this.calibration.display(false);
+    this.cursor.display(true);
+    
+    // Update game phase
+    this.game_phase = this.Phase.MOVING;
+  }
+  
+  // Phase after completing the reach
+  fb_phase() {
+    // Record movement time
+    this.mt = new Date() - this.begin;
+    let timer = 0;
+    
+    // Stop sound
+    this.musicBox.pause();
+    
+    // Check if we're in training or testing phase
+    const isTrainingPhase = this.experimentConfig.target_jump[this.trial] === 1.0;
+    
+    // Only show target in training phase
+    if (isTrainingPhase) {
+      this.target.display(true);
+      this.target.setFill("green");
+      this.reach_feedback = "good_reach";
+    } else {
+      // In testing phase, don't show target but still provide feedback message
+      // Just a quick successful feedback cue
+      d3.select("#message-line-1").attr("display", "block")
+        .text("Good job!");
+      setTimeout(() => {
+        d3.select("#message-line-1").attr("display", "none");
+      }, 200);
+      
+      this.reach_feedback = "good_reach";
+    }
+    
+    // Set timer for next trial
+    timer = this.feedback_time;
+    setTimeout(() => this.next_trial(), timer);
+    
+    // Calculate final hand angle
+    const hand_fb_x = this.calibration.point.x +
+      this.target_dist * Math.cos(this.hand_fb_angle * (Math.PI / 180));
+    const hand_fb_y = this.calibration.point.y -
+      this.target_dist * Math.sin(this.hand_fb_angle * (Math.PI / 180));
+    
+    // Show cursor for feedback
+    this.cursor.display(true);
+    
+    // Update game phase
+    this.game_phase = this.Phase.FEEDBACK;
+  }
+  
+  // Start the trial
+  start_trial() {
+    this.subjTrials = new Trial(this.experimentID, this.subject.id);
+    
+    d3.select("#too_slow_message").attr("display", "none");
+    this.calibration.display(false);
+    
+    // Update trial counter display
+    const totalTrials = this.experimentConfig.numtrials;
+    d3.select("#trialcount").text(
+      "Reach Number: " + (this.trial + 1) + " / " + totalTrials
+    );
+    
+    // Start with search phase
+    this.search_phase();
+  }
+  
+  // End the experiment
+  end_trial() {
+    window.removeEventListener("resize", this.monitorWindow, false);
+    document.removeEventListener("click", this.setPointerLock, false);
+    document.exitPointerLock();
+    this.endGame();
+  }
+  
+  // Process the completed trial and prepare for the next one
+  next_trial() {
+    // Store trial data
+    this.subjTrials.appendTrialBlock(
+      this.experimentConfig.tgt_angle[this.trial],
+      this.experimentConfig.rotation[this.trial],
+      this.hand_fb_angle,
+      this.rt,
+      this.mt,
+      this.search_time,
+      this.reach_feedback,
+      this.handPositions
+    );
+    
+    // Reset timing variables
+    this.rt = 0;
+    this.mt = 0;
+    this.search_time = 0;
+    this.play_sound = true;
+    
+    // Clear hand positions array
+    this.handPositions = [];
+    
+    // Get message for between blocks
+    const bb_mess = this.experimentConfig.between_blocks[this.trial];
+    
+    // Increment trial counter
+    this.trial += 1;
+    
+    // Update trial counter display
+    const totalTrials = this.experimentConfig.numtrials;
+    d3.select("#trialcount").text(
+      "Reach Number: " + this.trial + " / " + totalTrials
+    );
+    
+    // Check if experiment is complete
+    if (this.trial >= this.experimentConfig.numtrials) {
+      this.end_trial();
+    } 
+    // After first trial, show a "Way to go!" message
+    else if (this.trial === 1) {
+      this.displayMessage(0); // Use the first message: "Way to go! Press SPACE BAR to continue."
+      this.game_phase = this.Phase.BETWEEN_BLOCKS;
+    }
+    // Display between-block message if needed
+    else if (bb_mess) {
+      this.displayMessage(bb_mess);
+      this.game_phase = this.Phase.BETWEEN_BLOCKS;
+    } 
+    // Otherwise continue to next trial
+    else {
+      this.search_phase();
+    }
+  }
+  
+  // Clean up and end the experiment
+  endGame() {
+    // Show completion message
+    alert("Experiment complete! Thank you for participating.");
+    
+    // Restore cursor and background
+    document.querySelector("html").style.cursor = "auto";
+    document.querySelector("body").style.cursor = "auto";
+    
+    // Save final data
+    if (this.subjTrials && this.subjTrials.save) {
+      this.subjTrials.save();
+    }
+    
+    if (this.subject && this.subject.save) {
+      this.subject.save();
+    }
+    
+    // You can add custom Firebase completion logic here
+    
+    console.log("Experiment completed!");
+  }
+}
+
+//#region Firebase Database Classes
+// Database class for storing experiment data with Firebase
 class Database {
   constructor(table_name) {
     this.table_name = table_name;
   }
-
+  
   save() {
-    // for now we could just save this as Json file format?
-    // const data = JSON.stringify(this);
-    // fs.promises.writeFile(this.table_name + ".json", data)
-    //     .then(() => {
-    //         console.log(`Saved ${this.table_name}.json`);
-    //     })
-    //     .catch((err) => {
-    //         console.error(`Failed to save ${this.table_name}.json`, err);
-    //     });
-
-    return this.collection.doc(this.id).set(this)
-      .then(function () {
+    const firestore = firebase.firestore();
+    const collection = firestore.collection(this.table_name);
+    
+    return collection.doc(this.id).set(this)
+      .then(function() {
+        console.log(`Saved data to ${this.table_name}`);
         return true;
       })
-      .catch(function (err) {
-        console.error(err);
+      .catch(function(err) {
+        console.error(`Error saving to ${this.table_name}:`, err);
         throw err;
       });
   }
 }
 
+// Subject class for tracking participant information
 class Subject extends Database {
   constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race) {
     super("subject");
-    this.id = id,
-      this.age = age,
-      this.sex = sex,
-      this.handedness = handedness,
-      this.mousetype = mousetype,
-      this.returner = returner,
-      this.tgt_file = fileName,
-      this.ethnicity = ethnicity,
-      this.race = race,
-      this.comments = null,
-      this.distractions = [],
-      this.distracto = null;
+    this.id = id;
+    this.age = age;
+    this.sex = sex;
+    this.handedness = handedness;
+    this.mousetype = mousetype;
+    this.returner = returner;
+    this.tgt_file = "spatial-rhythm-experiment";
+    this.ethnicity = ethnicity;
+    this.race = race;
+    this.comments = null;
+    this.distractions = [];
+    this.distracto = null;
   }
-
-  // contains the basic information required to proceed
+  
   isValid() {
-    return !(!this.id || !this.age || !this.sex || !this.handedness ||
-      !this.mousetype);
+    return !(!this.id || !this.age || !this.sex || !this.handedness || !this.mousetype);
   }
 }
 
+// Trial class for tracking experiment trials
 class Trial extends Database {
   constructor(experimentID, id) {
     super("trial");
@@ -916,13 +1781,11 @@ class Trial extends Database {
     this.cursor_data = [];
     this.blocks = [];
   }
-
-  // return the current trial number (usually define as number of blocks we've created and stored)
+  
   getBlockNum() {
     return this.blocks.length;
   }
-
-  // array are treated as reference. https://stackoverflow.com/questions/6605640/javascript-by-reference-vs-by-value
+  
   appendTrialBlock(
     target_angle,
     rotation,
@@ -931,69 +1794,60 @@ class Trial extends Database {
     mt,
     time,
     feedback,
-    cursor_data,
+    cursor_data
   ) {
     const lastTrialNum = this.getBlockNum();
     const block = new Block(
-      lastTrialNum + 1, //  num
+      lastTrialNum + 1,
       target_angle,
       rotation,
       hand_angle,
       rt,
       mt,
       time,
-      feedback,
+      feedback
     );
-
-    // does this create a new array or clears the reference to it?
-    // clone this array
+    
+    // Clone cursor data array
     const data = [...cursor_data];
-
-    // append newly copy data value.
+    
+    // Add data to trial
     this.cursor_data.push(data);
-
-    // append data to this trial block
     this.blocks.push(block);
   }
 }
 
+// Block class for individual trial blocks
 class Block extends Database {
   constructor(num, target_angle, rotation, hand_angle, rt, mt, time, feedback) {
     super("block");
-    // auto create the date
+    
+    // Create timestamp
     const d = new Date();
-    const current_date = (parseInt(d.getMonth()) + 1).toString() + "/" +
-      d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" +
-      d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
-
+    const current_date = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes()}.${d.getSeconds()}.${d.getMilliseconds()}`;
+    
     this.trialNum = num;
     this.currentDate = current_date;
     this.target_angle = target_angle;
-    // TODO: Check the other end process to see if this is still in use! This is deprecated for this experiment.
-    this.trial_type = "online_fb"; // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
+    this.trial_type = "online_fb"; 
     this.rotation = rotation;
     this.hand_fb_angle = hand_angle;
     this.rt = rt;
     this.mt = mt;
     this.search_time = time;
     this.reach_feedback = feedback;
-    // this.log = [];  // used to collect mouse movement
   }
 }
 
-// used to track mouse movement when conducting the experiment run.
-class Log extends Database {
+// Log class for tracking cursor movement
+class Log {
   constructor(timestamp, x, y) {
-    super("Log");
     this.timestamp = timestamp;
     this.x = x;
     this.y = y;
   }
 }
-
 //#endregion
-
-//#region html event functions
 
 // Function used on html side of code.
 function isNumericKey(event) {
@@ -1052,91 +1906,6 @@ function closeFullScreen() {
   }
 }
 
-//#endregion
-// Object used track subject data (uploaded to database)
-let subject; // : Subject
-
-// Object used to track reaching data (updated every reach and uploaded to database)
-let subjTrials; // : Trial
-
-/* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
-try {
-  let app = firebase.app();
-} catch (e) {
-  console.error(e);
-}
-
-// this issue may have to do with the fact that I'm running in offline mode, no internet connected to provide me access to firebase data information?
-// Setting up firebase variables
-const firestore = firebase.firestore(); // (a.k.a.) db
-const firebasestorage = firebase.storage();
-const subjectcollection = firestore.collection("Subjects");
-const trialcollection = firestore.collection("Trials");
-
-const Phase = Object.freeze({
-  UNINIT: -1, // to avoid handling keyboard inputs
-  SEARCHING: 0, // Looking for the center after a reach
-  HOLDING: 1, // Holding at start to begin the next target
-  SHOW_TARGETS: 2, // Displaying the target
-  MOVING: 3, // The reaching motion
-  FEEDBACK: 4, // Displaying the feedback after reach
-  BETWEEN_BLOCKS: 5, // Displaying break messages if necessary
-});
-
-// Function used to create/update data in the target collection
-function updateCollection(collection, subject) {
-  if (noSave) {
-    return null;
-  }
-
-  // TODO: Test and verify this working
-  return collection.doc(subject.id).set(subject)
-    .then(function () {
-      console.log(subject);
-      return true;
-    })
-    .catch(function (err) {
-      console.error(err);
-      throw err;
-    });
-}
-
-// Function used to save the feedback from the final HTML page
-function saveFeedback() {
-  let values = $("#feedbackForm").serializeArray();
-  for (let i = 0; i < values.length; i++) {
-    if (values[0].value != "") {
-      subject.comments = values[0].value;
-    }
-
-    values = $("#distractionForm").serializeArray();
-    subject.distractions.push(values[i].value);
-    if (values[i].value == "other") {
-      subject.distracto = values[i + 1].value;
-      break;
-    }
-  }
-
-  const subject_data = {
-    id: subject.id,
-    age: subject.age,
-    sex: subject.sex,
-    handedness: subject.handedness,
-    mousetype: subject.mousetype,
-    returner: subject.returner,
-    tgt_file: fileName,
-    ethnicity: subject.ethnicity,
-    race: subject.race,
-    comments: subject.comments,
-    distractions: subject.distractions,
-    distracto: subject.distracto,
-  };
-
-  // we should be saving the subject here?
-  updateCollection(subjectcollection, subject_data);
-  show("final-page");
-}
-
 // Function used to check if all questions were filled in info form, if so, starts the experiment
 function checkInfo() {
   const values = $("#infoform").serializeArray();
@@ -1167,840 +1936,56 @@ function checkInfo() {
     return;
   }
 
-  // so what are we doing here?
-  // updateCollection(subjectcollection, subject);
-
   show("container-exp");
   openFullScreen();
   startGame();
 }
 
-const deg2rad = Math.PI / 180;
-const rad2deg = 180 / Math.PI;
+// Function used to save the feedback from the final HTML page
+function saveFeedback() {
+  let values = $("#feedbackForm").serializeArray();
+  for (let i = 0; i < values.length; i++) {
+    if (values[0].value != "") {
+      subject.comments = values[0].value;
+    }
+
+    values = $("#distractionForm").serializeArray();
+    subject.distractions.push(values[i].value);
+    if (values[i].value == "other") {
+      subject.distracto = values[i + 1].value;
+      break;
+    }
+  }
+
+  const subject_data = {
+    id: subject.id,
+    age: subject.age,
+    sex: subject.sex,
+    handedness: subject.handedness,
+    mousetype: subject.mousetype,
+    returner: subject.returner,
+    tgt_file: "spatial-rhythm-experiment",
+    ethnicity: subject.ethnicity,
+    race: subject.race,
+    comments: subject.comments,
+    distractions: subject.distractions,
+    distracto: subject.distracto,
+  };
+
+  // Save the subject data to Firebase
+  const firestore = firebase.firestore();
+  const subjectcollection = firestore.collection("Subjects");
+  subjectcollection.doc(subject.id).set(subject_data);
+  
+  show("final-page");
+}
 
 // Function used to start running the game
 function startGame() {
-  gameSetup(fileContent);
-  // $.getJSON(fileName, function(json) {
-  //     gameSetup(json);
-  // });
+  // Create and initialize the experiment
+  const experiment = new SpatialRhythmExperiment();
+  experiment.initialize();
 }
-
-// Function to monitor changes in screen size;
-// event is not used
-// TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
-let prev_screen_size = 0;
-
-function monitorWindow(_event) {
-  const curr_size = self.innerHeight * self.innerWidth;
-  if (prev_screen_size > curr_size) {
-    alert(
-      "Please enter full screen and click your mouse to continue the experiment! (Shortcut for Mac users: Command + Control + F. Shortcut for PC users: F11) ",
-    );
-  }
-  prev_screen_size = curr_size;
-}
-// Constructor for Point objects
-function Point(x, y) {
-  this.x = x;
-  this.y = y;
-}
-// Function that sets up the game
-// All game functions are defined within this main function, treat as "main"
-function gameSetup(data) {
-  // Experiment parameters, subject_ID is no obsolete
-  // **TODO** Update experiment_ID to label your experiments
-  const experiment_ID = "Katie2";
-  // This is not used anywhere? Where is this being used?
-  // const subject_ID = Math.floor(Math.random() * 10000000000);
-  // array of cursor position during trials
-  let handPositions = [];
-
-  // current trial
-  let trial = 0;
-
-  // Circle objects
-  let calibration = null;
-  let target = null;
-  let cursor = null;
-
-  const feedback_time = 50; // length of time feedback remains (ms)
-  const feedback_time_slow = 750; // length of "too slow" feedback (ms)
-  const hold_time = 500; // length of time users must hold in start before next trial (ms)
-  const green_time = 1000; // length of time the start circle in holding phase will turn to green (ms)
-  const search_too_slow = 3000; // Parameters and display for when users take too long to locate the center (ms)
-  const too_slow_time = 5000; // Setting up parameters and display when reach is too slow (ms)
-
-  // The between block messages that will be displayed
-  // **TODO** Update messages depending on your experiment
-  const messages = [
-    ["Way to go! Press any key to continue."],
-    [
-      // Message displayed when bb_mess == 1
-      "Wait until the center circle turns green.", 
-      "Listen to the sound and rhythms, then move in the direction that recreates them.",
-      "Press 'b' when you are ready to proceed.",
-    ],
-    [
-      // Message displayed when bb_mess == 2
-      "Phase 2: Listen to the sound and rhythms, then move in the direction that recreates them.", "Don't worry if you miss one -- it takes a little practice!",
-      "Press 'a' to continue.",
-    ],
-    [
-      "The white dot will now be hidden.", // bb_mess == 3
-      "Continue aiming DIRECTLY towards the target.",
-      "Press SPACE BAR when you are ready to proceed.",
-    ],
-    [
-      "This is an attention check.", // bb_mess == 4
-      "Press the key 'e' on your keyboard to CONTINUE.",
-      "Pressing any other key will result in a premature game termination and an incomplete HIT!",
-    ],
-    [
-      "This is an attention check.", // bb_mess == 5
-      "Press the key 'a' on your keyboard to CONTINUE.",
-      "Pressing any other key will result in a premature game termination and an incomplete HIT!",
-    ],
-    [
-      "The white dot will no longer be under your control.", // bb_mess == 6
-      "IGNORE the white dot as best as you can and continue aiming DIRECTLY towards the target.",
-      "This will be a practice trial",
-      "Press SPACE BAR when you are ready to proceed.",
-    ],
-  ];
-
-  const musicBox = new MusicBox(self);
-  // Calculated hand angles
-  let hand_fb_angle = 0;
-
-  // Timing Variables
-  let rt = 0; // reaction time
-  let mt = 0; // movement time
-  let search_time = 0; // time to reset trial (includes hold time);
-
-  // Initializing timer objects and variables
-  let hold_timer = null;
-  let green_timer = null;
-  let stop_target_music_timer = null; // timer used to stop the target music for audience to hear/listen to before moving
-  let target_display_timer = null;
-  let too_slow_timer = null;
-  let game_phase = -1;
-  let reach_feedback = ""; // could be made as a enum
-  let play_sound = true;
-  let begin = new Date();
-
-  const target_file_data = data;
-
-  /**
-     * Python generate script output the following JSON format
-    // May be obsolete
-    "trialnum" = trialNums
-    "aiming_landmarks" = aimingLandmarks
-    "endpoint_feedback" = endpointFB
-    "rotation" = rotation
-    "tgt_angle" = anglesDict
-    "tgt_distance" = tgtDistance
-    "between_blocks" = betweenBlocks
-    "target_jump" = targetJump
-     */
-
-  // Reading the json target file into the game
-  // const endpt_fb = target_file_data.endpoint_feedback;
-  const rotation = target_file_data.rotation; // degrees
-  const tgt_angle = target_file_data.tgt_angle;
-  tgt_distance = target_file_data.tgt_distance;
-  const between_blocks = target_file_data.between_blocks;
-  target_jump = target_file_data.target_jump;
-
-  // there is missing variables unused - target_file_data.tgt_distance
-
-  // Between blocks parameters
-  // TODO: Data normalization - what is this suppose to be?
-  let bb_mess = between_blocks[0];
-
-  // [F] - Data optimization. We don't need to have a number of trials variable here. We would just rely on the number of trial we have in our collection in the database.
-  const num_trials = target_file_data.numtrials;
-
-  // TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
-  const screen_width = self.innerWidth;
-  const screen_height = self.innerHeight;
-  prev_screen_size = screen_width * screen_height;
-
-  // potential bug - what if some of the client plays in portrait mode?
-  const target_dist = screen_height / 3;
-  const center = new Point(screen_width / 2.0, screen_height / 2.0);
-
-  // Red box dimension
-  const squareLeft = center.x - target_dist;
-  const squareTop = center.y - target_dist;
-  const squareSize = 2 * target_dist;
-
-  function setupPageRender(center) {
-    // Initializations to make the screen full size and black background
-    $("html").css("height", "98%");
-    $("html").css("width", "100%");
-    $("html").css("background-color", "black");
-    $("body").css("background-color", "black");
-    $("body").css("height", "98%");
-    $("body").css("width", "100%");
-
-    // Hide the mouse from view
-    $("html").css("cursor", "none");
-    $("body").css("cursor", "none");
-
-    // SVG container from D3.js to hold drawn items
-    const svgContainer = d3.select("body").append("svg")
-      .attr("width", "100%")
-      .attr("height", "100%").attr("fill", "black")
-      .attr("id", "stage")
-      .attr("background-color", "black");
-
-    // Setting size of the displayed letters and sentences
-    const line_size = Math.round(screen_height / 30);
-    const message_size = String(line_size).concat("px");
-
-    // Setting up first initial display once the game is launched
-    // **TODO** Update the '.text' sections to change initial displayed message
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y - line_size)
-      .attr("fill", "white")
-      .attr("font-family", "sans-serif")
-      .attr("font-size", message_size)
-      .attr("id", "message-line-1")
-      .attr("display", "block")
-      .text("Move the white dot to the center.");
-
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y)
-      .attr("fill", "white")
-      .attr("font-family", "sans-serif")
-      .attr("font-size", message_size)
-      .attr("id", "message-line-2")
-      .attr("display", "block")
-      .text("Wait until the center circle turns green.");
-
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y + line_size)
-      .attr("fill", "white")
-      .attr("font-family", "sans-serif")
-      .attr("font-size", message_size)
-      .attr("id", "message-line-3")
-      .attr("display", "block")
-      .text("Move to the blue target. Remember the sound.");
-
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y + line_size * 2)
-      .attr("fill", "white")
-      .attr("font-family", "sans-serif")
-      .attr("font-size", message_size)
-      .attr("id", "message-line-4")
-      .attr("display", "block")
-      .text("Press SPACE BAR when you are ready to proceed.");
-
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y)
-      .attr("fill", "red")
-      .attr("font-family", "sans-serif")
-      .attr("font-size", message_size)
-      .attr("id", "too_slow_message")
-      .attr("display", "none")
-      .text("Move Faster");
-
-    svgContainer.append("text")
-      .attr("text-anchor", "middle")
-      .attr("x", center.x)
-      .attr("y", center.y * 2)
-      .attr("fill", "white")
-      .attr("font-family", "san-serif")
-      .attr("font-size", message_size)
-      .attr("id", "search_too_slow")
-      .attr("display", "none")
-      .text(
-        "To find your cursor, try moving your mouse to the center of the screen.",
-      );
-
-    reach_number_point = new Point(
-      center.x + (squareSize / 2),
-      squareTop + squareSize + line_size,
-    );
-    svgContainer.append("text")
-      .attr("text-anchor", "end")
-      // why is this special? What does the magic number represent?
-      // .attr('x', center.x / 20 * 19)
-      // .attr('y', center.y / 20 * 19)
-      .attr("x", reach_number_point.x)
-      .attr("y", reach_number_point.y)
-      .attr("fill", "white")
-      .attr("font-size", message_size)
-      .attr("id", "trialcount")
-      .attr("display", "block")
-      .text("Reach Number: ? / ?");
-
-    // Draw the red square
-    svgContainer.append("rect")
-      .attr("x", squareLeft) // Left boundary of the square
-      .attr("y", squareTop) // Top boundary of the square
-      .attr("width", squareSize) // Width of the square
-      .attr("height", squareSize) // Height of the square
-      .attr("fill", "none") // Transparent fill
-      .attr("stroke", "red") // Border color
-      .attr("stroke-width", 2) // Border thickness
-      .attr("id", "targetSquare") // Unique ID for the square
-      .attr("display", "block"); // Ensure it's visible
-
-    return svgContainer;
-  }
-
-  const handler = setupPageRender(center);
-
-  // Setting parameters and drawing the center start circle
-  calibration = new Circle(
-    handler, // parent
-    center, // point
-    Math.round(target_dist * 4.5 / 80.0), // radius
-    "none", // color
-    "white", // stroke
-  );
-
-  // Setting parameters and drawing the target
-  target = new Circle(
-    handler, // parent
-    center, // point
-    // this is confusing? How big is this suppose to be?
-    Math.round(target_dist * 4.5 / 80.0), // radius
-    "blue", // color
-    "none", // stroke
-  );
-  // not sure where the extra value is coming from?
-  // console.log("target", target, center);
-
-  // original code had to move the circle away from origin to avoid accidential start. Apply offset here.
-  // Draw the white circle mouse cursor
-  cursor = new Circle(
-    handler, // parent
-    center, // point
-    // this is confusing? How big is this suppose to be?
-    // also what is the order of operation here? How are the number generated?
-    Math.round(target_dist * 1.75 * 1.5 / 80.0), // radius
-    "white",
-    "none",
-  );
-
-  /***************************************
-   * Pointer Lock Variables and Functions *
-   ***************************************/
-  document.requestPointerLock = document.requestPointerLock ||
-    document.mozRequestPointerLock;
-  document.exitPointerLock = document.exitPointerLock ||
-    document.mozExitPointerLock;
-  document.addEventListener("pointerlockchange", lockChangeAlert, false);
-  document.addEventListener("mozpointerlockchange", lockChangeAlert, false);
-  self.addEventListener("resize", monitorWindow, false);
-  document.addEventListener("click", setPointerLock, false);
-
-  // Function to monitor changes in pointer lock
-  function lockChangeAlert() {
-    if (
-      document.pointerLockElement === stage ||
-      document.mozPointerLockElement === stage
-    ) {
-      console.log("The pointer lock status is now locked");
-      document.addEventListener("mousemove", update_cursor, false);
-      document.addEventListener("keydown", advance_block, false);
-    } else {
-      console.log("The pointer lock status is now unlocked");
-      document.removeEventListener("mousemove", update_cursor, false);
-      document.removeEventListener("keydown", advance_block, false);
-    }
-  }
-
-  // Function to set pointer lock and log it
-  function setPointerLock() {
-    console.log("Attempted to lock pointer");
-    stage.requestPointerLock();
-  }
-
-  setPointerLock();
-
-  // The distance from start at which they can see their cursor while searching in between trials
-  // TODO: Talk to Katie if we still need this? Used as an indicator to display cursor before moving back to start.
-  // search_tolerance = start.radius * 4 + cursor.radius * 4;
-
-  /********************
-    * Update Cursor Function*
-    * This function gets called every time a participant moves their mouse.*
-    * It does the following:
-      * Tracks the mouse location (hand location) and calculates the radius
-      from the start circle
-      * Computes a rotation on the cursor if during appropriate game phase
-      * Draws the cursor if in appropriate game phase
-      * Triggers changes in game phase if appropriate conditions are met
-    ********************/
-  function update_cursor(event) {
-    // Record the current mouse movement location
-    event = event || self.event;
-
-    const cursor_x = cursor.point.x + event.movementX;
-    const cursor_y = cursor.point.y + event.movementY;
-
-    // Ensure we do not exceed screen boundaries
-    // update cursor position
-    cursor.update(cursor_x, cursor_y);
-
-    // distance between cursor and start
-    const distance = Math.sqrt(
-      Math.pow(calibration.point.x - cursor.point.x, 2.0) +
-        Math.pow(calibration.point.y - cursor.point.y, 2.0),
-    );
-
-    // Update hand angle
-    // no longer in use since the code down below is commented out, we're using hand_fb_angle instead?
-    // hand_angle = Math.atan2(calibration.point.y - cursor.point.y, cursor.point.x - calibration.point.x) * rad2deg;
-
-    const point = cursor.point;
-    switch (game_phase) {
-      case Phase.HOLDING:
-        // Move from hold back to search phase if they move back beyond the search tolerance
-        if (distance > calibration.radius) {
-          search_phase();
-        }
-        break;
-
-      case Phase.SHOW_TARGETS:
-        // Move from show targets to moving phase once user has begun their reach
-        if (distance > calibration.radius) {
-          // we could also control if we want to wait for the target to finish the demo before moving the cursor.
-          // right now, if the mouse move out, we will stop the target and let the user conduct the experiment.
-          moving_phase();
-        }
-        break;
-
-      case Phase.SEARCHING:
-        // Move from search to hold phase if they move within search tolerance of the start circle
-        if (distance <= calibration.radius) {
-          hold_phase();
-        }
-        break;
-
-      case Phase.MOVING:
-        // record mouse data
-        handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
-        
-        // Check if cursor is within the red square
-        if (
-          point.x >= squareLeft &&
-          point.x <= squareLeft + squareSize &&
-          point.y >= squareTop &&
-          point.y <= squareTop + squareSize
-        ) {
-        // Update the musicBox with normalized position within square
-          musicBox.update(point.x, point.y, squareLeft, squareTop, squareSize);
-        } else {
-          musicBox.pause();
-        }
-        
-        // Move from moving to feedback phase once their reach intersects the target ring
-        if (distance > target_dist) {
-          // stop audio
-          musicBox.pause();
-          fb_phase();
-        }
-        break;
-    }
-  }
-
-  // Function called whenever a key is pressed
-  // **TODO** Make sure the conditions match up to the messages displayed in "messages"
-  function advance_block(event) {
-    const SPACE_BAR = " "; //32;
-    const a = "a"; //97;
-    const e = "e"; //101;
-    const b = "b"; //98;
-    // const f = 70;   // not in use?
-    // keyCode is marked deprecated - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/keyCode
-    // use keyboardEvent.key instead - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
-    const key = event.key.toLowerCase();
-
-    // start of the trial - we do not ask for client keyboard feedback, immediately search_phase();
-    if (bb_mess == 0) {
-      search_phase();
-      return;
-    }
-
-    // this could be converted as a separate block trial to run through.
-    if (game_phase == Phase.BETWEEN_BLOCKS) {
-      // bb_mess 1 --> b, 2 or 5 --> a, 3 or 6 --> space, 4 --> e
-      if (bb_mess == 1 && key == b) {
-        search_phase();
-        return;
-      }
-
-      if ((bb_mess == 2 || bb_mess == 5) && key == a) {
-        search_phase();
-        return;
-      }
-
-      if ((bb_mess == 3 || bb_mess == 6) && key == SPACE_BAR) {
-        search_phase();
-        return;
-      }
-
-      if (bb_mess == 4 && key == e) {
-        search_phase();
-        return;
-      }
-
-      badGame(); // Premature exit game if failed attention check
-    }
-  }
-
-  function displayMessage(idx) {
-    // Load messages
-    d3.select("#message-line-1").attr("display", "block").text(
-      messages[idx][0],
-    );
-    d3.select("#message-line-2").attr("display", "block").text(
-      messages[idx][1],
-    );
-    d3.select("#message-line-3").attr("display", "block").text(
-      messages[idx][2],
-    );
-    d3.select("#message-line-4").attr("display", "block").text(
-      messages[idx][3],
-    );
-  }
-
-  function hideMessage() {
-    d3.select("#message-line-1").attr("display", "none");
-    d3.select("#message-line-2").attr("display", "none");
-    d3.select("#message-line-3").attr("display", "none");
-    d3.select("#message-line-4").attr("display", "none");
-  }
-
-  /***********************
-   * Game Phase Functions *
-   * Mostly controls what is being displayed *
-   ************************/
-
-  // Phase when searching for the center start circle
-  function search_phase() {
-    // Clear out timer if holding was incomplete
-    if (hold_timer != null) {
-      clearTimeout(hold_timer);
-      hold_timer = null;
-    }
-
-    if (too_slow_timer != null) {
-      clearTimeout(too_slow_timer);
-      too_slow_timer = null;
-    }
-
-    // Start of timer for search time
-    begin = new Date();
-
-    // Start circle becomes visible, target and cursor invisible
-    calibration.display(true);
-    calibration.setFill("none");
-    calibration.setStroke("white");
-
-    // if we want to delay the target display then we can do it here?
-    target_display_timer = setTimeout(() => target.display(false), 500);
-    cursor.display(true);
-
-    hideMessage();
-    d3.select("#too_slow_message").attr("display", "none");
-
-    // Displaying searching too slow message if threshold is crossed
-    too_slow_timer = setTimeout(() => {
-      d3.select("#search_too_slow").attr("display", "block");
-    }, search_too_slow);
-
-    // update game_phase
-    game_phase = Phase.SEARCHING;
-  }
-
-  // Phase when users hold their cursors within the start circle
-  function hold_phase() {
-    if (target_display_timer != null) {
-      clearTimeout(target_display_timer);
-      target_display_timer = null;
-      target.display(false);
-    }
-
-    // Fill the center if within start radius
-    cursor.display(false);
-    calibration.display(true);
-    calibration.setFill("white");
-
-    clearTimeout(too_slow_timer);
-    too_slow_timer = null;
-
-    d3.select("#search_too_slow").attr("display", "none");
-
-    hold_timer = setTimeout(show_targets, hold_time);
-    game_phase = Phase.HOLDING;
-  }
-
-  // Used to help interpolate start to end target points.
-  function animate(update, duration, onfinish) {
-    const start = performance.now();
-
-    requestAnimationFrame(function animate(time) {
-      let timeFraction = (time - start) / duration;
-      if (timeFraction > 1) timeFraction = 1;
-      update(timeFraction);
-
-      if (timeFraction < 1) {
-        // How have we not reach stackoverflow here?
-        requestAnimationFrame(animate);
-      } else {
-        // callback once we're done with animation.
-        onfinish();
-      }
-    });
-  }
-
-  // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
-  // Updated play_sounds function to work better with the new MusicBox
-function play_sounds(start, end, duration, update) {
-  function play_sound_along(t) {
-    // linear interpolate between two points over time (0-1)
-    const x = start.x + (end.x - start.x) * t;
-    const y = start.y + (end.y - start.y) * t;
-    
-    update(x, y); // callback to update others based on coordinate given
-    
-    // Check if the point is within the red square
-    if (
-      x >= squareLeft && 
-      x <= squareLeft + squareSize && 
-      y >= squareTop && 
-      y <= squareTop + squareSize
-    ) {
-      musicBox.update(x, y, squareLeft, squareTop, squareSize);
-    }
-  }
-
-  // First ensure musicBox is initialized
-  musicBox.initializeAudio().then(() => {
-    // Start animation
-    animate((t) => play_sound_along(t), 1000, () => {
-      // Make sure we stop correctly
-      if (stop_target_music_timer) {
-        clearTimeout(stop_target_music_timer);
-      }
-      musicBox.pause();
-    });
-    
-    // Set a backup timer to ensure audio stops
-    stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
-  });
-}
-
-  // Phase when users have held cursor in start circle long enough so target shows up
-  function show_targets() {
-    // Record search time as the time elapsed from the start of the search phase to the start of this phase
-    d3.select("#message-line-1").attr("display", "none");
-    search_time = new Date() - begin;
-
-    // Start of timer for reaction time
-    begin = new Date();
-
-    // I'm a bit confused with the logic here.
-    // if this equals to one, this means no variation was added to this target.
-    const jump = target_jump[trial];
-    const angle = tgt_angle[trial];
-    target.setFill("blue");
-
-    // If we are not in practice trial display target (0.0 = invisible, 1.0 = visible)
-    if (jump == 1.0) {
-      target.display(true);
-    }
-
-    const offset = (jump == 1.0) ? rotation[trial] : jump;
-    const value = angle + offset;
-    const start = calibration.point;
-    const x = start.x + target_dist * Math.cos(value * deg2rad);
-    const y = start.y - target_dist * Math.sin(value * deg2rad);
-    const end = new Point(x, y);
-
-    target.update(x, y);
-    if (play_sound) {
-      play_sounds(start, end, 1, (x, y) => {
-        // this gets called every frame. Part of the animation process. X, y are midpoint values between start and end over duration.
-        if (jump != 1.0) {
-          target.update(x, y);
-        }
-      });
-      play_sound = false;
-    }
-
-    // Turn start circle green after a second
-    green_timer = setTimeout(function () {
-      calibration.setFill("green");
-      calibration.setStroke("none");
-    }, green_time);
-
-    game_phase = Phase.SHOW_TARGETS;
-  }
-
-  // Phase when users are reaching to the target
-  // Updated moving_phase function with explicit audio initialization
-function moving_phase() {
-  if (stop_target_music_timer != null) {
-    clearTimeout(stop_target_music_timer);
-    stop_target_music_timer = null;
-  }
-
-  // clear timer
-  if (green_timer !== null) {
-    clearTimeout(green_timer);
-    green_timer = null;
-  }
-
-  if (target_jump[trial] != 1.0) {
-    target.display(false);
-  }
-
-  rt = new Date() - begin; // Record reaction time as time spent with target visible before moving
-  begin = new Date(); // Start of timer for movement time
-
-  // Initialize audio and then play
-  musicBox.initializeAudio().then(() => {
-    musicBox.play(0);
-  });
-
-  // Start circle disappears
-  calibration.display(false);
-  cursor.display(true);
-  game_phase = Phase.MOVING;
-}
-
-  // Phase where users have finished their reach and receive feedback
-  function fb_phase() {
-    // Record movement time as time spent reaching before intersecting target circle
-    // Can choose to add audio in later if necessary
-    mt = new Date() - begin;
-    let timer = 0;
-    musicBox.pause();
-
-    // Gives "hurry" message upon completing a trial that was done too slowly
-    if (mt > too_slow_time) {
-      calibration.display(false);
-      d3.select("#too_slow_message").attr("display", "block");
-      target.setFill("red");
-      reach_feedback = "let's pick up the pace!";
-      timer = feedback_time_slow;
-    } else {
-      target.setFill("green");
-      reach_feedback = "good_reach";
-      timer = feedback_time;
-    }
-    setTimeout(next_trial, timer);
-
-    // Record the hand location immediately after crossing target ring
-    // projected back onto target ring (since mouse doesn't sample fast enough)
-    hand_fb_angle = Math.atan2(
-      calibration.point.y - cursor.point.y,
-      cursor.point.x - calibration.point.x,
-    ) * rad2deg;
-    if (hand_fb_angle < 0) {
-      hand_fb_angle = 360 + hand_fb_angle; // Corrected so that it doesn't have negative angles // can't imagine why it'd be negative?
-    }
-
-    hand_fb_x = calibration.point.x +
-      target_dist * Math.cos(hand_fb_angle * deg2rad);
-    hand_fb_y = calibration.point.y -
-      target_dist * Math.sin(hand_fb_angle * deg2rad);
-
-    cursor.display(true);
-
-    // Start next trial after feedback time has elapsed
-    game_phase = Phase.FEEDBACK;
-  }
-
-  function start_trial() {
-    subjTrials = new Trial(experiment_ID, subject.id);
-
-    d3.select("#too_slow_message").attr("display", "none");
-    calibration.display(false);
-
-    // Waiting for keyboard inputs to begin
-    search_phase();
-  }
-
-  function end_trial() {
-    self.removeEventListener("resize", monitorWindow, false);
-    document.removeEventListener("click", setPointerLock, false);
-    document.exitPointerLock();
-    endGame();
-  }
-
-  // Function used to initiate the next trial after uploading reach data and subject data onto the database
-  // Cleans up all the variables and displays to set up for the next reach
-  function next_trial() {
-    // TODO: add data to append to block for this Trial
-    subjTrials.appendTrialBlock(
-      tgt_angle[trial],
-      rotation[trial],
-      hand_fb_angle,
-      rt,
-      mt,
-      search_time,
-      reach_feedback,
-      handPositions,
-    );
-    // where do we save the hand position data?
-
-    // Reset timing variables
-    rt = 0;
-    mt = 0;
-    search_time = 0;
-    play_sound = true;
-
-    // this clears it.
-    handPositions = [];
-
-    // Between Blocks Message Index
-    // may potentially be a problem?
-    // TODO, create a new trial that hold message block instead?
-    bb_mess = between_blocks[trial];
-
-    // Increment the trial count
-    trial += 1;
-
-    // update trial count display
-    const totalTrials = target_file_data.numtrials;
-    d3.select("#trialcount").text(
-      "Reach Number: " + trial + " / " + totalTrials,
-    );
-
-    // Checks whether the experiment is complete, if not continues to next trial
-    if (trial == num_trials) {
-      end_trial();
-      // display between block message
-    } else if (bb_mess || trial == 1) {
-      displayMessage(bb_mess);
-      game_phase = Phase.BETWEEN_BLOCKS;
-    } else {
-      search_phase();
-    }
-  }
-
-  // start the trial
-  start_trial();
-}
-
 
 // Helper function to end the game regardless good or bad
 function helpEnd() {
@@ -2015,47 +2000,52 @@ function helpEnd() {
 
   d3.select("#stage").attr("display", "none");
 
-  const trialNum = [];
-  const currentDate = [];
-  const target_angle = [];
-  const trial_type = [];
-  const rotation = [];
-  const hand_fb_angle = [];
-  const rt = [];
-  const mt = [];
-  const search_time = [];
-  const reach_feedback = [];
+  // Save trials data to Firebase
+  if (subjTrials) {
+    const trialNum = [];
+    const currentDate = [];
+    const target_angle = [];
+    const trial_type = [];
+    const rotation = [];
+    const hand_fb_angle = [];
+    const rt = [];
+    const mt = [];
+    const search_time = [];
+    const reach_feedback = [];
 
-  subjTrials.blocks.forEach((e) => {
-    trialNum.push(e.trialNum);
-    currentDate.push(e.currentDate);
-    target_angle.push(e.target_angle);
-    trial_type.push(e.trial_type);
-    rotation.push(e.rotation);
-    hand_fb_angle.push(e.hand_fb_angle);
-    rt.push(e.rt);
-    mt.push(e.mt);
-    search_time.push(e.search_time);
-    reach_feedback.push(e.reach_feedback);
-  });
+    subjTrials.blocks.forEach((e) => {
+      trialNum.push(e.trialNum);
+      currentDate.push(e.currentDate);
+      target_angle.push(e.target_angle);
+      trial_type.push(e.trial_type);
+      rotation.push(e.rotation);
+      hand_fb_angle.push(e.hand_fb_angle);
+      rt.push(e.rt);
+      mt.push(e.mt);
+      search_time.push(e.search_time);
+      reach_feedback.push(e.reach_feedback);
+    });
 
-  const subjTrial_data = {
-    id: subjTrials.id,
-    experimentID: subjTrials.experimentID,
-    // cursor_data: subjTrials.cursor_data,
-    trialNum,
-    currentDate,
-    target_angle,
-    trial_type,
-    rotation,
-    hand_fb_angle,
-    rt,
-    mt,
-    search_time,
-    reach_feedback,
-  };
+    const subjTrial_data = {
+      id: subjTrials.id,
+      experimentID: subjTrials.experimentID,
+      // cursor_data: subjTrials.cursor_data, // This can be very large, consider omitting
+      trialNum,
+      currentDate,
+      target_angle,
+      trial_type,
+      rotation,
+      hand_fb_angle,
+      rt,
+      mt,
+      search_time,
+      reach_feedback,
+    };
 
-  updateCollection(trialcollection, subjTrial_data);
+    const firestore = firebase.firestore();
+    const trialcollection = firestore.collection("Trials");
+    trialcollection.doc(subjTrials.id).set(subjTrial_data);
+  }
 }
 
 // Function that allows for the premature end of a game
@@ -2070,14 +2060,8 @@ function endGame() {
   helpEnd();
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-  // // The Firebase SDK is initialized and available here!
-  //
-  //firebase.auth().onAuthStateChanged(user => { });
-  //firebase.database().ref('./').on('value', snapshot => { });
-  //firebase.messaging().requestPermission().then(() => { });
-  //firebase.storage().ref('./').getDownloadURL().then(() => { });
-  //
-  // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+// Initialize when document is ready
+document.addEventListener("DOMContentLoaded", function() {
+  // Firebase initialization would normally go here
+  console.log("Document ready, experiment can be started");
 });
