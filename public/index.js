@@ -1,9 +1,5 @@
 /*
-This current experiment is a classic visuomotor rotation reaching experiment, but can easily be adapted into variations of different reaching experiments depending on the target file.
-Currently supported experiments include:
-- VMR
-- Clamp
-- Target-jump experiments
+This current experiment is a auditory-motor mapping experiment that can be adapted depending on the target file.
 Remember to update necessary fields before starting the game. All fields that require change will be marked by a "**TODO**" comment.
 */
 
@@ -13,6 +9,43 @@ const noSave = false;
 // TODO: Replace this with your own experiment file!
 // Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
 const fileName = "./tgt_files/Katie2_csv_file.json";
+
+// At the top of index.js
+window.show = function(shown) {
+  console.log("Attempting to show: " + shown);
+  
+  // Hide all pages first
+  var pages = [
+      "container-consent", 
+      "container-instructions1", 
+      "container-instructions2", 
+      "container-info", 
+      "container-exp", 
+      "container-not-an-ad", 
+      "container-failed", 
+      "final-page"
+  ];
+  
+  pages.forEach(function(page) {
+      var element = document.getElementById(page);
+      if (element) {
+          element.style.display = 'none';
+      }
+  });
+  
+  // Show the target page
+  var targetPage = document.getElementById(shown);
+  if (targetPage) {
+      targetPage.style.display = 'block';
+  } else {
+      console.error("Page not found: " + shown);
+  }
+  
+  return true;
+};
+
+// Ensure function is available globally
+var prevpage = "container-consent";
 
 // TODO: Katie, add the json content below here:
 const fileContent = {
@@ -458,6 +491,13 @@ class MusicBox {
     this.initialized = false;
     this.lastPosition = { x: 0.5, y: 0.5 }; // Normalized position (0-1)
     
+    // Keep track of the current BP note oscillator
+    this.currentBPOsc = null;
+    this.currentBPGain = null;
+
+    // Store the last x position to detect meaningful changes
+    this.lastXPosition = 0.5;
+
     // Rhythm patterns with increasing complexity (slightly less dense)
     this.rhythmPatterns = [
       [1, 0, 1, 0],                     // Simplest
@@ -478,8 +518,14 @@ class MusicBox {
     this.hihatSynth = null;
     this.hihatGain = null;
     this.hihatFilter = null;
-    this.toneSynth = null;
-    this.toneGain = null;
+    this.bpSynth = null;
+    this.bpGain = null;
+    this.bpMasterGain = null;
+    this.clapSynth = null;
+    this.clapGain = null;
+    this.clapFilter = null;
+    this.clapNoise = null;
+    
 
     // Debug flag
     this.debug = false;
@@ -533,16 +579,38 @@ class MusicBox {
       this.hihatSynth.connect(this.hihatFilter);
       this.hihatSynth.start();
       
+      // Clap
+      this.clapGain = this.audioContext.createGain();
+      this.clapGain.gain.value = 0.001; // Start silent
+      this.clapGain.connect(this.audioContext.destination);
+
+      // Create noise for clap
+      this.clapFilter = this.audioContext.createBiquadFilter();
+      this.clapFilter.type = 'bandpass';
+      this.clapFilter.frequency.value = 1200;
+      this.clapFilter.Q.value = 1.5;
+      this.clapFilter.connect(this.clapGain);
+
+      // Create noise buffer
+      const bufferSize = this.audioContext.sampleRate * 2;
+      const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+}
+
+      this.clapNoise = this.audioContext.createBufferSource();
+      this.clapNoise.buffer = noiseBuffer;
+      this.clapNoise.loop = true;
+      this.clapNoise.connect(this.clapFilter);
+      this.clapNoise.start();
+
       // Tone for Bohlen-Pierce scale
-      this.toneGain = this.audioContext.createGain();
-      this.toneGain.gain.value = 0.001; // Start silent
-      this.toneGain.connect(this.audioContext.destination);
-      
-      this.toneSynth = this.audioContext.createOscillator();
-      this.toneSynth.type = 'sine';
-      this.toneSynth.frequency.value = 130.81; // C3
-      this.toneSynth.connect(this.toneGain);
-      this.toneSynth.start();
+      // BP scale - using on-demand oscillators, so no persistent nodes needed
+      // Create a master gain for BP scale to control overall volume
+      this.bpMasterGain = this.audioContext.createGain();
+      this.bpMasterGain.gain.value = 0.7; // Overall volume for BP notes
+      this.bpMasterGain.connect(this.audioContext.destination);
       
       this.initialized = true;
       this.log("Audio initialized successfully");
@@ -602,33 +670,67 @@ class MusicBox {
   }
   
   // Play a single step in the rhythm pattern
-  playNextStep() {
-    if (!this.isPlaying) return;
+playNextStep() {
+  if (!this.isPlaying) return;
+  
+  const pattern = this.currentPattern;
+  const patternIndex = this.currentStep % pattern.length;
+  
+  // If this step has a beat (1), play appropriate sounds
+  if (pattern[patternIndex]) {
+    const instruments = this.getInstrumentsForYValue(this.lastPosition.y);
+    const currentTime = this.audioContext.currentTime;
     
-    const pattern = this.currentPattern;
-    const patternIndex = this.currentStep % pattern.length;
-    
-    // If this step has a beat (1), play appropriate sounds
-    if (pattern[patternIndex]) {
-      const instruments = this.getInstrumentsForYValue(this.lastPosition.y);
-      const currentTime = this.audioContext.currentTime;
-      
-      // Play each active instrument
-      if (instruments.includes('kick')) {
-        this.playKick(currentTime);
-      }
-      
-      if (instruments.includes('hihat')) {
-        this.playHihat(currentTime);
-      }
-      
-      // Always play the tone based on X position
-      this.playTone(currentTime);
+    // Play each active instrument
+    if (instruments.includes('kick')) {
+      this.playKick(currentTime);
     }
     
-    this.currentStep++;
+    if (instruments.includes('clap')) {
+      this.playClap(currentTime);
+    }
   }
   
+  this.currentStep++;
+}
+  
+  // Clap sound
+  playClap(time) {
+    if (!this.clapNoise || !this.clapGain || !this.clapFilter) return;  
+  
+  const attackTime = 0.001;
+  const releaseTime = 0.2;
+  
+  try {
+    // Create a more realistic clap with multiple closely-spaced transients
+    this.clapGain.gain.cancelScheduledValues(time);
+    
+    // Initial attack
+    this.clapGain.gain.setValueAtTime(0.001, time);
+    this.clapGain.gain.exponentialRampToValueAtTime(0.3, time + attackTime);
+    
+    // Multiple decay/attack for "hands" effect
+    this.clapGain.gain.exponentialRampToValueAtTime(0.2, time + 0.01);
+    this.clapGain.gain.exponentialRampToValueAtTime(0.25, time + 0.02);
+    this.clapGain.gain.exponentialRampToValueAtTime(0.15, time + 0.03);
+    this.clapGain.gain.exponentialRampToValueAtTime(0.1, time + 0.04);
+    
+    // Final decay
+    this.clapGain.gain.exponentialRampToValueAtTime(0.001, time + attackTime + releaseTime);
+    
+    // Adjust filter frequency for the "smack" transient
+    if (this.clapFilter) {
+      this.clapFilter.frequency.cancelScheduledValues(time);
+      this.clapFilter.frequency.setValueAtTime(1200, time);
+      this.clapFilter.frequency.exponentialRampToValueAtTime(1800, time + 0.01);
+      this.clapFilter.frequency.exponentialRampToValueAtTime(1200, time + 0.03);
+      this.clapFilter.Q.setValueAtTime(1.5, time);
+      this.clapFilter.Q.linearRampToValueAtTime(0.9, time + releaseTime);
+    }
+  } catch (error) {
+    console.error("Error playing clap:", error);
+  }
+}
   // Play kick drum sound with proper envelope
   playKick(time) {
     if (!this.kickSynth || !this.kickGain) return;
@@ -670,46 +772,84 @@ class MusicBox {
     }
   }
   
-  // Play tone with proper envelope
-  playTone(time) {
-    if (!this.toneSynth || !this.toneGain) return;
-    
-    const frequency = this.getNoteForXValue(this.lastPosition.x);
-    const attackTime = 0.02;
-    const releaseTime = 0.3;
-    
-    try {
-      // Set frequency
-      this.toneSynth.frequency.cancelScheduledValues(time);
-      this.toneSynth.frequency.setValueAtTime(frequency, time);
-      
-      // Set amplitude envelope
-      this.toneGain.gain.cancelScheduledValues(time);
-      this.toneGain.gain.setValueAtTime(0.001, time);
-      this.toneGain.gain.exponentialRampToValueAtTime(0.4, time + attackTime);
-      this.toneGain.gain.exponentialRampToValueAtTime(0.001, time + attackTime + releaseTime);
-    } catch (error) {
-      console.error("Error playing tone:", error);
-    }
-  }
-  
   // Update sound based on cursor position
+  // Update method to dynamically change BP scale note
   update(x, y, squareLeft, squareTop, squareSize) {
     // Normalize position to 0-1 range
     const normalizedX = (x - squareLeft) / squareSize;
     const normalizedY = (y - squareTop) / squareSize;
     
     // Constrain to 0-1 range
-    // Converts the cursor position to normalized values (0-1 range) relative to the square
     this.lastPosition.x = Math.max(0, Math.min(1, normalizedX));
     this.lastPosition.y = Math.max(0, Math.min(1, normalizedY));
     
+    // Check if x position has changed significantly (threshold of 0.05)
+    if (Math.abs(this.lastPosition.x - this.lastXPosition) > 0.05) {
+      // Stop previous BP oscillator if it exists
+      this.stopBPNote();
+      
+      // Play new BP note based on x position
+      this.playBPNote(this.lastPosition.x);
+      
+      // Update last x position
+      this.lastXPosition = this.lastPosition.x;
+    } 
     // Initialize and start if not already playing
     if (!this.isPlaying) {
       this.play(this.audioContext.currentTime);
       return;
     }
+    // Method to play a BP scale note
+  playBPNote(x) {
+    if (!this.initialized) return;
+
+    const currentTime = this.audioContext.currentTime;
     
+    // Get frequency based on X position
+    const frequency = this.getNoteForXValue(x);
+    
+    // Create new oscillator and gain node
+    this.currentBPOsc = this.audioContext.createOscillator();
+    this.currentBPGain = this.audioContext.createGain();
+    
+    this.currentBPOsc.type = 'sine';
+    this.currentBPOsc.frequency.value = frequency;
+    
+    // Set up gain envelope
+    this.currentBPGain.gain.setValueAtTime(0.0001, currentTime);
+    this.currentBPGain.gain.exponentialRampToValueAtTime(0.4, currentTime + 0.02);
+    
+    // Connect nodes
+    this.currentBPOsc.connect(this.currentBPGain);
+    this.currentBPGain.connect(this.audioContext.destination);
+    
+    // Start oscillator
+    this.currentBPOsc.start(currentTime);
+    
+    console.log("Playing BP scale note at frequency:", frequency);
+  }
+
+  // Method to stop the current BP note
+  stopBPNote() {
+    if (this.currentBPOsc) {
+      // Gradually reduce gain
+      if (this.currentBPGain) {
+        const currentTime = this.audioContext.currentTime;
+        this.currentBPGain.gain.cancelScheduledValues(currentTime);
+        this.currentBPGain.gain.setValueAtTime(this.currentBPGain.gain.value, currentTime);
+        this.currentBPGain.gain.exponentialRampToValueAtTime(0.0001, currentTime + 0.1);
+      }
+      
+      // Stop and disconnect
+      this.currentBPOsc.stop(this.audioContext.currentTime + 0.1);
+      this.currentBPOsc.disconnect();
+      this.currentBPGain.disconnect();
+      
+      this.currentBPOsc = null;
+      this.currentBPGain = null;
+    }
+  }
+
     // Uses the vertical (Y) position to select a pattern with getPatternForYValue()
     // Updates the current pattern only if it's different from the previous one
     const newPattern = this.getPatternForYValue(this.lastPosition.y);
@@ -745,17 +885,29 @@ class MusicBox {
   }
   
   // Map Y value to instrument selection
-  getInstrumentsForYValue(y) {
-    // Invert Y (since 0 is top, 1 is bottom in DOM)
-    const invertedY = 1 - y;
-    
-    const instruments = [];
+getInstrumentsForYValue(y) {
+  // Invert Y (since 0 is top, 1 is bottom in DOM)
+  const invertedY = 1 - y;
+  
+  const instruments = [];
+  
+  // Add different instruments based on y position
+  if (invertedY < 0.3) {
+    // Bottom third: only BP tone
+    instruments.push('bpscale');
+  } else if (invertedY < 0.6) {
+    // Middle third: kick + BP tone
     instruments.push('kick');
-    
-    if (invertedY > 0.3) instruments.push('hihat');
-    
-    return instruments;
+    instruments.push('bpscale'); 
+  } else {
+    // Top third: kick + clap + BP tone
+    instruments.push('kick');
+    instruments.push('clap');
+    instruments.push('bpscale');
   }
+  
+  return instruments;
+}
   
   // Map X value to Bohlen-Pierce scale note
   getNoteForXValue(x) {
@@ -809,9 +961,9 @@ class MusicBox {
       this.hihatGain.gain.setValueAtTime(0.001, now);
     }
     
-    if (this.toneGain) {
-      this.toneGain.gain.cancelScheduledValues(now);
-      this.toneGain.gain.setValueAtTime(0.001, now);
+    if (this.clapGain) {
+      this.clapGain.gain.cancelScheduledValues(now);
+      this.clapGain.gain.setValueAtTime(0.001, now);
     }
     
     // Suspend the audio context to save resources
@@ -1422,55 +1574,76 @@ class SpatialRhythmExperiment {
   }
   
   // Play sounds along a path from start to end
-  play_sounds(start, end, duration, update) {
-    const self = this;
+play_sounds(start, end, duration, update) {
+  const self = this;
+  
+  // Ensure audio is initialized before starting
+  this.musicBox.initializeAudio().then(() => {
+    console.log("Audio initialized for sound demo");
     
-    // Ensure audio is initialized before starting
-    this.musicBox.initializeAudio().then(() => {
-      console.log("Audio initialized for sound demo");
+    // Make sure the music box is playing
+    this.musicBox.play(this.audioContext?.currentTime || 0);
+    
+    function play_sound_along(t) {
+      // Calculate the current position based on the time fraction t (0-1)
+      // Linear interpolation between start and end points
+      const x = start.x + (end.x - start.x) * t;
+      const y = start.y + (end.y - start.y) * t;
       
-      // Make sure the music box is playing
-      this.musicBox.play(this.audioContext?.currentTime || 0);
-      
-      function play_sound_along(t) {
-        // Linear interpolation between start and end
-        const x = start.x + (end.x - start.x) * t;
-        const y = start.y + (end.y - start.y) * t;
-        
-        // Update callback
-        update(x, y);
-        
-        // Play sound if point is within red square
-        if (
-          x >= self.squareLeft && 
-          x <= self.squareLeft + self.squareSize && 
-          y >= self.squareTop && 
-          y <= self.squareTop + self.squareSize
-        ) {
-          self.musicBox.update(x, y, self.squareLeft, self.squareTop, self.squareSize);
-          console.log("Playing sound at position:", x, y);
-        }
+      // When playing sound during a demo, use the same approach as in playNextStep
+      if (x >= self.squareLeft && x <= self.squareLeft + self.squareSize && 
+          y >= self.squareTop && y <= self.squareTop + self.squareSize) {
+
+        // Update music box position
+        self.musicBox.lastPosition.x = (x - self.squareLeft) / self.squareSize;
+        self.musicBox.lastPosition.y = (y - self.squareTop) / self.squareSize;
+
+        // For the demo, create and play a BP scale note directly
+        const frequency = self.musicBox.getNoteForXValue(self.musicBox.lastPosition.x);
+        const now = self.musicBox.audioContext.currentTime;
+
+        const bpOsc = self.musicBox.audioContext.createOscillator();
+        const bpGain = self.musicBox.audioContext.createGain();
+
+        bpOsc.type = 'sine';
+        bpOsc.frequency.value = frequency;
+
+        bpGain.gain.value = 0.0001;
+
+        bpOsc.connect(bpGain);
+        bpGain.connect(self.musicBox.bpMasterGain || self.musicBox.audioContext.destination);
+
+        const attackTime = 0.05;
+        const releaseTime = 0.3;
+
+        bpGain.gain.setValueAtTime(0.0001, now);
+        bpGain.gain.exponentialRampToValueAtTime(0.5, now + attackTime);
+        bpGain.gain.exponentialRampToValueAtTime(0.0001, now + attackTime + releaseTime);
+
+        bpOsc.start(now);
+        bpOsc.stop(now + attackTime + releaseTime + 0.1);
+
+        console.log("Demo playing sound at position:", x, y, "with frequency:", frequency);
       }
-      
-      // Animate through points on the path
-      this.animate((t) => play_sound_along(t), duration, () => {
-        // Stop sound when animation completes
-        if (this.stop_target_music_timer) {
-          clearTimeout(this.stop_target_music_timer);
-        }
-        console.log("Sound demo complete, pausing music");
-        this.musicBox.pause();
-      });
-      
-      // Set a backup timer to stop audio
-      this.stop_target_music_timer = setTimeout(() => {
-        console.log("Backup timer triggered to stop sound");
-        this.musicBox.pause();
-      }, duration + 100);
-    }).catch(err => {
-      console.error("Failed to initialize audio for demo:", err);
+    }
+    
+    // Animate through points on the path
+    this.animate((t) => play_sound_along(t), duration, () => {
+      // Stop sound when animation completes
+      if (this.stop_target_music_timer) {
+        clearTimeout(this.stop_target_music_timer);
+      }
+      console.log("Sound demo complete, pausing music");
+      this.musicBox.pause();
     });
-  }
+    
+    // Set a backup timer to stop audio
+    this.stop_target_music_timer = setTimeout(() => {
+      console.log("Backup timer triggered to stop sound");
+      this.musicBox.pause();
+    }, duration + 100);
+  });
+}
   
   // Phase when target is shown and demo sound is played
   show_targets() {
@@ -1537,169 +1710,170 @@ class SpatialRhythmExperiment {
       this.calibration.setFill("green");
       this.calibration.setStroke("none");
     }, greenDelay);
-    
+  
     // Update game phase
     this.game_phase = this.Phase.SHOW_TARGETS;
   }
-  
-  // Phase when users are moving/reaching to the target
-  moving_phase() {
-    // Clear target demo timer if it exists
-    if (this.stop_target_music_timer !== null) {
-      clearTimeout(this.stop_target_music_timer);
-      this.stop_target_music_timer = null;
-    }
     
-    // Clear green circle timer if it exists
-    if (this.green_timer !== null) {
-      clearTimeout(this.green_timer);
-      this.green_timer = null;
-    }
-    
-    // Record reaction time
-    this.rt = new Date() - this.begin;
-    
-    // Start timer for movement time
-    this.begin = new Date();
-    
-    // Always play sound during movement in both phases
-    // Initialize audio for movement
-    this.musicBox.initializeAudio().then(() => {
-      this.musicBox.play(0);
-    });
-    
-    // Hide start circle, show cursor
-    this.calibration.display(false);
-    this.cursor.display(true);
-    
-    // Update game phase
-    this.game_phase = this.Phase.MOVING;
+// Phase when users are moving/reaching to the target
+moving_phase() {
+  // Clear target demo timer if it exists
+  if (this.stop_target_music_timer !== null) {
+    clearTimeout(this.stop_target_music_timer);
+    this.stop_target_music_timer = null;
   }
   
-  // Phase after completing the reach
-  fb_phase() {
-    // Record movement time
-    this.mt = new Date() - this.begin;
-    let timer = 0;
-    
-    // Stop sound
-    this.musicBox.pause();
-    
-    // Check if we're in training or testing phase
-    const isTrainingPhase = this.experimentConfig.target_jump[this.trial] === 1.0;
-    
-    // Only show target in training phase
-    if (isTrainingPhase) {
-      this.target.display(true);
-      this.target.setFill("green");
-      this.reach_feedback = "good_reach";
-    } else {
-      // In testing phase, don't show target but still provide feedback message
-      // Just a quick successful feedback cue
-      d3.select("#message-line-1").attr("display", "block")
-        .text("Good job!");
-      setTimeout(() => {
-        d3.select("#message-line-1").attr("display", "none");
-      }, 200);
-      
-      this.reach_feedback = "good_reach";
-    }
-    
-    // Set timer for next trial
-    timer = this.feedback_time;
-    setTimeout(() => this.next_trial(), timer);
-    
-    // Calculate final hand angle
-    const hand_fb_x = this.calibration.point.x +
-      this.target_dist * Math.cos(this.hand_fb_angle * (Math.PI / 180));
-    const hand_fb_y = this.calibration.point.y -
-      this.target_dist * Math.sin(this.hand_fb_angle * (Math.PI / 180));
-    
-    // Show cursor for feedback
-    this.cursor.display(true);
-    
-    // Update game phase
-    this.game_phase = this.Phase.FEEDBACK;
+  // Clear green circle timer if it exists
+  if (this.green_timer !== null) {
+    clearTimeout(this.green_timer);
+    this.green_timer = null;
   }
   
-  // Start the trial
-  start_trial() {
-    this.subjTrials = new Trial(this.experimentID, this.subject.id);
+  // Record reaction time
+  this.rt = new Date() - this.begin;
+  
+  // Start timer for movement time
+  this.begin = new Date();
+  
+  // Always play sound during movement in both phases
+  // Initialize audio for movement
+  this.musicBox.initializeAudio().then(() => {
+    this.musicBox.play(0);
+  });
+  
+  // Hide start circle, show cursor
+  this.calibration.display(false);
+  this.cursor.display(true);
+  
+  // Update game phase
+  this.game_phase = this.Phase.MOVING;
+}
+
+
+// Phase after completing the reach
+fb_phase() {
+  // Record movement time
+  this.mt = new Date() - this.begin;
+  let timer = 0;
+  
+  // Stop sound
+  this.musicBox.pause();
+  
+  // Check if we're in training or testing phase
+  const isTrainingPhase = this.experimentConfig.target_jump[this.trial] === 1.0;
+  
+  // Only show target in training phase
+  if (isTrainingPhase) {
+    this.target.display(true);
+    this.target.setFill("green");
+    this.reach_feedback = "good_reach";
+  } else {
+    // In testing phase, don't show target but still provide feedback message
+    // Just a quick successful feedback cue
+    d3.select("#message-line-1").attr("display", "block")
+      .text("Good job!");
+    setTimeout(() => {
+      d3.select("#message-line-1").attr("display", "none");
+    }, 200);
     
-    d3.select("#too_slow_message").attr("display", "none");
-    this.calibration.display(false);
-    
-    // Update trial counter display
-    const totalTrials = this.experimentConfig.numtrials;
-    d3.select("#trialcount").text(
-      "Reach Number: " + (this.trial + 1) + " / " + totalTrials
-    );
-    
-    // Start with search phase
+    this.reach_feedback = "good_reach";
+  }
+  
+  // Set timer for next trial
+  timer = this.feedback_time;
+  setTimeout(() => this.next_trial(), timer);
+  
+  // Calculate final hand angle
+  const hand_fb_x = this.calibration.point.x +
+    this.target_dist * Math.cos(this.hand_fb_angle * (Math.PI / 180));
+  const hand_fb_y = this.calibration.point.y -
+    this.target_dist * Math.sin(this.hand_fb_angle * (Math.PI / 180));
+  
+  // Show cursor for feedback
+  this.cursor.display(true);
+  
+  // Update game phase
+  this.game_phase = this.Phase.FEEDBACK;
+}
+
+// Start the trial
+start_trial() {
+  this.subjTrials = new Trial(this.experimentID, this.subject.id);
+  
+  d3.select("#too_slow_message").attr("display", "none");
+  this.calibration.display(false);
+  
+  // Update trial counter display
+  const totalTrials = this.experimentConfig.numtrials;
+  d3.select("#trialcount").text(
+    "Reach Number: " + (this.trial + 1) + " / " + totalTrials
+  );
+  
+  // Start with search phase
+  this.search_phase();
+}
+
+// End the experiment
+end_trial() {
+  window.removeEventListener("resize", this.monitorWindow, false);
+  document.removeEventListener("click", this.setPointerLock, false);
+  document.exitPointerLock();
+  this.endGame();
+}
+
+// Process the completed trial and prepare for the next one
+next_trial() {
+  // Store trial data
+  this.subjTrials.appendTrialBlock(
+    this.experimentConfig.tgt_angle[this.trial],
+    this.experimentConfig.rotation[this.trial],
+    this.hand_fb_angle,
+    this.rt,
+    this.mt,
+    this.search_time,
+    this.reach_feedback,
+    this.handPositions
+  );
+  
+  // Reset timing variables
+  this.rt = 0;
+  this.mt = 0;
+  this.search_time = 0;
+  this.play_sound = true;
+  
+  // Clear hand positions array
+  this.handPositions = [];
+  
+  // Get message for between blocks
+  const bb_mess = this.experimentConfig.between_blocks[this.trial];
+  
+  // Increment trial counter
+  this.trial += 1;
+  
+  // Update trial counter display
+  const totalTrials = this.experimentConfig.numtrials;
+  d3.select("#trialcount").text(
+    "Reach Number: " + this.trial + " / " + totalTrials
+  );
+  
+  // Check if experiment is complete
+  if (this.trial >= this.experimentConfig.numtrials) {
+    this.end_trial();
+  } 
+  // After first trial, show a "Way to go!" message
+  else if (this.trial === 1) {
+    this.displayMessage(0); // Use the first message: "Way to go! Press SPACE BAR to continue."
+    this.game_phase = this.Phase.BETWEEN_BLOCKS;
+  }
+  // Display between-block message if needed
+  else if (bb_mess) {
+    this.displayMessage(bb_mess);
+    this.game_phase = this.Phase.BETWEEN_BLOCKS;
+  } 
+  // Otherwise continue to next trial
+  else {
     this.search_phase();
   }
-  
-  // End the experiment
-  end_trial() {
-    window.removeEventListener("resize", this.monitorWindow, false);
-    document.removeEventListener("click", this.setPointerLock, false);
-    document.exitPointerLock();
-    this.endGame();
-  }
-  
-  // Process the completed trial and prepare for the next one
-  next_trial() {
-    // Store trial data
-    this.subjTrials.appendTrialBlock(
-      this.experimentConfig.tgt_angle[this.trial],
-      this.experimentConfig.rotation[this.trial],
-      this.hand_fb_angle,
-      this.rt,
-      this.mt,
-      this.search_time,
-      this.reach_feedback,
-      this.handPositions
-    );
-    
-    // Reset timing variables
-    this.rt = 0;
-    this.mt = 0;
-    this.search_time = 0;
-    this.play_sound = true;
-    
-    // Clear hand positions array
-    this.handPositions = [];
-    
-    // Get message for between blocks
-    const bb_mess = this.experimentConfig.between_blocks[this.trial];
-    
-    // Increment trial counter
-    this.trial += 1;
-    
-    // Update trial counter display
-    const totalTrials = this.experimentConfig.numtrials;
-    d3.select("#trialcount").text(
-      "Reach Number: " + this.trial + " / " + totalTrials
-    );
-    
-    // Check if experiment is complete
-    if (this.trial >= this.experimentConfig.numtrials) {
-      this.end_trial();
-    } 
-    // After first trial, show a "Way to go!" message
-    else if (this.trial === 1) {
-      this.displayMessage(0); // Use the first message: "Way to go! Press SPACE BAR to continue."
-      this.game_phase = this.Phase.BETWEEN_BLOCKS;
-    }
-    // Display between-block message if needed
-    else if (bb_mess) {
-      this.displayMessage(bb_mess);
-      this.game_phase = this.Phase.BETWEEN_BLOCKS;
-    } 
-    // Otherwise continue to next trial
-    else {
-      this.search_phase();
-    }
   }
   
   // Clean up and end the experiment
@@ -1855,17 +2029,32 @@ function isNumericKey(event) {
   return !(code > 31 && (code < 48 || code > 57));
 }
 
-// variable to hold current display page. Will be used to hide when show is called
+// Global variable to track the current page
 let prevpage = "container-consent";
 
 // Function to switch between HTML pages
 function show(shown) {
-  if (prevpage !== null) {
-    document.getElementById(prevpage).style.display = "none";
+  // Get the current page element
+  const currentPage = document.getElementById(prevpage);
+  
+  // Get the target page element
+  const targetPage = document.getElementById(shown);
+  
+  // Hide the current page
+  if (currentPage) {
+    currentPage.style.display = 'none';
   }
-  document.getElementById(shown).style.display = "block";
+  
+  // Show the target page
+  if (targetPage) {
+    targetPage.style.display = 'block';
+  }
+  
+  // Update the previous page
   prevpage = shown;
-  return false;
+  
+  // Return true to allow the event to proceed
+  return true;
 }
 
 // Function used to enter full screen mode
@@ -1912,7 +2101,7 @@ function checkInfo() {
   // form data used to create subject info
   const email = values[0].value;
   const age = values[1].value;
-  const sex = values[2].value;
+  const gender = values[2].value;
   const handedness = values[3].value;
   const mousetype = values[4].value;
   const returner = values[5].value;
