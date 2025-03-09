@@ -1,9 +1,6 @@
 /*
-This current experiment is a classic visuomotor rotation reaching experiment, but can easily be adapted into variations of different reaching experiments depending on the target file.
-Currently supported experiments include:
-- VMR
-- Clamp
-- Target-jump experiments
+This is an auditory-motor mapping experiment that can be adapted to different reaching experiments depending on the target file.
+
 Remember to update necessary fields before starting the game. All fields that require change will be marked by a "**TODO**" comment.
 */
 
@@ -11,10 +8,11 @@ Remember to update necessary fields before starting the game. All fields that re
 // **TODO** Make sure this is set to false before deploying!
 const noSave = false;
 // TODO: Replace this with your own experiment file!
-// Currently there's an issue trying to load this file into data. CORS is blocking me from accessing the file directly, To overcome this, we'll provide the file content here instead. (Now running in Node.js and connected to Firebase so I deleted the filepath and let the variable stand alone - Katie)
+
+// This is the file that will be used to generate the targets for the game alternately, you can hard enter the info below in the fileContent variable. 
 const fileName = "./tgt_files/Katie2_csv_file.json";
 
-// TODO: Katie, add the json content below here:
+// TODO: Add the json content below here:
 const fileContent = {
   "numtrials": 40,
   "trialnum": {
@@ -508,17 +506,16 @@ class MusicBox {
     this.oscillator.type = "sawtooth"; // Sawtooth, square.
     this.oscillator.frequency.value = 220;
 
-    // Create filters for spectral shaping
     // Filter bank for enhanced spectral control
     // filter 1
     this.filter1 = this.audioContext.createBiquadFilter();
     this.filter1.type = "bandpass";
-    this.filter1.Q.value = 8; // Sharper resonance for formant simulation
+    this.filter1.Q.value = 1; // Wider, more gentle filter that affects a broader range of frequencies
 
     // filter 2
     this.filter2 = this.audioContext.createBiquadFilter();
     this.filter2.type = "bandpass";
-    this.filter2.Q.value = 8;
+    this.filter2.Q.value = 1;
 
     // Additional filters for spectral centroid control
     this.centroidFilter = this.audioContext.createBiquadFilter();
@@ -550,13 +547,15 @@ class MusicBox {
     this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
     this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
 
-    this.filter1.Q.setValueAtTime(4, currentTime);
-    this.filter2.Q.setValueAtTime(4, currentTime);
+    this.filter1.Q.setValueAtTime(5, currentTime);
+    this.filter2.Q.setValueAtTime(5, currentTime);
   }
 
   pause() {
     this.isPlaying = false;
-    this.gainNode.gain.setValueAtTime(0, 0);
+    // Set gain to 0 immediately
+    this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+    // Also suspend the audio context to be extra sure
     this.audioContext.suspend();
   }
 }
@@ -921,8 +920,10 @@ function gameSetup(data) {
   // Experiment parameters, subject_ID is no obsolete
   // **TODO** Update experiment_ID to label your experiments
   const experiment_ID = "Katie2";
-  // This is not used anywhere? Where is this being used?
-  // const subject_ID = Math.floor(Math.random() * 10000000000);
+  
+  // game state
+  let isPhase2 = false;
+
   // array of cursor position during trials
   let handPositions = [];
 
@@ -933,6 +934,7 @@ function gameSetup(data) {
   let calibration = null;
   let target = null;
   let cursor = null;
+
 
   const feedback_time = 50; // length of time feedback remains (ms)
   const feedback_time_slow = 750; // length of "too slow" feedback (ms)
@@ -953,7 +955,8 @@ function gameSetup(data) {
     ],
     [
       // Message displayed when bb_mess == 2
-      "Phase 2: Listen to the sound, then move in the direction that recreates the sound.", 
+      "Phase 2: Listen to the sound,", 
+      "then move in the direction that recreates the sound.", 
       "Don't worry if you miss one -- it takes a little practice!",
       "Press 'a' to continue.",
     ],
@@ -1337,7 +1340,7 @@ function gameSetup(data) {
         }
 
         // Move from moving to feedback phase once their reach intersects the target ring
-        if (distance > target_dist) {
+        if (distance > target_dist *0.95) {
           // stop audio
           musicBox.pause();
           fb_phase();
@@ -1499,6 +1502,8 @@ function gameSetup(data) {
 
   // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
   function play_sounds(start, end, duration, update) {
+    // Make sure any previous sound is stopped
+      musicBox.pause();
     function play_sound_along(t) {
       // linear interpolate between two points over time (0-1)
       // This can be changed using different kind of interpolation or animation curve - future features
@@ -1506,18 +1511,35 @@ function gameSetup(data) {
       const y = start.y + (end.y - start.y) * t;
 
       update(x, y); // callback to update others based on coordinate given.
+      
+      // Use the same pitch calculation as in update_cursor function
       const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
-      const pitch = 100 * Math.pow(2, (x - squareLeft) / 180); // 150 -
+    
+      // Match the pitch calculation from the update_cursor function
+      const lo_pitch = 80;
+      const hi_pitch = 350;
+      const x_proportion = (x - squareLeft) / squareSize;
+      const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
+
       // update musicbox
       musicBox.update(pitch, f1, f2);
     }
+    // Play the sound along the animation path
+    animate((t) => play_sound_along(t), duration, () => {
+      console.log("Animation ended, stopping sound");
+      musicBox.pause();
+  });
 
-    // TODO: How to stop this animation?
-    animate((t) => play_sound_along(t), 1000, () => musicBox.pause());
-
-    // this should be outside of frame update loop
-    stop_target_music_timer = setTimeout(() => musicBox.pause(), duration);
-  }
+    // Ensure the sound stops after the specified duration as a fallback
+    if (stop_target_music_timer != null) {
+      clearTimeout(stop_target_music_timer);
+  }  
+  
+  stop_target_music_timer = setTimeout(() => {
+    console.log("Duration timer triggered, stopping sound");
+    musicBox.pause();
+  }, duration);
+}
 
   // Phase when users have held cursor in start circle long enough so target shows up
   function show_targets() {
@@ -1528,34 +1550,44 @@ function gameSetup(data) {
     // Start of timer for reaction time
     begin = new Date();
 
-    // I'm a bit confused with the logic here.
-    // if this equals to one, this means no variation was added to this target.
+    // If jump is 1.0, this means no variation was added to this target
     const jump = target_jump[trial];
     const angle = tgt_angle[trial];
     target.setFill("blue");
-
-    // If we are not in practice trial display target (0.0 = invisible, 1.0 = visible)
-    if (jump == 1.0) {
-      target.display(true);
-    }
-
-    const offset = (jump == 1.0) ? rotation[trial] : jump;
-    const value = angle + offset;
+  
+    // Calculate target position - do this first so we have start/end available
     const start = calibration.point;
+    const offset = (jump == 1.0) ? rotation[trial] : jump;
+    const value = angle + offset;  
     const x = start.x + target_dist * Math.cos(value * deg2rad);
     const y = start.y - target_dist * Math.sin(value * deg2rad);
     const end = new Point(x, y);
+  
+    // Update target position (but don't display it)
+    target.update(x, y); 
 
-    target.update(x, y);
+    // In phase 2, we initially hide the target but play the sound demo
+    if (isPhase2) {
+      // Keep target invisible during sound demo
+      target.display(false);
+  
+    // Play the sound demonstration
     if (play_sound) {
-      play_sounds(start, end, 1, (x, y) => {
-        // this gets called every frame. Part of the animation process. X, y are midpoint values between start and end over duration.
-        if (jump != 1.0) {
-          target.update(x, y);
-        }
-      });
-      play_sound = false;
-    }
+    // Define the demo duration - match what is coded in play_sounds function
+    const demoDuration = 2000;
+    
+    // Play sound demonstration with the proper duration parameter
+    play_sounds(start, end, demoDuration, (x, y) => {
+      // Don't update target position during sound demo
+    });
+    play_sound = false;
+  }
+} else {
+  // Phase 1 behavior - show target if jump == 1.0
+  if (jump == 1.0) {
+    target.display(true);
+  }
+}
 
     // Turn start circle green after a second
     green_timer = setTimeout(function () {
@@ -1587,7 +1619,11 @@ function gameSetup(data) {
     begin = new Date(); // Start of timer for movement time
 
     // Play audio
-    musicBox.play(0);
+    // musicBox.play(0);
+    
+    // Initialize but don't automatically play
+    musicBox.audioContext.resume();
+  // Don't call musicBox.play(0) here, it will be played only when cursor moves in the red square
 
     // Start circle disappears
     calibration.display(false);
@@ -1681,9 +1717,12 @@ function gameSetup(data) {
     handPositions = [];
 
     // Between Blocks Message Index
-    // may potentially be a problem?
-    // TODO, create a new trial that hold message block instead?
     bb_mess = between_blocks[trial];
+
+    // Update phase flag when we hit the phase 2 message (bb_mess == 2)
+    if (bb_mess == 2) {
+    isPhase2 = true;
+    }
 
     // Increment the trial count
     trial += 1;

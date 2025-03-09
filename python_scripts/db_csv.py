@@ -142,7 +142,7 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
 
 ### Update subjects to be the proper parameter you select to choose from firebase
 ### Subject data is the information subjects provide about themselves and trialData is trials
-subjects = ['katie2'] # **TODO** Fill in subjects list with an appropriate field saved in the database
+subjects = ['sunday'] # **TODO** Fill in subjects list with an appropriate field saved in the database
 
 #getSubjectData(subjects, 'your pathway to subject_csv_name.csv', db, 'Subjects')
 getSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/todaysubject.csv', db, 'Subjects')
@@ -150,7 +150,7 @@ getSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/to
 #addSubjectData(subjects, 'your_csv_name.csv', db, 'Subjects')
 #addSubjectData(subjects, '/Users/katie/Documents/workspace/Kinetic-Muse/Data/Abby_SubjInfo_19Dec2024.csv', db, 'Subjects')
 
-#getTrialData('Trials', 42, 'your pathway to TrialData_csv_name.csv', subjects, db)
-getTrialData('Trials', 42, '/Users/katie/Documents/workspace/OnPoint-Music/Data/todaytrials.csv', subjects, db)
+#getTrialData('Trials', 40, 'your pathway to TrialData_csv_name.csv', subjects, db)
+getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/todaytrials.csv', subjects, db)
 
 #addTrialData('Trials', 294, 'you_csv_name.csv', subjects, db)

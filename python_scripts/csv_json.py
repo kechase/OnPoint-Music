@@ -61,7 +61,7 @@ Please reference 'OnPoint-Music/csv_tgt_files/demo_csv_file.csv' for how csv fil
 csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/csv_tgt_files/Katie2_csv_file.csv'
 
 #MANUALLY CREATE THIS NOT-YET-REAL FILEPATH SO THIS SCRIPT WILL CREATE THE FILE 
-jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/Katie2_csv_file.json'
+jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/2025-03-09_csv_file.json'
 
 jsonFromCsv(csvFilePath, jsonFilePath)
 
