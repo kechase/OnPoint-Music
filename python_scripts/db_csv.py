@@ -28,12 +28,27 @@ for collection in collections:
         
 # Helper function for reading subject data from database
 def subjcsvread(subjects, csvFileName, db, collection):
+    # Parameter validation
+    if not subjects:
+        print("Warning: Empty subjects list provided. No data will be retrieved.")
+        return []
+    
+    if not collection:
+        print("Error: No collection specified.")
+        return []
+        
+    if not db:
+        print("Error: Database client not provided.")
+        return []
+    
     subjectList = []
     for subj in subjects:
 
         try:
             docs = db.collection(collection).where(u'id', u'==', subj).stream()
+            doc_found = False
             for doc in docs:
+                doc_found = True
                 fields = doc.to_dict()
                 info = (fields.get('id'), 
                         fields.get('age'), 
@@ -46,8 +61,14 @@ def subjcsvread(subjects, csvFileName, db, collection):
                         fields.get('sex'), 
                         fields.get('tgt_file'))
                 subjectList.append(info)
-        except:
-            print(subj + "doesn't exist!")
+            if not doc_found:
+                print(f"Warning: No documents found for subject {subj} in collection '{collection}'")
+        except firestore.exceptions.NotFound as e:
+            print(f"Collection not found error for subject '{subj}': {e}")
+        except firestore.exceptions.InvalidArgument as e:
+            print(f"Invalid query argument for subject '{subj}': {e}")
+        except Exception as e:
+            print(f"Unexpected error processing subject '{subj}': {str(e)}")
             continue
 
     return subjectList
@@ -75,7 +96,18 @@ def addSubjectData(subjects, csvFileName, db, collection):
  
 # Helper function for reading trial data from database
 def trialcsvread(collection, numTrials, csvFileName, subjects, db):   
+    import json
+    
     trials = []
+    
+    # Parameter validation
+    if not subjects:
+        print("Warning: Empty subjects list provided. No data will be retrieved.")
+        return trials
+        
+    if not collection:
+        print("Error: No collection specified.")
+        return trials
     
     for trialID in subjects:
         try:
@@ -89,6 +121,10 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                 if doc.exists:
                     docs = [doc]
             
+            if not docs:
+                print(f"Warning: No documents found for subject '{trialID}' in collection '{collection}'")
+                continue
+                
             for doc in docs:
                 fields = doc.to_dict()
                 print(f"Processing trial data for: {trialID}, doc ID: {doc.id}")
@@ -148,7 +184,7 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                     
                     # Add better debug information
                     print(f"Found {len(hand_path_by_trial)} trials with hand path data")
-                    for trial_num, data in hand_path_by_trial.items():
+                    for trial_num, data in list(hand_path_by_trial.items())[:3]:  # Show first 3 for brevity
                         print(f"  Trial {trial_num}: {len(data)} data points")
                     
                     # Check data format consistency
@@ -173,8 +209,14 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                     
                     # Get hand path data for this trial with improved error handling
                     hand_path_data = hand_path_by_trial.get(trial_num, {})
-                    if not hand_path_data and is_flattened:
-                        print(f"Warning: No hand path data found for trial {trial_num}")
+                    
+                    # Convert hand path data to JSON string
+                    hand_path_json = ""
+                    if hand_path_data:
+                        try:
+                            hand_path_json = json.dumps(hand_path_data)
+                        except Exception as e:
+                            print(f"Error converting hand path data to JSON for trial {trial_num}: {str(e)}")
                     
                     # Create safe array access with defaults for optional fields
                     start_x_val = start_x[i] if i < len(start_x) else None
@@ -182,15 +224,20 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                     screen_height_val = screen_height[i] if i < len(screen_height) else None
                     screen_width_val = screen_width[i] if i < len(screen_width) else None
                     
+                    # Store trial data with the JSON string for hand path
                     trial = (exp_ID, name, currDate_arr[i], trialnum_arr[i], 
                             tgtAng_arr[i], trialType_arr[i], rot_arr[i], 
                             handang_arr[i], rt_arr[i], mt_arr[i], search_arr[i], 
-                            reachfb_arr[i], str(hand_path_data), start_x_val, start_y_val, 
+                            reachfb_arr[i], hand_path_json, start_x_val, start_y_val, 
                             screen_height_val, screen_width_val, group)
                     trials.append(trial)
                 
                 print(f"Added {min_len} trials for {trialID}")
                 
+        except firestore.exceptions.NotFound as e:
+            print(f"Collection not found error for subject '{trialID}': {e}")
+        except firestore.exceptions.InvalidArgument as e:
+            print(f"Invalid query argument for subject '{trialID}': {e}")
         except Exception as e:
             print(f"Error processing {trialID}: {str(e)}")
             continue
@@ -200,7 +247,27 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
     
     
 def getTrialData(collection, numTrials, csvFileName, subjects, db):
-   
+   # Parameter validation
+    if not collection:
+        print("Error: No collection specified.")
+        return
+        
+    if not subjects:
+        print("Warning: Empty subjects list provided. No data will be retrieved.")
+        return
+        
+    if not csvFileName:
+        print("Error: No output file specified.")
+        return
+        
+    if not db:
+        print("Error: Database client not provided.")
+        return
+        
+    if numTrials <= 0:
+        print(f"Warning: Invalid number of trials ({numTrials}). Using default limit.")
+        numTrials = 100  # Set a sensible default
+
     trials = trialcsvread(collection, numTrials, csvFileName, subjects, db)
     
     #Set up file to write to
@@ -243,9 +310,10 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
 #addSubjectData(subjects, 'your_csv_name.csv', db, 'Subjects')
 #addSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/sunday_subjectdata.csv', db, 'Subjects')
 
-#getTrialData('Trials', 40, 'your pathway to TrialData_csv_name.csv', subjects, db)
-trial_ids = ['katiekatie']  
-# These are the document IDs we saw
-getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/all_trials_march15.csv', trial_ids, db)
+
+# **TODO** Fill in trial_ids list with an appropriate field saved in the database
+trial_ids = ['testing', 'katiekatie', 'katiecc']  
+# **TODO** Fill in getTrialData('Trials', 40, 'your pathway to TrialData_csv_name.csv', subjects, db)
+getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/2trials_march162025.csv', trial_ids, db)
 
 #addTrialData('Trials', 294, 'you_csv_name.csv', subjects, db)
