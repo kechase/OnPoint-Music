@@ -10,7 +10,7 @@ const noSave = false;
 
 // Set to 'true' to disable full screen mode during development
 // **TODO** Make sure this is set to false before deploying!
-const disableFullScreen = false;
+const disableFullScreen = true;
 
 // **TODO**: Replace this with your own experiment file.
 // This is the file that will be used to generate the targets for the game alternately, you can hard enter the info below in the fileContent variable. 
@@ -733,13 +733,69 @@ let prevpage = "container-consent";
 
 // Function to switch between HTML pages
 window.show = function(shown) {
+  // Pause any playing videos when switching pages
+  const videos = document.querySelectorAll('video');
+  videos.forEach(video => {
+    video.pause();
+  });
+  
   if (prevpage !== null) {
     document.getElementById(prevpage).style.display = "none";
   }
   document.getElementById(shown).style.display = "block";
   prevpage = shown;
+
+  // If we're showing the instructions page with the video
+  if (shown === 'container-instructions2') {
+    const demoVideo = document.getElementById('demo-video');
+    if (demoVideo) {
+      // Try to unmute and play
+      demoVideo.muted = false;
+      
+      // Using promise to handle play
+      const playPromise = demoVideo.play();
+      
+      // Handle potential rejection due to browser policies
+      if (playPromise !== undefined) {
+        playPromise.then(_ => {
+          // Video playback started successfully
+          console.log("Video is playing");
+        })
+        .catch(error => {
+          // Auto-play with sound was prevented
+          console.log("Autoplay prevented:", error);
+          // Keep it muted but play anyway
+          demoVideo.muted = true;
+          demoVideo.play();
+        });
+      }
+    }
+  }
   return false;
 }
+
+// Additional event listener to handle initial page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Set up click handler for the instruction page button
+  const instructionButton = document.querySelector('button[onClick="return show(\'container-instructions2\');"]');
+  if (instructionButton) {
+    // Add extra click handler to ensure video plays
+    instructionButton.addEventListener('click', function() {
+      // Short timeout to ensure DOM has updated
+      setTimeout(() => {
+        const demoVideo = document.getElementById('demo-video');
+        if (demoVideo) {
+          demoVideo.muted = false;
+          demoVideo.play().catch(e => {
+            // If play with sound fails, try muted
+            demoVideo.muted = true;
+            demoVideo.play();
+          });
+        }
+      }, 100);
+    });
+  }
+});
 
 // Function used to enter full screen mode
 function openFullScreen() {
