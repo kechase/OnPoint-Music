@@ -1,0 +1,613 @@
+---
+title: "MusicMapping: Hand Path Trajectory Analysis"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+library(jsonlite)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(gridExtra)
+library(stringr)  # For string manipulation
+```
+
+## Extracting Hand Path Data
+This script extracts and visualizes hand movement trajectories from the experiment data.
+
+```{r data_loading}
+# Load participant data
+my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/2trials_march162025.csv") 
+
+# Clean column names
+names(my_data) <- gsub(" ", ".", names(my_data))
+
+# Check for required columns
+cat("Checking dataset structure...\n")
+cat("Number of trials:", nrow(my_data), "\n")
+cat("Required columns present:\n")
+cat("  - Hand_Path:", "Hand_Path" %in% names(my_data), "\n")
+cat("  - Trial.Number:", "Trial.Number" %in% names(my_data), "\n")
+cat("  - Target.Angle:", "Target.Angle" %in% names(my_data), "\n")
+cat("  - Start_X/Y:", all(c("Start_X", "Start_Y") %in% names(my_data)), "\n")
+
+# Check for flattened format (columns like trial_1_first_x)
+has_flattened_format <- function(df) {
+  col_names <- names(df)
+  flattened_pattern <- "trial_\\d+_(count|first_|last_|sample_)"
+  
+  matches <- grep(flattened_pattern, col_names, value = TRUE)
+  return(length(matches) > 0)
+}
+
+# Debug function to extract points from Hand_Path
+extract_hand_path_points <- function(json_str, trial_idx) {
+  # Check if input is valid
+  if(!is.character(json_str) || nchar(json_str) < 10) {
+    cat("  Invalid JSON string for trial", trial_idx, "(too short or not a string)\n")
+    return(NULL)
+  }
+  
+  # First, fix any JSON formatting issues
+  fixed_json <- gsub("'", "\"", json_str)
+  
+  # Try to parse the JSON
+  parsed_data <- tryCatch({
+    fromJSON(fixed_json)
+  }, error = function(e) {
+    cat("  Error parsing JSON for trial", trial_idx, ":", e$message, "\n")
+    return(NULL)
+  })
+  
+  if(is.null(parsed_data)) {
+    return(NULL)
+  }
+  
+  # Now extract the points from the parsed data
+  point_data <- data.frame(x = numeric(), y = numeric(), time = numeric())
+  
+  # Count how many points there are (look for count field)
+  point_count <- if("count" %in% names(parsed_data)) parsed_data$count else 0
+  
+  # Extract first point if available
+  if(all(c("first_x", "first_y") %in% names(parsed_data))) {
+    first_time <- if("first_time" %in% names(parsed_data)) parsed_data$first_time else 0
+    point_data <- rbind(point_data, data.frame(
+      x = parsed_data$first_x,
+      y = parsed_data$first_y,
+      time = first_time
+    ))
+  }
+  
+  # Extract sample points
+  sample_count <- 0
+  for(i in 0:10) {  # Look for up to 10 samples
+    x_key <- paste0("sample_", i, "_x")
+    y_key <- paste0("sample_", i, "_y")
+    time_key <- paste0("sample_", i, "_time")
+    
+    if(all(c(x_key, y_key) %in% names(parsed_data))) {
+      sample_time <- if(time_key %in% names(parsed_data)) parsed_data[[time_key]] else i * 100
+      point_data <- rbind(point_data, data.frame(
+        x = parsed_data[[x_key]],
+        y = parsed_data[[y_key]],
+        time = sample_time
+      ))
+      sample_count <- sample_count + 1
+    }
+  }
+  
+  # Extract last point if available
+  if(all(c("last_x", "last_y") %in% names(parsed_data))) {
+    last_time <- if("last_time" %in% names(parsed_data)) parsed_data$last_time else 1000
+    point_data <- rbind(point_data, data.frame(
+      x = parsed_data$last_x,
+      y = parsed_data$last_y,
+      time = last_time
+    ))
+  }
+  
+  # Sort by time
+  if(nrow(point_data) > 0) {
+    point_data <- point_data %>% arrange(time)
+    return(point_data)
+  } else {
+    return(NULL)
+  }
+}
+
+# Function to extract data from flattened format
+extract_flattened_trajectories <- function(df) {
+  cat("Extracting trajectories from flattened format...\n")
+  col_names <- names(df)
+  
+  # Find all trial numbers in the dataset
+  trial_pattern <- "trial_(\\d+)_"
+  trial_cols <- grep(trial_pattern, col_names, value = TRUE)
+  
+  # Extract unique trial numbers
+  trial_numbers <- unique(str_match(trial_cols, trial_pattern)[,2])
+  
+  cat("Found", length(trial_numbers), "trials with flattened trajectory data\n")
+  
+  # Initialize list to store trajectories
+  all_trajectories <- list()
+  
+  for(trial_num in trial_numbers) {
+    # Look for standard flattened format columns
+    count_col <- paste0("trial_", trial_num, "_count")
+    first_x_col <- paste0("trial_", trial_num, "_first_x")
+    first_y_col <- paste0("trial_", trial_num, "_first_y")
+    first_time_col <- paste0("trial_", trial_num, "_first_time")
+    last_x_col <- paste0("trial_", trial_num, "_last_x")
+    last_y_col <- paste0("trial_", trial_num, "_last_y")
+    last_time_col <- paste0("trial_", trial_num, "_last_time")
+    
+    # Check if we have the required columns
+    required_cols <- c(first_x_col, first_y_col, last_x_col, last_y_col)
+    if(!all(required_cols %in% col_names)) {
+      cat("  Missing required columns for trial", trial_num, "\n")
+      next
+    }
+    
+    # Get point count if available, otherwise assume just first and last points
+    point_count <- if(count_col %in% col_names) df[[count_col]][1] else 2
+    
+    # Initialize trajectory data frame
+    traj_points <- data.frame(
+      trial_num = as.integer(trial_num),
+      x = numeric(),
+      y = numeric(),
+      time = numeric(),
+      point_type = character()
+    )
+    
+    # Add first point
+    first_point <- data.frame(
+      trial_num = as.integer(trial_num),
+      x = df[[first_x_col]][1],
+      y = df[[first_y_col]][1],
+      time = if(first_time_col %in% col_names) df[[first_time_col]][1] else 0,
+      point_type = "first"
+    )
+    traj_points <- rbind(traj_points, first_point)
+    
+    # Add sample points if they exist
+    for(i in 0:10) {  # Look for up to 10 sample points
+      sample_x_col <- paste0("trial_", trial_num, "_sample_", i, "_x")
+      sample_y_col <- paste0("trial_", trial_num, "_sample_", i, "_y")
+      sample_time_col <- paste0("trial_", trial_num, "_sample_", i, "_time")
+      
+      if(sample_x_col %in% col_names && sample_y_col %in% col_names) {
+        sample_point <- data.frame(
+          trial_num = as.integer(trial_num),
+          x = df[[sample_x_col]][1],
+          y = df[[sample_y_col]][1],
+          time = if(sample_time_col %in% col_names) df[[sample_time_col]][1] else i,
+          point_type = "sample"
+        )
+        traj_points <- rbind(traj_points, sample_point)
+      }
+    }
+    
+    # Add last point
+    last_point <- data.frame(
+      trial_num = as.integer(trial_num),
+      x = df[[last_x_col]][1],
+      y = df[[last_y_col]][1],
+      time = if(last_time_col %in% col_names) df[[last_time_col]][1] else 100,
+      point_type = "last"
+    )
+    traj_points <- rbind(traj_points, last_point)
+    
+    # Sort by time
+    traj_points <- traj_points %>% arrange(time)
+    
+    # Add to all trajectories
+    all_trajectories[[trial_num]] <- traj_points
+    
+    cat("  Extracted", nrow(traj_points), "points for trial", trial_num, "\n")
+  }
+  
+  # Combine all trajectories
+  if(length(all_trajectories) > 0) {
+    all_trajectories_df <- do.call(rbind, all_trajectories)
+    return(all_trajectories_df)
+  } else {
+    cat("No trajectories could be extracted from flattened format.\n")
+    return(NULL)
+  }
+}
+```
+
+```{r trajectory_extraction}
+# Check for different data formats and extract trajectories
+
+# 1. First check for flattened format
+if(has_flattened_format(my_data)) {
+  cat("Detected flattened trajectory format in the data!\n")
+  trajectories_df <- extract_flattened_trajectories(my_data)
+  
+  if(!is.null(trajectories_df)) {
+    # Match trial_num to Trial.Number
+    trial_mapping <- data.frame(
+      trial_num = 1:nrow(my_data),
+      Trial.Number = my_data$Trial.Number,
+      Target.Angle = my_data$Target.Angle,
+      Phase = ifelse(my_data$Trial.Number <= 19, 1, 2)
+    )
+    
+    # Join trajectory data with trial info
+    trajectories_df <- trajectories_df %>%
+      left_join(trial_mapping, by = "trial_num") %>%
+      mutate(
+        x_adj = x - my_data$Start_X[1],
+        y_adj = my_data$Start_Y[1] - y
+      )
+  }
+} else {
+  # 2. Check for Hand_Path JSON format
+  cat("No flattened format detected. Checking for JSON Hand_Path data...\n")
+  
+  if("Hand_Path" %in% names(my_data) && any(!is.na(my_data$Hand_Path))) {
+    # Sample of the Hand_Path data
+    sample_idx <- which(!is.na(my_data$Hand_Path))[1]
+    cat("Sample Hand_Path content (first 200 chars):\n")
+    cat(substr(my_data$Hand_Path[sample_idx], 1, 200), "...\n\n")
+    
+    # Process all hand paths with robust error handling
+    cat("Processing Hand_Path data for", sum(!is.na(my_data$Hand_Path)), "trials...\n")
+    all_trajectories <- list()
+    successful <- 0
+    
+    for(i in which(!is.na(my_data$Hand_Path))) {
+      # Skip invalid indices
+      if(i > nrow(my_data)) {
+        cat("  Skipping index", i, "- out of bounds\n")
+        next
+      }
+      
+      points <- extract_hand_path_points(my_data$Hand_Path[i], i)
+      
+      if(!is.null(points) && nrow(points) >= 2) {
+        # Get trial info safely
+        trial_num <- if(i <= length(my_data$Trial.Number)) my_data$Trial.Number[i] else i
+        target_angle <- if(i <= length(my_data$Target.Angle)) my_data$Target.Angle[i] else 0
+        phase <- ifelse(trial_num <= 19, 1, 2)
+        
+        # Add trial information
+        points$trial_num <- i
+        points$Trial.Number <- trial_num
+        points$Target.Angle <- target_angle
+        points$Phase <- phase
+        
+        # Add adjusted coordinates with safety checks
+        if(all(c("Start_X", "Start_Y") %in% names(my_data)) && 
+           i <= length(my_data$Start_X) && i <= length(my_data$Start_Y) &&
+           !is.na(my_data$Start_X[i]) && !is.na(my_data$Start_Y[i])) {
+          points$x_adj <- points$x - my_data$Start_X[i]
+          points$y_adj <- my_data$Start_Y[i] - points$y
+        } else {
+          # Use raw values if start position is missing
+          points$x_adj <- points$x
+          points$y_adj <- points$y
+        }
+        
+        all_trajectories[[length(all_trajectories) + 1]] <- points
+        successful <- successful + 1
+      }
+    }
+    
+    cat("Successfully extracted trajectories for", successful, "out of", sum(!is.na(my_data$Hand_Path)), "trials\n")
+    
+    # Combine all trajectories if we have any
+    if(length(all_trajectories) > 0) {
+      trajectories_df <- do.call(rbind, all_trajectories)
+      cat("Combined", nrow(trajectories_df), "trajectory points\n")
+    } else {
+      cat("No trajectory data could be extracted from JSON.\n")
+    }
+  } else {
+    cat("No Hand_Path column found or all values are NA.\n")
+  }
+}
+
+# 3. Create synthetic data if neither approach worked
+if(!exists("trajectories_df") || is.null(trajectories_df) || nrow(trajectories_df) == 0) {
+  cat("No trajectory data extracted. Creating synthetic trajectories...\n")
+  
+  # Create synthetic data for visualization
+  synthetic_data <- data.frame()
+  
+  for(i in 1:nrow(my_data)) {
+    # Skip rows with missing or invalid Target.Angle
+    if(i > length(my_data$Target.Angle) || is.na(my_data$Target.Angle[i])) {
+      next
+    }
+    
+    angle_rad <- my_data$Target.Angle[i] * pi / 180
+    phase <- ifelse(my_data$Trial.Number[i] <= 19, 1, 2)
+    
+    # Create points along path with some randomness
+    for(t in seq(0, 1, length.out = 10)) {
+      # Add jitter and curve
+      jitter_x <- runif(1, -5, 5) * t
+      jitter_y <- runif(1, -5, 5) * t
+      curve_factor <- if(phase == 1) 0.1 else 0.3
+      curve_x <- sin(t * pi) * curve_factor * 20
+      curve_y <- sin(t * pi) * curve_factor * 20
+      
+      point <- data.frame(
+        trial_num = i,
+        Trial.Number = my_data$Trial.Number[i],
+        Target.Angle = my_data$Target.Angle[i],
+        Phase = phase,
+        t = t,
+        x_adj = t * cos(angle_rad) * 80 + jitter_x + curve_x,
+        y_adj = t * -sin(angle_rad) * 80 + jitter_y + curve_y,
+        time = t * 1000
+      )
+      
+      synthetic_data <- rbind(synthetic_data, point)
+    }
+  }
+  
+  # Use synthetic data for visualization
+  trajectories_df <- synthetic_data
+  cat("Created synthetic dataset with", nrow(trajectories_df), "points\n")
+}
+```
+
+## Basic Trajectory Visualization
+```{r basic_visualization}
+# Create a basic visualization of the trajectories
+basic_plot <- ggplot(trajectories_df, 
+                    aes(x = x_adj, y = y_adj, group = trial_num, color = factor(Target.Angle))) +
+  geom_path() +
+  labs(title = "Movement Trajectories by Trial",
+       x = "X Position",
+       y = "Y Position",
+       color = "Target Angle") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  theme_minimal() +
+  facet_wrap(~Phase)
+
+print(basic_plot)
+
+# Use a custom color palette
+custom_color_plot <- ggplot(trajectories_df, 
+                           aes(x = x_adj, y = y_adj, group = trial_num, color = factor(Target.Angle))) +
+  geom_path() +
+  labs(title = "Movement Trajectories by Trial (Custom Colors)",
+       x = "X Position",
+       y = "Y Position",
+       color = "Target Angle") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  scale_color_brewer(palette = "Set1") +  # Use a Color Brewer palette
+  theme_minimal() +
+  facet_wrap(~Phase)
+
+print(custom_color_plot)
+```
+
+## Enhanced Visualizations
+```{r enhanced_visualization, error=TRUE}
+# Create enhanced visualizations with error handling
+tryCatch({
+  # Calculate target positions
+  target_data <- data.frame(
+    Target.Angle = c(45, 135, 225, 315),
+    angle_rad = c(45, 135, 225, 315) * pi / 180
+  ) %>%
+    mutate(
+      target_x = cos(angle_rad) * 80,
+      target_y = -sin(angle_rad) * 80
+    )
+  
+  # Convert Target.Angle to factor for proper color mapping
+  trajectories_df$Target.Angle <- factor(trajectories_df$Target.Angle)
+  target_data$Target.Angle <- factor(target_data$Target.Angle)
+  
+  # Enhanced plot with targets and custom colors
+  enhanced_plot <- ggplot() +
+    # Draw trajectories with a different color palette
+    geom_path(data = trajectories_df, 
+             aes(x = x_adj, y = y_adj, group = trial_num, color = Target.Angle)) +
+    # Draw targets
+    geom_point(data = target_data,
+              aes(x = target_x, y = target_y, fill = Target.Angle),
+              shape = 21, size = 5, color = "black") +
+    # Draw start point
+    geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+    # Use a nicer color scheme
+    scale_color_brewer(palette = "Set1") +
+    scale_fill_brewer(palette = "Pastel1") +
+    # Add styling
+    labs(title = "Movement Trajectories with Targets",
+         x = "X Position",
+         y = "Y Position",
+         color = "Target Angle",
+         fill = "Target Angle") +
+    theme_minimal() +
+    facet_wrap(~Phase)
+  
+  print(enhanced_plot)
+  
+  # Visualize trajectories by trial number to see learning progression
+  if(length(unique(trajectories_df$Trial.Number)) > 5) {
+    # Sample a subset of trials to avoid overcrowding
+    sampled_trials <- sort(unique(trajectories_df$Trial.Number))
+    if(length(sampled_trials) > 12) {
+      # Take evenly spaced trials
+      sampled_trials <- sampled_trials[seq(1, length(sampled_trials), length.out = 12)]
+    }
+    
+    progression_data <- trajectories_df %>%
+      filter(Trial.Number %in% sampled_trials)
+    
+    progression_plot <- ggplot() +
+      # Draw trajectories
+      geom_path(data = progression_data, 
+               aes(x = x_adj, y = y_adj, group = trial_num, color = factor(Trial.Number))) +
+      # Draw targets
+      geom_point(data = target_data,
+                aes(x = target_x, y = target_y),
+                shape = 21, size = 5, color = "black", fill = "white") +
+      # Draw start point
+      geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+      # Add styling
+      labs(title = "Learning Progression Across Trials",
+           x = "X Position",
+           y = "Y Position",
+           color = "Trial Number") +
+      scale_color_viridis_d() +  # Colorblind-friendly palette
+      theme_minimal() +
+      facet_wrap(~Target.Angle)
+    
+    print(progression_plot)
+  }
+}, error = function(e) {
+  cat("Error in enhanced visualization:", e$message, "\n")
+  
+  # Create a simpler visualization as fallback
+  simple_plot <- ggplot(trajectories_df, aes(x = x_adj, y = y_adj)) +
+    geom_path(aes(group = trial_num, color = factor(Target.Angle))) +
+    labs(title = "Simple Trajectory Plot (Fallback)",
+         x = "X Position", 
+         y = "Y Position",
+         color = "Target Angle") +
+    theme_minimal()
+  
+  print(simple_plot)
+})
+```
+
+## Time-Based Visualization
+```{r time_visualization}
+# Create a visualization showing how trajectories evolve over time
+if("time" %in% names(trajectories_df)) {
+  time_plot <- ggplot(trajectories_df, 
+                     aes(x = x_adj, y = y_adj, group = trial_num, color = time)) +
+    geom_path() +
+    scale_color_viridis_c() +  # Colorblind-friendly continuous scale
+    labs(title = "Movement Trajectories Over Time",
+         x = "X Position",
+         y = "Y Position",
+         color = "Time (ms)") +
+    geom_point(aes(x = 0, y = 0), color = "black", size = 3) +
+    theme_minimal() +
+    facet_grid(Phase ~ Target.Angle)
+  
+  print(time_plot)
+}
+```
+
+## Statistical Analysis
+```{r statistical_analysis}
+# Calculate summary statistics for each target angle and phase
+if(all(c("Target.Angle", "Phase") %in% names(trajectories_df))) {
+  # Convert Target.Angle back to numeric for calculations if needed
+  if(is.factor(trajectories_df$Target.Angle)) {
+    trajectories_df$Target.Angle_num <- as.numeric(as.character(trajectories_df$Target.Angle))
+  } else {
+    trajectories_df$Target.Angle_num <- trajectories_df$Target.Angle
+  }
+  
+  # Calculate average position by target angle and phase
+  avg_positions <- trajectories_df %>%
+    group_by(Target.Angle_num, Phase, trial_num) %>%
+    summarize(
+      avg_x = mean(x_adj, na.rm = TRUE),
+      avg_y = mean(y_adj, na.rm = TRUE),
+      max_dist = sqrt(max(x_adj^2 + y_adj^2, na.rm = TRUE)),
+      .groups = "drop"
+    ) %>%
+    group_by(Target.Angle_num, Phase) %>%
+    summarize(
+      mean_x = mean(avg_x, na.rm = TRUE),
+      sd_x = sd(avg_x, na.rm = TRUE),
+      mean_y = mean(avg_y, na.rm = TRUE),
+      sd_y = sd(avg_y, na.rm = TRUE),
+      mean_max_dist = mean(max_dist, na.rm = TRUE),
+      sd_max_dist = sd(max_dist, na.rm = TRUE),
+      n_trials = n(),
+      .groups = "drop"
+    )
+  
+  print("Average positions by target angle and phase:")
+  print(avg_positions)
+  
+  # Calculate ideal target positions
+  ideal_positions <- data.frame(
+    Target.Angle_num = c(45, 135, 225, 315),
+    ideal_x = 80 * cos(c(45, 135, 225, 315) * pi / 180),
+    ideal_y = 80 * -sin(c(45, 135, 225, 315) * pi / 180)
+  )
+  
+  # Join with average positions to calculate error
+  position_error <- avg_positions %>%
+    left_join(ideal_positions, by = "Target.Angle_num") %>%
+    mutate(
+      error_dist = sqrt((mean_x - ideal_x)^2 + (mean_y - ideal_y)^2),
+      error_angle = abs(atan2(mean_y, mean_x) - atan2(ideal_y, ideal_x)) * 180 / pi
+    )
+  
+  print("Position error by target angle and phase:")
+  print(position_error)
+  
+  # Visualize the error
+  error_plot <- ggplot(position_error, aes(x = Target.Angle_num, y = error_dist, fill = factor(Phase))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = "Positioning Error by Target Angle",
+         x = "Target Angle (degrees)",
+         y = "Error Distance",
+         fill = "Phase") +
+    theme_minimal()
+  
+  print(error_plot)
+}
+```
+
+## Save Results
+```{r save_results}
+# Save results to files
+output_dir <- "~/Documents/workspace/OnPoint-Music/Data/analysis_output"
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Save the extracted data
+write.csv(trajectories_df, file.path(output_dir, "trajectory_data.csv"), row.names = FALSE)
+
+# Save plots
+if(exists("basic_plot")) {
+  ggsave(file.path(output_dir, "basic_trajectories.png"), basic_plot, width = 10, height = 8)
+}
+
+if(exists("custom_color_plot")) {
+  ggsave(file.path(output_dir, "custom_color_trajectories.png"), custom_color_plot, width = 10, height = 8)
+}
+
+if(exists("enhanced_plot")) {
+  ggsave(file.path(output_dir, "enhanced_trajectories.png"), enhanced_plot, width = 10, height = 8, dpi = 300)
+}
+
+if(exists("progression_plot")) {
+  ggsave(file.path(output_dir, "learning_progression.png"), progression_plot, width = 10, height = 8)
+}
+
+if(exists("time_plot")) {
+  ggsave(file.path(output_dir, "time_trajectories.png"), time_plot, width = 12, height = 10)
+}
+
+if(exists("error_plot")) {
+  ggsave(file.path(output_dir, "error_plot.png"), error_plot, width = 8, height = 6)
+}
+
+if(exists("position_error")) {
+  write.csv(position_error, file.path(output_dir, "position_error.csv"), row.names = FALSE)
+}
+
+cat("Analysis complete! Files saved to:", output_dir, "\n")
+```

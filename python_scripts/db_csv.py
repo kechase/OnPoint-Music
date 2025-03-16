@@ -99,7 +99,7 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
     import json
     
     trials = []
-    
+
     # Parameter validation
     if not subjects:
         print("Warning: Empty subjects list provided. No data will be retrieved.")
@@ -207,6 +207,12 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                     # Get the trial number from trialnum_arr if available
                     trial_num = trialnum_arr[i] if i < len(trialnum_arr) else i + 1
                     
+                    # Convert 1-based trial number to 0-based index (add these lines here)
+                    idx = trial_num - 1
+                    key_str = str(idx)
+    
+                    # Then use key_str for dictionary lookups as needed  
+
                     # Get hand path data for this trial with improved error handling
                     hand_path_data = hand_path_by_trial.get(trial_num, {})
                     
