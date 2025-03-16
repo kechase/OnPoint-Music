@@ -1382,7 +1382,7 @@ function gameSetup(data) {
 
       case Phase.MOVING:
         // record mouse data
-      handPositions.push({ time: new Date() - begin, x: cursor.point.x, y: cursor.point.y });
+        handPositions.push({ time: new Date() - begin, x: cursor.point.x, y: cursor.point.y });
 
         // Check if cursor is within the red square
         if (
@@ -1393,18 +1393,19 @@ function gameSetup(data) {
         ) {
           console.log(`point ${JSON.stringify(point)}`);
           // generate value for vowel formants
+          // CHANGE: Now getting vowel formants from x position instead of y
           const { f1, f2, _vowel } = getVowelFormants(
-            point.y,
-            squareTop,
+            point.x, // changed from point.y to point.x
+            squareLeft, // changed from squareTop to squareLeft
             squareSize,
           );
           const lo_pitch = 80;
           const hi_pitch = 350;
 
-          const x_proportion = (point.x - squareLeft) / squareSize;
+          // CHANGE: Now calculating pitch based on y position instead of x
+          const y_proportion = (point.y - squareTop) / squareSize;
           const pitch =
-            (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
-          // const pitch = 100 * Math.pow(2, (point.x - squareLeft) / 180); // 150 -
+            (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
 
           console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
           // update musicbox
@@ -1606,13 +1607,17 @@ function gameSetup(data) {
       update(x, y); // callback to update others based on coordinate given.
       
       // Use the same pitch calculation as in update_cursor function
-      const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
+      // This is original for vowel formants from on y-axis
+      // const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
+      // CHANGE: Now getting vowel formants from x position instead of y
+      const { f1, f2, _vowel } = getVowelFormants(x, squareLeft, squareSize);
     
       // Match the pitch calculation from the update_cursor function
+      // CHANGE: Now calculating pitch from y position
       const lo_pitch = 80;
       const hi_pitch = 350;
-      const x_proportion = (x - squareLeft) / squareSize;
-      const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
+      const y_proportion = (y - squareTop) / squareSize;
+      const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
 
       // update musicbox
       musicBox.update(pitch, f1, f2);
@@ -1885,8 +1890,7 @@ function gameSetup(data) {
   start_trial();
 }
 
-// Y should not be null?
-function getVowelFormants(y, squareTop, squareSize) {
+function getVowelFormants(xPos, squareLeft, squareSize) {
   const vowelFormants = {
     i: { f1: 300, f2: 2300 },
     // u: { f1: 300, f2: 800 },
@@ -1895,10 +1899,10 @@ function getVowelFormants(y, squareTop, squareSize) {
   };
   // need to be explicit about which segment these are delinating
   const vowels = Object.keys(vowelFormants);
-  const segmentHeight = squareSize / (vowels.length - 1);
-  const offset = Math.max(y - squareTop, 0);
-  const index = Math.min(Math.floor(offset / segmentHeight), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
-  const t = ((y - squareTop) % segmentHeight) / segmentHeight; // where we are in the segment
+  const segmentWidth = squareSize / (vowels.length - 1);
+  const offset = Math.max(xPos - squareLeft, 0);
+  const index = Math.min(Math.floor(offset / segmentWidth), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
+  const t = ((xPos - squareLeft) % segmentWidth) / segmentWidth; // where we are in the segment
   const vowel1 = vowels[index]; // first fencepost for this segment
   const vowel2 = vowels[index + 1]; // second fencepost for this segment
 
