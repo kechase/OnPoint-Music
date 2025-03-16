@@ -989,10 +989,12 @@ function monitorWindow(_event) {
 // Function that sets up the game
 // All game functions are defined within this main function, treat as "main"
 function gameSetup(data) {
-  // Experiment parameters, subject_ID is no obsolete
   // **TODO** Update experiment_ID to label your experiments
   const experiment_ID = "Katie2";
   
+  // Add near the beginning of gameSetup function
+  let trialOrder = [];
+
   // game state
   let isPhase2 = false;
 
@@ -1854,18 +1856,41 @@ function gameSetup(data) {
     // Debug the phase transition
     console.log(`Trial completed: ${trial}, Next bb_mess: ${bb_mess}`);
 
-    // Update phase flag when we hit the phase 2 message (bb_mess == 2)
+    // When transitioning to Phase 2, create randomized trial order for remaining trials
     if (bb_mess == 2) {
       console.log("Transitioning to Phase 2");
       isPhase2 = true;
+      
+      // Create array of remaining trial indices (current trial to end)
+      const remainingTrials = [];
+      for (let i = trial + 1; i < num_trials; i++) {  // Changed from trial to trial + 1
+        remainingTrials.push(i);
+      } 
+  
+      // Shuffle the array using Fisher-Yates algorithm
+      for (let i = remainingTrials.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [remainingTrials[i], remainingTrials[j]] = [remainingTrials[j], remainingTrials[i]];
+      }
+
+      trialOrder = remainingTrials;
+      console.log("Randomized trial order for Phase 2:", trialOrder);
     }
 
-    // Increment the trial count
-    trial += 1;
+    // Increment trial count or take next randomized trial
+    if (isPhase2 && trialOrder.length > 0) {
+      // In Phase 2, get the next trial from our randomized order
+      trial = trialOrder.shift(); // Remove and return the first element
+      console.log("Phase 2: Moving to randomized trial", trial);
+    } else {
+      // In Phase 1, just increment normally
+      trial += 1;
+    }
 
     // update trial count display
     const totalTrials = target_file_data.numtrials;
-    d3.select("#trialcount").text(`Reach Number: ${trial} / ${totalTrials}`);
+    const completedTrials = num_trials - (isPhase2 ? trialOrder.length : (num_trials - trial));
+    d3.select("#trialcount").text(`Reach Number: ${completedTrials} / ${totalTrials}`);
 
     // Checks whether the experiment is complete, if not continues to next trial
     if (trial == num_trials) {
