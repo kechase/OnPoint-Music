@@ -949,7 +949,7 @@ function gameSetup(data) {
   const feedback_time = 50; // length of time feedback remains (ms)
   const feedback_time_slow = 750; // length of "too slow" feedback (ms)
   const hold_time = 500; // length of time users must hold in start before next trial (ms)
-  const green_time = 1000; // length of time the start circle in holding phase will turn to green (ms)
+  const green_time = 2000; // length of time the start circle in holding phase will turn to green (ms)
   const search_too_slow = 3000; // Parameters and display for when users take too long to locate the center (ms)
   const too_slow_time = 5000; // Setting up parameters and display when reach is too slow (ms)
 
@@ -1017,7 +1017,7 @@ function gameSetup(data) {
 
   /**
      * Python generate script output the following JSON format
-    // May be obsolete
+    // obsolete
     "trialnum" = trialNums
     "aiming_landmarks" = aimingLandmarks
     "endpoint_feedback" = endpointFB
