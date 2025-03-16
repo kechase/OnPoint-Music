@@ -7,12 +7,16 @@ Remember to update necessary fields before starting the game. All fields that re
 // Set to 'true' if you wish to only test the front-end (will not access databases)
 // **TODO** Make sure this is set to false before deploying!
 const noSave = false;
-// TODO: Replace this with your own experiment file!
 
+// Set to 'true' to disable full screen mode during development
+// **TODO** Make sure this is set to false before deploying!
+const disableFullScreen = false;
+
+// **TODO**: Replace this with your own experiment file.
 // This is the file that will be used to generate the targets for the game alternately, you can hard enter the info below in the fileContent variable. 
 const fileName = "./tgt_files/Katie2_csv_file.json";
 
-// TODO: Add the json content below here:
+// **TODO**: Add the json content below here:
 const fileContent = {
   "numtrials": 40,
   "trialnum": {
@@ -692,7 +696,7 @@ class Block extends Database {
     this.trialNum = num;
     this.currentDate = current_date;
     this.target_angle = target_angle;
-    // TODO: Check the other end process to see if this is still in use! This is deprecated for this experiment.
+    // **TODO**: Check the other end process to see if this is still in use! This is deprecated for this experiment.
     this.trial_type = "online_fb"; // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
     this.rotation = rotation;
     this.hand_fb_angle = hand_angle;
@@ -812,7 +816,7 @@ function updateCollection(collection, subject) {
     return null;
   }
 
-  // TODO: Test and verify this working
+  // **TODO**: Test and verify this working
   return collection.doc(subject.id).set(subject)
     .then(function () {
       console.log(subject);
@@ -890,11 +894,13 @@ function checkInfo() {
     return;
   }
 
-  // so what are we doing here?
-  // updateCollection(subjectcollection, subject);
-
   show("container-exp");
-  openFullScreen();
+  
+  // Only enter full screen if not disabled
+  if (!disableFullScreen) {
+    openFullScreen();
+  }
+  
   startGame();
 }
 
@@ -911,7 +917,7 @@ function startGame() {
 
 // Function to monitor changes in screen size;
 // event is not used
-// TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
+// **TODO**: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
 let prev_screen_size = 0;
 
 function monitorWindow(_event) {
@@ -1041,13 +1047,13 @@ function gameSetup(data) {
   // there is missing variables unused - target_file_data.tgt_distance
 
   // Between blocks parameters
-  // TODO: Data normalization - what is this suppose to be?
+  // **TODO**: Data normalization - what is this suppose to be?
   let bb_mess = between_blocks[0];
 
   // [F] - Data optimization. We don't need to have a number of trials variable here. We would just rely on the number of trial we have in our collection in the database.
   const num_trials = target_file_data.numtrials;
 
-  // TODO: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
+  // **TODO**: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
   const screen_width = self.innerWidth;
   const screen_height = self.innerHeight;
   prev_screen_size = screen_width * screen_height;
@@ -1259,7 +1265,7 @@ function gameSetup(data) {
   setPointerLock();
 
   // The distance from start at which they can see their cursor while searching in between trials
-  // TODO: Talk to Katie if we still need this? Used as an indicator to display cursor before moving back to start.
+  // **TODO**: Talk to Katie if we still need this? Used as an indicator to display cursor before moving back to start.
   // search_tolerance = start.radius * 4 + cursor.radius * 4;
 
   /********************
@@ -1531,7 +1537,7 @@ function gameSetup(data) {
     });
   }
 
-  // todo we could load a tween graph or animation path to let researcher define new custom behaviours.
+  // **TODO** we could load a tween graph or animation path to let researcher define new custom behaviours.
   function play_sounds(start, end, duration, update) {
     // Make sure any previous sound is stopped
       musicBox.pause();
