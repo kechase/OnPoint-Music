@@ -14,6 +14,18 @@ firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
+# List all collections 
+print("Top-level collections:")
+collections = db.collections()
+for collection in collections:
+    print(f"- {collection.id}")
+    
+    # Get a few documents from each collection
+    docs = collection.limit(3).get()
+    for doc in docs:
+        print(f"  - Document ID: {doc.id}")
+        print(f"    Data: {doc.to_dict()}")
+        
 # Helper function for reading subject data from database
 def subjcsvread(subjects, csvFileName, db, collection):
     subjectList = []
@@ -26,7 +38,6 @@ def subjcsvread(subjects, csvFileName, db, collection):
                 info = (fields.get('id'), 
                         fields.get('age'), 
                         fields.get('comments'), 
-                        fields.get('currTrial'), 
                         fields.get('handedness'), 
                         fields.get('ethnicity'), 
                         fields.get('mousetype'), 
@@ -48,7 +59,7 @@ def getSubjectData(subjects, csvFileName, db, collection):
     #Set up file to write to
     file = open(csvFileName, 'w')
     writer = csv.writer(file)
-    header = ('Subject ID', 'Age', 'Comments', 'Completed Trials', 'Handedness', 'Ethnicity', 'Mouse Type', 'Race', 'Returner', 'Sex', 'Target File')
+    header = ('Subject ID', 'Age', 'Comments', 'Handedness', 'Ethnicity', 'Mouse Type', 'Race', 'Returner', 'Sex', 'Target File')
     writer.writerow(header)
     writer.writerows(subjectList)
     file.close()
@@ -64,45 +75,127 @@ def addSubjectData(subjects, csvFileName, db, collection):
  
 # Helper function for reading trial data from database
 def trialcsvread(collection, numTrials, csvFileName, subjects, db):   
-    
-    #Setup chonky array with every trial inside
     trials = []
     
     for trialID in subjects:
         try:
-            # You can replace 'id' with any valid field in the database documents, and change the values in "subjects" accordingly
-            docs = db.collection(collection).where(u'id', u'==', trialID).stream()
+            # First try to find documents by 'id' field
+            docs = list(db.collection(collection).where(u'id', u'==', trialID).stream())
+            
+            # If no documents found, try using the document ID directly
+            if not docs:
+                doc_ref = db.collection(collection).document(trialID)
+                doc = doc_ref.get()
+                if doc.exists:
+                    docs = [doc]
+            
             for doc in docs:
                 fields = doc.to_dict()
-                exp_ID = fields.get('experimentID')
-                name = fields.get('id')
-                group = fields.get('group_type')
-                currDate_arr = fields.get('currentDate')
-                trialnum_arr = fields.get('trialNum')
-                tgtAng_arr = fields.get('target_angle')
-                trialType_arr = fields.get('trial_type')
-                rot_arr = fields.get('rotation')
-                handang_arr = fields.get('hand_fb_angle')
-                rt_arr = fields.get('rt')
-                mt_arr = fields.get('mt')
-                search_arr = fields.get('search_time')
-                reachfb_arr = fields.get('reach_feedback')
-                hand_path = fields.get('hand_path')
-                start_x = fields.get('start_x')
-                start_y = fields.get('start_y')
-                screen_height = fields.get('screen_height')
-                screen_width = fields.get('screen_width')
-                for i in range(len(currDate_arr)):
-                    trial = (exp_ID, name, currDate_arr[i], trialnum_arr[i], tgtAng_arr[i], trialType_arr[i], rot_arr[i], 
-                    handang_arr[i], rt_arr[i], mt_arr[i], search_arr[i], reachfb_arr[i], hand_path[i], start_x[i], start_y[i], 
-                    screen_height[i], screen_width[i], group)
+                print(f"Processing trial data for: {trialID}, doc ID: {doc.id}")
+                
+                # Check if data uses flattened hand path format
+                is_flattened = fields.get('hand_path_flattened', False)
+                print(f"Hand path flattened: {is_flattened}")
+                
+                # Check if required arrays exist
+                required_arrays = ['currentDate', 'trialNum', 'target_angle', 'trial_type', 
+                                  'rotation', 'hand_fb_angle', 'rt', 'mt', 'search_time', 'reach_feedback']
+                
+                missing = [field for field in required_arrays if field not in fields or not fields.get(field)]
+                if missing:
+                    print(f"Warning: Missing required fields for {trialID}: {missing}")
+                    continue
+                
+                # Get basic fields
+                exp_ID = fields.get('experimentID', 'Unknown')
+                name = fields.get('id', doc.id)  # Use doc ID as fallback
+                group = fields.get('group_type', 'Unknown')
+                
+                # Get array fields with safe fallbacks
+                currDate_arr = fields.get('currentDate', [])
+                trialnum_arr = fields.get('trialNum', [])
+                tgtAng_arr = fields.get('target_angle', [])
+                trialType_arr = fields.get('trial_type', [])
+                rot_arr = fields.get('rotation', [])
+                handang_arr = fields.get('hand_fb_angle', [])
+                rt_arr = fields.get('rt', [])
+                mt_arr = fields.get('mt', [])
+                search_arr = fields.get('search_time', [])
+                reachfb_arr = fields.get('reach_feedback', [])
+                
+                # Optional fields - may not exist in all documents
+                start_x = fields.get('start_x', [None] * len(currDate_arr))
+                start_y = fields.get('start_y', [None] * len(currDate_arr))
+                screen_height = fields.get('screen_height', [None] * len(currDate_arr))
+                screen_width = fields.get('screen_width', [None] * len(currDate_arr))
+                
+                # Handle the hand path data
+                hand_path_by_trial = {}
+                
+                if is_flattened:
+                    # Extract hand_path related fields in flattened format
+                    for key, value in fields.items():
+                        if key.startswith('trial_') and ('_count' in key or '_first_' in key or '_last_' in key or '_sample_' in key):
+                            parts = key.split('_')
+                            if len(parts) >= 2 and parts[1].isdigit():
+                                trial_num = int(parts[1])
+                                
+                                if trial_num not in hand_path_by_trial:
+                                    hand_path_by_trial[trial_num] = {}
+                                
+                                field_name = '_'.join(parts[2:]) if len(parts) > 2 else 'unknown'
+                                hand_path_by_trial[trial_num][field_name] = value
+                    
+                    # Add better debug information
+                    print(f"Found {len(hand_path_by_trial)} trials with hand path data")
+                    for trial_num, data in hand_path_by_trial.items():
+                        print(f"  Trial {trial_num}: {len(data)} data points")
+                    
+                    # Check data format consistency
+                    for trial_num, data in hand_path_by_trial.items():
+                        expected = ['count', 'first_x', 'first_y', 'first_time', 'last_x', 'last_y', 'last_time']
+                        missing = [f for f in expected if f not in data]
+                        if missing:
+                            print(f"Warning: Trial {trial_num} missing expected fields: {missing}")
+                else:
+                    # Handle legacy format if needed
+                    print("Warning: Hand path data is not in flattened format")
+                    # Leave hand_path_by_trial empty or implement legacy handling if needed
+                
+                # Make sure all arrays are the same length
+                min_len = min(len(currDate_arr), len(trialnum_arr), len(tgtAng_arr), 
+                             len(trialType_arr), len(rot_arr), len(handang_arr), 
+                             len(rt_arr), len(mt_arr), len(search_arr), len(reachfb_arr))
+                
+                for i in range(min_len):
+                    # Get the trial number from trialnum_arr if available
+                    trial_num = trialnum_arr[i] if i < len(trialnum_arr) else i + 1
+                    
+                    # Get hand path data for this trial with improved error handling
+                    hand_path_data = hand_path_by_trial.get(trial_num, {})
+                    if not hand_path_data and is_flattened:
+                        print(f"Warning: No hand path data found for trial {trial_num}")
+                    
+                    # Create safe array access with defaults for optional fields
+                    start_x_val = start_x[i] if i < len(start_x) else None
+                    start_y_val = start_y[i] if i < len(start_y) else None
+                    screen_height_val = screen_height[i] if i < len(screen_height) else None
+                    screen_width_val = screen_width[i] if i < len(screen_width) else None
+                    
+                    trial = (exp_ID, name, currDate_arr[i], trialnum_arr[i], 
+                            tgtAng_arr[i], trialType_arr[i], rot_arr[i], 
+                            handang_arr[i], rt_arr[i], mt_arr[i], search_arr[i], 
+                            reachfb_arr[i], str(hand_path_data), start_x_val, start_y_val, 
+                            screen_height_val, screen_width_val, group)
                     trials.append(trial)
-
-                trials.append(trial)
-        except:
-            print(trialID + "wasn't completed!")
+                
+                print(f"Added {min_len} trials for {trialID}")
+                
+        except Exception as e:
+            print(f"Error processing {trialID}: {str(e)}")
             continue
     
+    print(f"Total trials collected: {len(trials)}")
     return trials
     
     
@@ -142,15 +235,17 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
 
 ### Update subjects to be the proper parameter you select to choose from firebase
 ### Subject data is the information subjects provide about themselves and trialData is trials
-subjects = ['sunday'] # **TODO** Fill in subjects list with an appropriate field saved in the database
+#subjects = ['1', '23', '123', 'Eli', 'sunday', 'testing', 'testing again'] # **TODO** Fill in subjects list with an appropriate field saved in the database
 
 #getSubjectData(subjects, 'your pathway to subject_csv_name.csv', db, 'Subjects')
-getSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/todaysubject.csv', db, 'Subjects')
+#getSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/all_subjects.csv', db, 'Subjects')
 
 #addSubjectData(subjects, 'your_csv_name.csv', db, 'Subjects')
-#addSubjectData(subjects, '/Users/katie/Documents/workspace/Kinetic-Muse/Data/Abby_SubjInfo_19Dec2024.csv', db, 'Subjects')
+#addSubjectData(subjects, '/Users/katie/Documents/workspace/OnPoint-Music/Data/sunday_subjectdata.csv', db, 'Subjects')
 
 #getTrialData('Trials', 40, 'your pathway to TrialData_csv_name.csv', subjects, db)
-getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/todaytrials.csv', subjects, db)
+trial_ids = ['katiekatie']  
+# These are the document IDs we saw
+getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/all_trials_march15.csv', trial_ids, db)
 
 #addTrialData('Trials', 294, 'you_csv_name.csv', subjects, db)

@@ -628,6 +628,13 @@ class Trial extends Database {
     this.experimentID = experimentID;
     this.cursor_data = [];
     this.blocks = [];
+    this.hand_path = [];  // Will store position data for the hand
+    // Add these new fields
+    this.start_x = [];
+    this.start_y = [];
+    this.screen_height = [];
+    this.screen_width = [];
+    this.group_type = experimentID;
   }
 
   // return the current trial number (usually define as number of blocks we've created and stored)
@@ -645,6 +652,7 @@ class Trial extends Database {
     time,
     feedback,
     cursor_data,
+    hand_path,
   ) {
     const lastTrialNum = this.getBlockNum();
     const block = new Block(
@@ -661,9 +669,11 @@ class Trial extends Database {
     // does this create a new array or clears the reference to it?
     // clone this array
     const data = [...cursor_data];
+    const path = [...hand_path];
 
     // append newly copy data value.
     this.cursor_data.push(data);
+    this.hand_path.push(path);
 
     // append data to this trial block
     this.blocks.push(block);
@@ -718,7 +728,7 @@ function isNumericKey(event) {
 let prevpage = "container-consent";
 
 // Function to switch between HTML pages
-function show(shown) {
+window.show = function(shown) {
   if (prevpage !== null) {
     document.getElementById(prevpage).style.display = "none";
   }
@@ -1308,7 +1318,7 @@ function gameSetup(data) {
 
       case Phase.MOVING:
         // record mouse data
-        handPositions.push(new Log(new Date() - begin, cursor_x, cursor_y));
+      handPositions.push({ time: new Date() - begin, x: cursor.point.x, y: cursor.point.y });
 
         // Check if cursor is within the red square
         if (
@@ -1361,11 +1371,15 @@ function gameSetup(data) {
     // use keyboardEvent.key instead - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
     const key = event.key.toLowerCase();
 
-    // start of the trial - we do not ask for client keyboard feedback, immediately search_phase();
-    if (bb_mess == 0) {
-      search_phase();
-      return;
-    }
+    // Debug info
+  console.log(`Key pressed: ${key}, Current phase: ${game_phase}, bb_mess: ${bb_mess}`);
+
+  // Start of the trial - if bb_mess is 0, any key press should advance
+  if (game_phase == Phase.BETWEEN_BLOCKS && bb_mess == 0) {
+    console.log("Advancing with bb_mess 0 (Way to go!)");
+    search_phase();
+    return;
+  }
 
     // this could be converted as a separate block trial to run through.
     if (game_phase == Phase.BETWEEN_BLOCKS) {
@@ -1390,25 +1404,40 @@ function gameSetup(data) {
         return;
       }
 
-      badGame(); // Premature exit game if failed attention check
+      // Only call badGame if none of the above conditions are met
+    console.log("Failed attention check - ending game");
+    badGame(); // Premature exit game if failed attention check
     }
   }
 
   function displayMessage(idx) {
-    // Load messages
-    d3.select("#message-line-1").attr("display", "block").text(
-      messages[idx][0],
-    );
-    d3.select("#message-line-2").attr("display", "block").text(
-      messages[idx][1],
-    );
-    d3.select("#message-line-3").attr("display", "block").text(
-      messages[idx][2],
-    );
-    d3.select("#message-line-4").attr("display", "block").text(
-      messages[idx][3],
-    );
+    // First clear existing messages
+  hideMessage();
+
+  // Safety check for undefined messages
+  if (!messages[idx]) {
+    console.error(`No message defined for index: ${idx}`);
+    return;
   }
+
+    // Load messages
+    // Display line 1 (should always exist)
+    d3.select("#message-line-1").attr("display", "block").text(
+      messages[idx][0] || "");
+  
+    // Only display additional lines if they exist
+    if (messages[idx][1]) {
+      d3.select("#message-line-2").attr("display", "block").text(messages[idx][1]);
+  }
+  
+    if (messages[idx][2]) {
+      d3.select("#message-line-3").attr("display", "block").text(messages[idx][2]);
+  }
+  
+    if (messages[idx][3]) {
+      d3.select("#message-line-4").attr("display", "block").text(messages[idx][3]);
+  }
+}
 
   function hideMessage() {
     d3.select("#message-line-1").attr("display", "none");
@@ -1559,9 +1588,15 @@ function gameSetup(data) {
     const start = calibration.point;
     const offset = (jump == 1.0) ? rotation[trial] : jump;
     const value = angle + offset;  
+    // When calculating a point on a circle (or positioning a target at a certain angle and distance): 
+    // Math.cos is used for the x-coordinate because cosine represents the horizontal component of movement along a circle. When an angle is 0 degrees, cosine is 1, placing the point at maximum x-distance. 
+    // Math.sin is used for the y-coordinate because sine represents the vertical component of movement along a circle. When an angle is 90 degrees, sine is 1, placing the point at maximum y-distance.
     const x = start.x + target_dist * Math.cos(value * deg2rad);
     const y = start.y - target_dist * Math.sin(value * deg2rad);
     const end = new Point(x, y);
+
+    // Log for debugging
+    console.log(`Trial: ${trial}, Phase2: ${isPhase2}, Target angle: ${angle}, Position: (${x}, ${y})`);
   
     // Update target position (but don't display it)
     target.update(x, y); 
@@ -1615,6 +1650,7 @@ function gameSetup(data) {
       target.display(false);
     }
 
+    
     rt = new Date() - begin; // Record reaction time as time spent with target visible before moving
     begin = new Date(); // Start of timer for movement time
 
@@ -1694,7 +1730,6 @@ function gameSetup(data) {
   // Function used to initiate the next trial after uploading reach data and subject data onto the database
   // Cleans up all the variables and displays to set up for the next reach
   function next_trial() {
-    // TODO: add data to append to block for this Trial
     subjTrials.appendTrialBlock(
       tgt_angle[trial],
       rotation[trial],
@@ -1703,25 +1738,34 @@ function gameSetup(data) {
       mt,
       search_time,
       reach_feedback,
-      handPositions,
+      handPositions, // cursor_data
+      handPositions  // This captures the hand_path field
     );
-    // where do we save the hand position data?
+
+    // Screen dimensions
+    subjTrials.start_x.push(center.x);
+    subjTrials.start_y.push(center.y);
+    subjTrials.screen_height.push(screen_height);
+    subjTrials.screen_width.push(screen_width);
 
     // Reset timing variables
     rt = 0;
     mt = 0;
     search_time = 0;
     play_sound = true;
-
     // this clears it.
     handPositions = [];
 
-    // Between Blocks Message Index
+    // Get the between blocks message for the NEXT trial
     bb_mess = between_blocks[trial];
+
+    // Debug the phase transition
+    console.log(`Trial completed: ${trial}, Next bb_mess: ${bb_mess}`);
 
     // Update phase flag when we hit the phase 2 message (bb_mess == 2)
     if (bb_mess == 2) {
-    isPhase2 = true;
+      console.log("Transitioning to Phase 2");
+      isPhase2 = true;
     }
 
     // Increment the trial count
@@ -1729,19 +1773,24 @@ function gameSetup(data) {
 
     // update trial count display
     const totalTrials = target_file_data.numtrials;
-    d3.select("#trialcount").text(
-      "Reach Number: " + trial + " / " + totalTrials,
-    );
+    d3.select("#trialcount").text(`Reach Number: ${trial} / ${totalTrials}`);
 
     // Checks whether the experiment is complete, if not continues to next trial
     if (trial == num_trials) {
       end_trial();
       // display between block message
-    } else if (bb_mess || trial == 1) {
-      displayMessage(bb_mess);
+  } else if (bb_mess || trial == 1) {
       game_phase = Phase.BETWEEN_BLOCKS;
-    } else {
-      search_phase();
+      console.log(`Displaying message for bb_mess: ${bb_mess}`); 
+      // Make sure all message lines exist in the messages array
+      if (messages[bb_mess]) {
+        displayMessage(bb_mess);
+      } else {
+      console.error(`No message found for bb_mess: ${bb_mess}`);
+    }
+  } else {
+    // Continue to next trial
+    search_phase();
     }
   }
 
@@ -1781,53 +1830,110 @@ function helpEnd() {
   $("html").css("cursor", "auto");
   $("body").css("cursor", "auto");
 
-  // restore the screen state.
+  // restore the screen state
   $("body").css("background-color", "white");
   $("html").css("background-color", "white");
 
   d3.select("#stage").attr("display", "none");
 
-  const trialNum = [];
-  const currentDate = [];
-  const target_angle = [];
-  const trial_type = [];
-  const rotation = [];
-  const hand_fb_angle = [];
-  const rt = [];
-  const mt = [];
-  const search_time = [];
-  const reach_feedback = [];
+  try {
+    console.log("Preparing trial data for save...");
+    
+    // Create a comprehensive record of all trial data
+    const subjTrial_data = {
+      id: subjTrials.id,
+      experimentID: subjTrials.experimentID,
+      // cursor_data: subjTrials.cursor_data,
+      trialNum: [],
+      currentDate: [],
+      target_angle: [],
+      trial_type: [],
+      rotation: [],
+      hand_fb_angle: [],
+      rt: [],
+      mt: [],
+      search_time: [],
+      reach_feedback: [],
+      start_x: subjTrials.start_x,
+      start_y: subjTrials.start_y,
+      screen_height: subjTrials.screen_height,
+      screen_width: subjTrials.screen_width,
+      group_type: subjTrials.group_type,
+      // Flag that hand path is processed
+      hand_path_flattened: true
+    };
 
-  subjTrials.blocks.forEach((e) => {
-    trialNum.push(e.trialNum);
-    currentDate.push(e.currentDate);
-    target_angle.push(e.target_angle);
-    trial_type.push(e.trial_type);
-    rotation.push(e.rotation);
-    hand_fb_angle.push(e.hand_fb_angle);
-    rt.push(e.rt);
-    mt.push(e.mt);
-    search_time.push(e.search_time);
-    reach_feedback.push(e.reach_feedback);
+    // Extract data from blocks
+    subjTrials.blocks.forEach((block, index) => {
+      subjTrial_data.trialNum.push(block.trialNum);
+      subjTrial_data.currentDate.push(block.currentDate);
+      subjTrial_data.target_angle.push(block.target_angle);
+      subjTrial_data.trial_type.push(block.trial_type);
+      subjTrial_data.rotation.push(block.rotation);
+      subjTrial_data.hand_fb_angle.push(block.hand_fb_angle);
+      subjTrial_data.rt.push(block.rt);
+      subjTrial_data.mt.push(block.mt);
+      subjTrial_data.search_time.push(block.search_time);
+      subjTrial_data.reach_feedback.push(block.reach_feedback)
+      subjTrial_data.hand_path_flattened = true;
+    });
+    
+    // Add hand path data in a safe format for Firebase
+    if (subjTrials.hand_path && subjTrials.hand_path.length > 0) {
+      // Store hand path data as separate objects to avoid arrays
+      const handPathSummary = {};
+      
+      subjTrials.hand_path.forEach((path, index) => {
+        if (path && path.length) {
+          // For each trial, create:
+          // 1. A count
+          handPathSummary[`trial_${index+1}_count`] = path.length;
+        
+          // 2. First point as separate properties
+          if (path.length > 0) {
+            handPathSummary[`trial_${index+1}_first_x`] = path[0].x;
+            handPathSummary[`trial_${index+1}_first_y`] = path[0].y;
+            handPathSummary[`trial_${index+1}_first_time`] = path[0].time;
+          }
+          
+          // 3. Last point as separate properties
+          if (path.length > 0) {
+            handPathSummary[`trial_${index+1}_last_x`] = path[path.length-1].x;
+            handPathSummary[`trial_${index+1}_last_y`] = path[path.length-1].y;
+            handPathSummary[`trial_${index+1}_last_time`] = path[path.length-1].time;
+          }
+          
+          // 4. A few sample points (to keep data size manageable)
+          if (path.length > 10) {
+            [0, Math.floor(path.length/4), Math.floor(path.length/2), 
+            Math.floor(3*path.length/4), path.length-1].forEach((idx, sampleIdx) => {
+              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_x`] = path[idx].x;
+              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_y`] = path[idx].y;
+              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_time`] = path[idx].time;
+            });
+        }
+      }
   });
+  
+  // Add the flattened data to the main object
+  Object.assign(subjTrial_data, handPathSummary);
+}
 
-  const subjTrial_data = {
-    id: subjTrials.id,
-    experimentID: subjTrials.experimentID,
-    // cursor_data: subjTrials.cursor_data,
-    trialNum,
-    currentDate,
-    target_angle,
-    trial_type,
-    rotation,
-    hand_fb_angle,
-    rt,
-    mt,
-    search_time,
-    reach_feedback,
-  };
+    console.log("Data prepared, attempting to save...");
+    console.log("Sample of data:", JSON.stringify(subjTrial_data).substring(0, 500));
 
-  updateCollection(trialcollection, subjTrial_data);
+    // Upload to Firebase
+    updateCollection(trialcollection, subjTrial_data)
+      .then(() => {
+        console.log("Trial data successfully saved!");
+      })
+      .catch(error => {
+        console.error("Failed to save trial data:", error);
+        alert("There was an error saving your data. Please contact the experimenter.");
+      });
+  } catch (error) {
+    console.error("Error in helpEnd function:", error);
+  }
 }
 
 // Function that allows for the premature end of a game
