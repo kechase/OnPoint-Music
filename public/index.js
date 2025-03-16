@@ -940,18 +940,20 @@ function gameSetup(data) {
   // current trial
   let trial = 0;
 
-  // Circle objects
+  // circle objects
   let calibration = null;
   let target = null;
   let cursor = null;
 
+  // timeout timer
+  let movement_timeout = null;
 
   const feedback_time = 50; // length of time feedback remains (ms)
-  const feedback_time_slow = 750; // length of "too slow" feedback (ms)
+  const feedback_time_slow = 1500; // length of "too slow" feedback (ms)
   const hold_time = 500; // length of time users must hold in start before next trial (ms)
   const green_time = 2000; // length of time the start circle in holding phase will turn to green (ms)
   const search_too_slow = 3000; // Parameters and display for when users take too long to locate the center (ms)
-  const too_slow_time = 5000; // Setting up parameters and display when reach is too slow (ms)
+  const too_slow_time = 4000; // Setting up parameters and display when reach is too slow (ms)
 
   // The between block messages that will be displayed
   // **TODO** Update messages depending on your experiment
@@ -1658,17 +1660,40 @@ function gameSetup(data) {
     // musicBox.play(0);
     
     // Initialize but don't automatically play
+    // Don't call musicBox.play(0) here, it will be played only when cursor moves in the red square
     musicBox.audioContext.resume();
-  // Don't call musicBox.play(0) here, it will be played only when cursor moves in the red square
-
+    
     // Start circle disappears
     calibration.display(false);
     cursor.display(true);
+
+    // Add timeout to automatically end trial if it's taking too long
+    if (movement_timeout != null) {
+      clearTimeout(movement_timeout);
+  }
+    // Set a timeout that will automatically call fb_phase() after max_movement_time
+    const max_movement_time = 8000; // 8 seconds, adjust as needed
+    movement_timeout = setTimeout(() => {
+      // Stop audio if playing
+      musicBox.pause();
+      
+      // Set feedback as "too slow"
+      reach_feedback = "timeout";
+      
+      // Call feedback phase to end the trial
+      fb_phase();
+    }, max_movement_time);
+
     game_phase = Phase.MOVING;
   }
-
   // Phase where users have finished their reach and receive feedback
   function fb_phase() {
+      // Clear the movement timeout if it exists
+      if (movement_timeout != null) {
+        clearTimeout(movement_timeout);
+        movement_timeout = null;
+      }
+
     // Record movement time as time spent reaching before intersecting target circle
     // Can choose to add audio in later if necessary
     mt = new Date() - begin;
@@ -1680,7 +1705,7 @@ function gameSetup(data) {
       calibration.display(false);
       d3.select("#too_slow_message").attr("display", "block");
       target.setFill("red");
-      reach_feedback = "Good job, let's do this!";
+      reach_feedback = "Ok, let's do this!";
       timer = feedback_time_slow;
     } else {
       target.setFill("green");
@@ -1696,7 +1721,7 @@ function gameSetup(data) {
       cursor.point.x - calibration.point.x,
     ) * rad2deg;
     if (hand_fb_angle < 0) {
-      hand_fb_angle = 360 + hand_fb_angle; // Corrected so that it doesn't have negative angles // can't imagine why it'd be negative?
+      hand_fb_angle = 360 + hand_fb_angle; // Math.atan2(y, x) calculates the angle between the positive x-axis and the point (x, y). When the point is in the 3rd or 4th quadrant (bottom-left or bottom-right of the coordinate system), the function returns negative angles. This converts from negative angles to positive angles (0° to 360°) 
     }
 
     hand_fb_x = calibration.point.x +
