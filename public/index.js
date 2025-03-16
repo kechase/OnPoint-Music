@@ -1138,7 +1138,7 @@ function gameSetup(data) {
       .attr("font-size", message_size)
       .attr("id", "too_slow_message")
       .attr("display", "none")
-      .text("Move Faster");
+      .text("Keep trying! You can do it!");
 
     svgContainer.append("text")
       .attr("text-anchor", "middle")
@@ -1680,7 +1680,7 @@ function gameSetup(data) {
       calibration.display(false);
       d3.select("#too_slow_message").attr("display", "block");
       target.setFill("red");
-      reach_feedback = "let's pick up the pace!";
+      reach_feedback = "Good job, let's do this!";
       timer = feedback_time_slow;
     } else {
       target.setFill("green");
