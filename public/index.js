@@ -10,7 +10,7 @@ const noSave = false;
 
 // Set to 'true' to disable full screen mode during development
 // **TODO** Make sure this is set to false before deploying!
-const disableFullScreen = true;
+const disableFullScreen = false;
 
 // **TODO**: Replace this with your own experiment file.
 // This is the file that will be used to generate the targets for the game alternately, you can hard enter the info below in the fileContent variable. 
