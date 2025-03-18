@@ -1,0 +1,506 @@
+---
+title: "MusicMapping: Online Experiments in Auditory Motor-Mapping"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Instructions: 
+
+1. Enter path to reference sounds (approximately line 30)
+2. Enter path to data (approximately line 81)
+3. Click 'Run All' in the upper right hand corner of R 
+
+```{r}
+
+rm(list = ls())
+library(jsonlite)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(gridExtra) # For arranging multiple plots
+
+```
+
+## Load in reference data
+```{r}
+
+start_x <- 833.5   # example value
+start_y <- 539.5   # example value
+
+######
+#1 ENTER PATH TO REFERENCE SOUNDS
+reference_data <- read.csv("~/Documents/workspace/OnPoint-Music/csv_tgt_files/Katie2_csv_file.csv") 
+
+reference_data <- reference_data %>%
+  mutate(Hand_Path_JSON = gsub("'", "\"", Hand_Path))
+
+# Parse the JSON
+reference_data <- reference_data %>%
+  rowwise() %>%
+  mutate(positions_list = list(fromJSON(Hand_Path_JSON)$positions)) %>%
+  ungroup()
+
+reference_data_long <- reference_data %>%
+  unnest(cols = positions_list) %>%
+  mutate(x = x - start_x, 
+         y = start_y - y) 
+
+# Identifying reference trajectories for each target angle
+# Create a mapping of target angles to reference trial numbers
+angle_to_ref_trial <- data.frame(
+  Target.Angle = c(45, 135, 225, 315),
+  Trial.Number = c(1, 2, 3, 4)
+)
+
+# Plot the trajectories colored by Target.Angle as before
+p1 <- ggplot(reference_data_long, aes(x = x, y = y, group = Trial.Number, color = factor(Target.Angle))) +
+  geom_path() +
+  labs(title = "Movement Trajectories by Trial",
+       x = "X Position",
+       y = "Y Position",
+       color = "Target Angle") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  theme_minimal()
+
+# Print the trajectory plot
+print(p1)
+
+# Plot a few specific reference trajectories with time coloring
+reference_time_plot <- reference_data_long %>%
+  filter(Trial.Number %in% c(1, 2, 3, 4)) %>%
+  ggplot(aes(x = x, y = y, color = time, group = Trial.Number)) +
+  geom_line() +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Movement Trajectory Over Time",
+       x = "X Position",
+       y = "Y Position",
+       color = "Time") +
+  facet_wrap(~Target.Angle) +
+  theme_minimal()
+print(reference_time_plot)
+```
+
+
+## Load in participant data
+```{r}
+
+######
+#2 ENTER PATH TO DATA YOU WANT TO ANALYZE
+my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/2trials_march162025.csv") 
+
+# Clean column names
+names(my_data) <- gsub(" ", ".", names(my_data))
+
+# Create a JSON parsing function that handles the specific format from index.js
+parse_hand_path <- function(hand_path_json) {
+  # Check if the input is a proper JSON format that can be parsed
+  if (!is.character(hand_path_json) || nchar(hand_path_json) < 5) {
+    return(NULL)
+  }
+
+  # Fix common JSON string issues (replace single quotes with double, if needed)
+  hand_path_json <- gsub("'", "\"", hand_path_json)
+
+  # Try to parse the JSON
+  tryCatch({
+    # Extract positions array from the JSON
+    parsed <- fromJSON(hand_path_json)
+    # Check if the parsing resulted in a data frame or list with x, y, time
+    if (is.data.frame(parsed)) {
+      return(parsed)
+    } else if (is.list(parsed) && "positions" %in% names(parsed)) {
+      return(parsed$positions)
+    } else {
+      return(NULL)
+    }
+  }, error = function(e) {
+    # Return NULL if parsing fails
+    return(NULL)
+  })
+}
+# Process the hand path data
+my_data <- my_data %>%
+  filter(!is.na(Hand_Path)) %>%
+  rowwise() %>%
+  mutate(
+    positions_list = list(parse_hand_path(Hand_Path))
+  ) %>%
+  filter(!is.null(positions_list)) %>%
+  ungroup()
+
+# Unnest the positions into a long format for plotting
+my_data_long <- my_data %>%
+  unnest(cols = positions_list) %>%
+  mutate(
+    x = x - Start_X,
+    y = Start_Y - y,
+    # Phase definition based on your index.js - trials 1-19 are Phase 1, after are Phase 2
+    Phase = ifelse(Trial.Number <= 19, 1, 2)
+  )
+
+# Plot the participant trajectories
+participant_trajectory_plot <- ggplot(my_data_long, aes(x = x, y = y, group = Trial.Number, color = factor(Target.Angle))) +
+  geom_path() +
+  labs(x = "X Position",
+       y = "Y Position",
+       color = "Target Angle") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  theme_minimal() +
+  facet_wrap(~Phase)
+print(participant_trajectory_plot)
+
+# Additional plot showing trajectories over time
+time_trajectory_plot <- my_data_long %>%
+  group_by(Trial.Number) %>%
+  filter(n() > 10) %>% # Only include trials with enough data points
+  ungroup() %>%
+  ggplot(aes(x = x, y = y, color = time, group = Trial.Number)) +
+  geom_path() +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Participant Movement Trajectory Over Time",
+       x = "X Position",
+       y = "Y Position",
+       color = "Time") +
+  facet_grid(Phase ~ Target.Angle) +
+  theme_minimal()
+
+print(time_trajectory_plot)
+```
+
+
+## Calculate error of each trial relative to reference
+```{r}
+# Define screen parameters from your data
+old_screen_width <- 1667
+old_screen_height <- 1079
+old_start_x <- 833.5
+old_start_y <- 539.5
+
+# Get screen dimensions from participant data
+new_screen_width <- unique(my_data$Screen_Width)[1]  # Use first non-NA value
+new_screen_height <- unique(my_data$Screen_Height)[1]
+new_start_x <- unique(my_data$Start_X)[1]
+new_start_y <- unique(my_data$Start_Y)[1]
+
+# Initialize results data frame
+results <- data.frame(
+  Trial.Number = integer(),
+  Target.Angle = numeric(),
+  MeanError = numeric(),
+  Phase = integer(),
+  stringsAsFactors = FALSE
+)
+
+# Get all unique trial numbers
+all_trials <- unique(my_data$Trial.Number)
+
+for (ti in all_trials) {
+  # Skip if there's no data for this trial
+  if (!any(my_data$Trial.Number == ti)) {
+    next
+  }
+  
+  # Extract the target angle and phase for this trial
+  this_angle <- unique(my_data$Target.Angle[my_data$Trial.Number == ti])
+  this_phase <- ifelse(ti <= 19, 1, 2)
+  
+  # Find the matching reference trial for this angle
+  ref_trial_num <- angle_to_ref_trial$Trial.Number[angle_to_ref_trial$Target.Angle == this_angle]
+  
+  if (length(ref_trial_num) == 0) {
+    # Skip if no reference trial matches this angle
+    next
+  }
+  
+  # Get the reference trajectory
+  ref_trajectory <- reference_data_long[reference_data_long$Trial.Number == ref_trial_num[1], ]
+  
+  if (nrow(ref_trajectory) == 0) {
+    # Skip if reference trajectory is empty
+    next
+  }
+  
+  # Scale the reference trajectory to match participant's screen dimensions
+  ref_trajectory_scaled <- ref_trajectory
+  ref_trajectory_scaled$x <- ((ref_trajectory_scaled$x) / old_screen_width) * new_screen_width
+  ref_trajectory_scaled$y <- ((ref_trajectory_scaled$y) / old_screen_height) * new_screen_height
+  
+  # Get participant trajectory for this trial
+  participant_trajectory <- my_data_long[my_data_long$Trial.Number == ti, ]
+  
+  if (nrow(participant_trajectory) == 0) {
+    # Skip if participant trajectory is empty
+    next
+  }
+  
+  # Define common time points from the reference (normalized from 0 to 1)
+  ref_times <- seq(0, 1, length.out = 100)
+  
+  # Normalize participant and reference times to 0-1 range for comparison
+  ref_trajectory_scaled$norm_time <- (ref_trajectory_scaled$time - min(ref_trajectory_scaled$time)) / 
+                                     (max(ref_trajectory_scaled$time) - min(ref_trajectory_scaled$time))
+  
+  participant_trajectory$norm_time <- (participant_trajectory$time - min(participant_trajectory$time)) / 
+                                     (max(participant_trajectory$time) - min(participant_trajectory$time))
+  
+  # Interpolate both trajectories to common time points
+  ref_x_interp <- approx(x = ref_trajectory_scaled$norm_time, 
+                        y = ref_trajectory_scaled$x, 
+                        xout = ref_times, 
+                        rule = 2)$y
+  
+  ref_y_interp <- approx(x = ref_trajectory_scaled$norm_time, 
+                        y = ref_trajectory_scaled$y, 
+                        xout = ref_times, 
+                        rule = 2)$y
+  
+  part_x_interp <- approx(x = participant_trajectory$norm_time, 
+                         y = participant_trajectory$x, 
+                         xout = ref_times, 
+                         rule = 2)$y
+  
+  part_y_interp <- approx(x = participant_trajectory$norm_time, 
+                         y = participant_trajectory$y, 
+                         xout = ref_times, 
+                         rule = 2)$y
+  
+  # Compute error (Euclidean distance) at each time point
+  error_values <- sqrt((ref_x_interp - part_x_interp)^2 + (ref_y_interp - part_y_interp)^2)
+  
+  # Compute mean error
+  mean_error <- mean(error_values, na.rm = TRUE)
+  
+  # Add to results
+  results <- rbind(
+    results,
+    data.frame(
+      Trial.Number = ti,
+      Target.Angle = this_angle,
+      MeanError = mean_error,
+      Phase = this_phase,
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+# Print results
+print(results)
+
+# Join error data back to the participant data
+my_data_with_error <- my_data %>%
+  left_join(results, by = c("Trial.Number", "Target.Angle"))
+
+# Create long format for additional metrics
+my_data_long_mod <- my_data_long %>%
+  left_join(results, by = c("Trial.Number", "Target.Angle"))
+```
+
+## Visualization and Analysis
+```{r}
+# Plot the error by trial for each target angle
+error_by_trial_plot <- results %>%
+  ggplot(aes(x = Trial.Number, y = MeanError, color = factor(Target.Angle), linetype = factor(Phase))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Error by Trial and Target Angle",
+       x = "Trial Number",
+       y = "Mean Error",
+       color = "Target Angle",
+       linetype = "Phase") +
+  theme_minimal()
+
+print(error_by_trial_plot)
+
+# Create separate plots for Phase 1 and Phase 2
+phase1_error_plot <- results %>%
+  filter(Phase == 1) %>%
+  ggplot(aes(x = Trial.Number, y = MeanError, color = factor(Target.Angle))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Phase 1: Error by Trial and Target Angle",
+       x = "Trial Number",
+       y = "Mean Error",
+       color = "Target Angle") +
+  theme_minimal()
+
+phase2_error_plot <- results %>%
+  filter(Phase == 2) %>%
+  ggplot(aes(x = Trial.Number, y = MeanError, color = factor(Target.Angle))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Phase 2: Error by Trial and Target Angle",
+       x = "Trial Number",
+       y = "Mean Error",
+       color = "Target Angle") +
+  theme_minimal()
+
+grid.arrange(phase1_error_plot, phase2_error_plot, ncol = 1)
+
+# Compare trajectories with error coloring
+trajectory_with_error_plot <- my_data_long_mod %>%
+  ggplot(aes(x = x, y = y, group = Trial.Number, color = MeanError)) +
+  geom_path() +
+  scale_color_gradient(low = "blue", high = "red") +
+  labs(title = "Trajectories Colored by Error",
+       x = "X Position",
+       y = "Y Position",
+       color = "Mean Error") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  facet_grid(Phase ~ Target.Angle) +
+  theme_minimal()
+
+print(trajectory_with_error_plot)
+
+# Add reference trajectories to the participant plot
+# First, prepare the reference trajectories with proper scaling
+reference_trajectories <- reference_data_long %>%
+  filter(Trial.Number %in% angle_to_ref_trial$Trial.Number) %>%
+  left_join(angle_to_ref_trial, by = "Trial.Number") %>%
+  mutate(
+    x_scaled = ((x) / old_screen_width) * new_screen_width,
+    y_scaled = ((y) / old_screen_height) * new_screen_height
+  )
+
+# Now plot participant trajectories with reference trajectories overlaid
+comparison_plot <- my_data_long_mod %>%
+  ggplot(aes(x = x, y = y, group = Trial.Number, color = MeanError)) +
+  geom_path(alpha = 0.6) +
+  scale_color_gradient(low = "blue", high = "red") +
+  geom_path(data = reference_trajectories, 
+            aes(x = x_scaled, y = y_scaled, group = Trial.Number),
+            color = "black", size = 1, linetype = "dashed") +
+  labs(title = "Participant Trajectories with Reference Paths",
+       x = "X Position",
+       y = "Y Position",
+       color = "Mean Error") +
+  geom_point(aes(x = 0, y = 0), color = "black", size = 4) +
+  facet_grid(Phase ~ Target.Angle) +
+  theme_minimal()
+
+print(comparison_plot)
+
+# Analyze reaction time (RT) and movement time (MT) by trial and phase
+rt_plot <- my_data_with_error %>%
+  ggplot(aes(x = Trial.Number, y = RT, color = factor(Target.Angle), linetype = factor(Phase))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Reaction Time by Trial",
+       x = "Trial Number",
+       y = "Reaction Time (ms)",
+       color = "Target Angle",
+       linetype = "Phase") +
+  theme_minimal()
+
+mt_plot <- my_data_with_error %>%
+  ggplot(aes(x = Trial.Number, y = MT, color = factor(Target.Angle), linetype = factor(Phase))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Movement Time by Trial",
+       x = "Trial Number",
+       y = "Movement Time (ms)",
+       color = "Target Angle",
+       linetype = "Phase") +
+  theme_minimal()
+
+grid.arrange(rt_plot, mt_plot, ncol = 1)
+
+# Summary statistics by phase
+phase_summary <- my_data_with_error %>%
+  group_by(Phase, Target.Angle) %>%
+  summarize(
+    Mean_Error = mean(MeanError, na.rm = TRUE),
+    SD_Error = sd(MeanError, na.rm = TRUE),
+    Mean_RT = mean(RT, na.rm = TRUE),
+    SD_RT = sd(RT, na.rm = TRUE),
+    Mean_MT = mean(MT, na.rm = TRUE),
+    SD_MT = sd(MT, na.rm = TRUE),
+    n = n()
+  )
+
+print(phase_summary)
+
+# Compare error distributions between phases
+phase_error_boxplot <- my_data_with_error %>%
+  ggplot(aes(x = factor(Phase), y = MeanError, fill = factor(Target.Angle))) +
+  geom_boxplot() +
+  labs(title = "Error Distribution by Phase and Target Angle",
+       x = "Phase",
+       y = "Mean Error",
+       fill = "Target Angle") +
+  theme_minimal()
+
+print(phase_error_boxplot)
+```
+
+## Additional Analyses
+```{r}
+# Calculate learning curve - error by block (groups of 4 trials)
+my_data_with_error <- my_data_with_error %>%
+  mutate(Block = ceiling(Trial.Number / 4))
+
+learning_curve <- my_data_with_error %>%
+  group_by(Block, Phase) %>%
+  summarize(
+    Mean_Error = mean(MeanError, na.rm = TRUE),
+    SD_Error = sd(MeanError, na.rm = TRUE),
+    n = n()
+  )
+
+learning_curve_plot <- learning_curve %>%
+  ggplot(aes(x = Block, y = Mean_Error, color = factor(Phase))) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = Mean_Error - SD_Error, ymax = Mean_Error + SD_Error), width = 0.2) +
+  labs(title = "Learning Curve: Error by Block",
+       x = "Block (4 trials per block)",
+       y = "Mean Error",
+       color = "Phase") +
+  theme_minimal()
+
+print(learning_curve_plot)
+
+# Analyze relationship between error and reaction/movement time
+rt_error_correlation <- my_data_with_error %>%
+  ggplot(aes(x = RT, y = MeanError, color = factor(Phase))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Relationship Between Reaction Time and Error",
+       x = "Reaction Time (ms)",
+       y = "Mean Error",
+       color = "Phase") +
+  theme_minimal()
+
+mt_error_correlation <- my_data_with_error %>%
+  ggplot(aes(x = MT, y = MeanError, color = factor(Phase))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(title = "Relationship Between Movement Time and Error",
+       x = "Movement Time (ms)",
+       y = "Mean Error",
+       color = "Phase") +
+  theme_minimal()
+
+grid.arrange(rt_error_correlation, mt_error_correlation, ncol = 1)
+
+# Calculate correlation statistics
+correlation_stats <- my_data_with_error %>%
+  group_by(Phase) %>%
+  summarize(
+    RT_Error_Correlation = cor(RT, MeanError, use = "complete.obs"),
+    MT_Error_Correlation = cor(MT, MeanError, use = "complete.obs")
+  )
+
+print(correlation_stats)
+```
+
+## Save analysis results
+```{r}
+# Save the processed data and results for future use
+write.csv(my_data_with_error, "~/Documents/workspace/OnPoint-Music/Data/analyzed_data/analyzed_data_results.csv", row.names = FALSE)
+
+# Save key plots
+ggsave("~/Documents/workspace/OnPoint-Music/Data/analyzed_data/error_by_trial.png", error_by_trial_plot, width = 10, height = 6)
+ggsave("~/Documents/workspace/OnPoint-Music/Data/analyzed_data/trajectories_with_error.png", trajectory_with_error_plot, width = 10, height = 8)
+ggsave("~/Documents/workspace/OnPoint-Music/Data/analyzed_data/learning_curve.png", learning_curve_plot, width = 8, height = 6)
+```
