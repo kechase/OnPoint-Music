@@ -64,7 +64,6 @@
     <div id="container-consent">
         <div id="consent">
             <h1><b>Welcome!</b></h1>
-            <h2>We're excited you're here and need your consent to proceed.</h2>
             <hr />
             <div class="legal well">
                 <!-- **TODO** REPLACE COMPENSATION AND CONSENT FORM TO YOUR OWN-->
@@ -74,26 +73,24 @@
                 <p>
                     This will take ~15 minutes and you will be compensated upon completion.</p>
                 <p>
-                    Please understand that we <em>reserve the right to not compensate entries</em> that fail to follow
-                    instructions.</p>
+                    Please understand that we <em>reserve the right to not compensate entries that fail to follow
+                    instructions.</em></p>
                 <p>
                     <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned
                         on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
                 </p>
                 <br>
             </div>
-            <h4>If you agree and consent to these terms, click "I Agree" to continue.
-                <p>If you do not agree to these terms, click the red button or simply exit the page.</p>
-            </h4>
+            
             <br />
             <center>
                 <button type="button" class="btn btn-danger btn-lg btn-left"
                     onClick='return show("final-page");'>
-                    <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
+                    <span class="glyphicon glyphicon-ban-circle"></span> I do <b>NOT</b> wish to continue
                 </button>
                 <button type="button" class="btn btn-primary btn-lg btn-right"
                     onClick='return show("container-instructions1");'>
-                    <span class="glyphicon glyphicon-ok"></span> I Agree
+                    <span class="glyphicon glyphicon-ok"></span> Continue
                 </button>
             </center>
         </div>
@@ -117,11 +114,12 @@
             </p>
             <p> In this phase, the instrument will play a sound and you will move your cursor along the line you believe makes that sound. You'll only hear the sound once for each trial. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! 
             </p>
-            Remember:
+            <u>Remember:</u>
             <ul>
                 <li>Use a <strong>trackpad</strong> to complete the task.</li>
                 <li>There are attention checks, so be sure to read their instructions thoroughly. Failing
             these checks will result in an incomplete session!</li>
+                <li>Use CHROME browser. (Others may not work correctly).</li>
             </p>
         </div>
         <hr>
@@ -181,7 +179,7 @@
             <div class="row question">
 
                 <div class="questions" id="id">
-                    MTURK WorkerID:
+                    ProlificID:
                     <input id="email-input" type="text" name="id" value="">
                 </div>
 
