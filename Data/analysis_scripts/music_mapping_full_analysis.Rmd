@@ -20,7 +20,7 @@ This script extracts and visualizes hand movement trajectories from the experime
 
 ```{r data_loading}
 # Load participant data
-my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/2trials_march162025.csv") 
+my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-18trials.csv") 
 
 # Clean column names
 names(my_data) <- gsub(" ", ".", names(my_data))
@@ -573,9 +573,16 @@ if(all(c("Target.Angle", "Phase") %in% names(trajectories_df))) {
 
 ## Save Results
 ```{r save_results}
-# Save results to files
-output_dir <- "~/Documents/workspace/OnPoint-Music/Data/analysis_output"
+# Extract the filename from the input path
+input_file_path <- "~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-18trials.csv"
+input_filename <- basename(input_file_path)
+input_name <- tools::file_path_sans_ext(input_filename)
+
+# Create output directory named after the input file
+output_dir <- file.path("~/Documents/workspace/OnPoint-Music/Data/analysis_output", input_name)
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+
+cat("Saving results to:", output_dir, "\n")
 
 # Save the extracted data
 write.csv(trajectories_df, file.path(output_dir, "trajectory_data.csv"), row.names = FALSE)
@@ -589,8 +596,13 @@ if(exists("custom_color_plot")) {
   ggsave(file.path(output_dir, "custom_color_trajectories.png"), custom_color_plot, width = 10, height = 8)
 }
 
+# More robust handling of enhanced_plot
 if(exists("enhanced_plot")) {
-  ggsave(file.path(output_dir, "enhanced_trajectories.png"), enhanced_plot, width = 10, height = 8, dpi = 300)
+  tryCatch({
+    ggsave(file.path(output_dir, "enhanced_trajectories.png"), enhanced_plot, width = 10, height = 8, dpi = 300)
+  }, error = function(e) {
+    warning("Could not save enhanced_plot: ", e$message)
+  })
 }
 
 if(exists("progression_plot")) {

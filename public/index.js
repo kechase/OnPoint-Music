@@ -1824,6 +1824,7 @@ function gameSetup(data) {
   // Function used to initiate the next trial after uploading reach data and subject data onto the database
   // Cleans up all the variables and displays to set up for the next reach
   function next_trial() {
+    // Record data for the trial that was just completed
     subjTrials.appendTrialBlock(
       tgt_angle[trial],
       rotation[trial],
@@ -1835,81 +1836,93 @@ function gameSetup(data) {
       handPositions, // cursor_data
       handPositions  // This captures the hand_path field
     );
-
+  
     // Screen dimensions
     subjTrials.start_x.push(center.x);
     subjTrials.start_y.push(center.y);
     subjTrials.screen_height.push(screen_height);
     subjTrials.screen_width.push(screen_width);
-
+  
     // Reset timing variables
     rt = 0;
     mt = 0;
     search_time = 0;
     play_sound = true;
-    // this clears it.
     handPositions = [];
-
-    // Get the between blocks message for the NEXT trial
+  
+    // Number of completed trials so far
+    const completedTrials = subjTrials.blocks.length;
+    console.log(`Completed ${completedTrials} trials out of ${num_trials}`);
+    
+    // Update the trial counter display - show consecutive numbers
+    d3.select("#trialcount").text(`Reach Number: ${completedTrials} / ${num_trials}`);
+    
+    // Check if we've completed all trials
+    if (completedTrials >= num_trials) {
+      console.log("All trials completed. Ending experiment.");
+      end_trial();
+      return;
+    }
+    
+    // Get the between blocks message for the trial we just completed
     bb_mess = between_blocks[trial];
-
+  
     // Debug the phase transition
     console.log(`Trial completed: ${trial}, Next bb_mess: ${bb_mess}`);
-
+  
     // When transitioning to Phase 2, create randomized trial order for remaining trials
     if (bb_mess == 2) {
       console.log("Transitioning to Phase 2");
       isPhase2 = true;
       
-      // Create array of remaining trial indices (current trial to end)
-      const remainingTrials = [];
-      for (let i = trial + 1; i < num_trials; i++) {  // Changed from trial to trial + 1
-        remainingTrials.push(i);
+      // Create array of remaining trial indices (current trial+1 to end)
+      const remainingTrialIndices = [];
+      for (let i = trial + 1; i < num_trials; i++) {
+        remainingTrialIndices.push(i);
       } 
   
       // Shuffle the array using Fisher-Yates algorithm
-      for (let i = remainingTrials.length - 1; i > 0; i--) {
+      for (let i = remainingTrialIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [remainingTrials[i], remainingTrials[j]] = [remainingTrials[j], remainingTrials[i]];
+        [remainingTrialIndices[i], remainingTrialIndices[j]] = [remainingTrialIndices[j], remainingTrialIndices[i]];
       }
-
-      trialOrder = remainingTrials;
+  
+      trialOrder = remainingTrialIndices;
       console.log("Randomized trial order for Phase 2:", trialOrder);
     }
-
-    // Increment trial count or take next randomized trial
+  
+    // Determine which trial to run next
     if (isPhase2 && trialOrder.length > 0) {
       // In Phase 2, get the next trial from our randomized order
       trial = trialOrder.shift(); // Remove and return the first element
       console.log("Phase 2: Moving to randomized trial", trial);
-    } else {
+    } else if (!isPhase2) {
       // In Phase 1, just increment normally
       trial += 1;
-    }
-
-    // update trial count display
-    const totalTrials = target_file_data.numtrials;
-    const completedTrials = num_trials - (isPhase2 ? trialOrder.length : (num_trials - trial));
-    d3.select("#trialcount").text(`Reach Number: ${completedTrials} / ${totalTrials}`);
-
-    // Checks whether the experiment is complete, if not continues to next trial
-    if (trial == num_trials) {
+    } else {
+      // We're in Phase 2 but out of trials in trialOrder
+      // This shouldn't happen if all trials are accounted for
+      console.error("Ran out of trials in Phase 2 order but haven't completed all trials");
       end_trial();
-      // display between block message
-  } else if (bb_mess || trial == 1) {
+      return;
+    }
+  
+    // Display any between-block messages if needed
+    if (bb_mess || trial == 1) {
       game_phase = Phase.BETWEEN_BLOCKS;
       console.log(`Displaying message for bb_mess: ${bb_mess}`); 
       // Make sure all message lines exist in the messages array
       if (messages[bb_mess]) {
         displayMessage(bb_mess);
       } else {
-      console.error(`No message found for bb_mess: ${bb_mess}`);
-    }
-  } else {
-    // Continue to next trial
-    search_phase();
+        console.error(`No message found for bb_mess: ${bb_mess}`);
+      }
+    } else {
+      // Continue to next trial
+      search_phase();
     }
   }
+  
 
   // start the trial
   start_trial();
