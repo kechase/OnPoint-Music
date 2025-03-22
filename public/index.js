@@ -441,6 +441,12 @@ const fileContent = {
   },
 };
 
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error("Error occurred: ", message, "at line", lineno);
+  alert("Error: " + message + " at line " + lineno);
+  return true;
+};
+
 //#region Components
 class Circle {
   constructor(parent, point, radius, fill, stroke) {
@@ -602,7 +608,7 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race) {
+  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicTraining, languageCount) {
     super("subject");
     this.id = id,
       this.age = age,
@@ -610,6 +616,8 @@ class Subject extends Database {
       this.handedness = handedness,
       this.mousetype = mousetype,
       this.returner = returner,
+      this.musicTraining = musicTraining, // Now properly defined
+      this.languageCount = languageCount, // Now properly defined
       this.tgt_file = fileName,
       this.ethnicity = ethnicity,
       this.race = race,
@@ -620,8 +628,10 @@ class Subject extends Database {
 
   // contains the basic information required to proceed
   isValid() {
-    return !(!this.id || !this.age || !this.sex || !this.handedness ||
-      !this.mousetype);
+    // Validation logic - if these fields are required, add them to the check
+    return this.id !== "" && this.age !== "" && this.sex !== "" && 
+           this.handedness !== "" && this.mousetype !== "" && this.returner !== "" &&
+           this.musicTraining !== "" && this.languageCount !== "";
   }
 }
 
@@ -775,8 +785,9 @@ window.show = function(shown) {
 }
 
 // Additional event listener to handle initial page load
+// Combine both DOMContentLoaded event listeners into one
 document.addEventListener('DOMContentLoaded', function() {
-  // Set up click handler for the instruction page button
+  // Video player setup for instructions page
   const instructionButton = document.querySelector('button[onClick="return show(\'container-instructions2\');"]');
   if (instructionButton) {
     // Add extra click handler to ensure video plays
@@ -794,6 +805,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }, 100);
     });
+  }
+
+  // Consent form validation setup
+  const consentAge = document.getElementById('consent-age');
+  const consentRead = document.getElementById('consent-read');
+  const consentParticipate = document.getElementById('consent-participate');
+  const agreeButton = document.getElementById('agreeButton');
+  
+  if (consentAge && consentRead && consentParticipate && agreeButton) {
+    // Function to check if all consent boxes are checked
+    function checkConsentStatus() {
+      if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+        agreeButton.disabled = false;
+      } else {
+        agreeButton.disabled = true;
+      }
+    }
+    
+    // Add event listeners to all checkboxes
+    consentAge.addEventListener('change', checkConsentStatus);
+    consentRead.addEventListener('change', checkConsentStatus);
+    consentParticipate.addEventListener('change', checkConsentStatus);
+    
+    // Update the button's click handler
+    agreeButton.onclick = function() {
+      if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+        return window.show("container-instructions1");
+      } else {
+        alert("Please check all three consent boxes to proceed.");
+        return false;
+      }
+    };
   }
 });
 
@@ -922,17 +965,41 @@ function saveFeedback() {
 
 // Function used to check if all questions were filled in info form, if so, starts the experiment
 function checkInfo() {
+  // Get form data using jQuery
   const values = $("#infoform").serializeArray();
-  // form data used to create subject info
+  
+  // Map the form values (adjust indices as needed based on your form)
   const email = values[0].value;
   const age = values[1].value;
   const sex = values[2].value;
   const handedness = values[3].value;
   const mousetype = values[4].value;
-  const returner = values[5].value;
-  const ethnicity = values[6].value;
-  const race = values[7].value;
+  const musicTraining = values[5].value;  // New field
+  const languageCount = values[6].value;  // New field
+  const returner = values[7].value;
+  const ethnicity = values[8].value;
+  const race = values[9].value;
 
+  // Basic validation
+  if (!email || !age || !sex || !handedness || !mousetype || 
+      !musicTraining || !languageCount || !returner) {
+    alert("Please fill out all required information!");
+    return false;
+  }
+  
+  // Age validation
+  if (parseInt(age) < 18 || parseInt(age) > 99) {
+    alert("Please enter a valid age between 18 and 99.");
+    return false;
+  }
+  
+  // Trackpad validation
+  if (mousetype !== 'trackpad') {
+    alert("This experiment requires using a trackpad. Please switch to a trackpad to continue.");
+    return false;
+  }
+
+  // Create subject with all fields
   subject = new Subject(
     email,
     age,
@@ -942,22 +1009,25 @@ function checkInfo() {
     returner,
     ethnicity,
     race,
+    musicTraining,  // new parameter
+    languageCount   // new parameter
   );
+  
+  // Add the new properties to the subject object
+  subject.musicTraining = musicTraining;
+  subject.languageCount = languageCount;
 
-  // validation proceed here
-  if (!subject.isValid()) {
-    alert("Please fill out your basic information!");
-    return;
-  }
-
+  // Continue with experiment
   show("container-exp");
   
   // Only enter full screen if not disabled
   if (!disableFullScreen) {
     openFullScreen();
   }
-  
+  console.log("Starting game with subject data:", subject);  
   startGame();
+  
+  return false; // Prevent form submission
 }
 
 const deg2rad = Math.PI / 180;

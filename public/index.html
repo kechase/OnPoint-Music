@@ -232,15 +232,48 @@
             <div class="row question">
 
                 <div class="questions" id="id">
-                    ProlificID:
+                    ID:
                     <input id="email-input" type="text" name="id" value="">
                 </div>
 
-                <div class="questions" id="age">
+                <div class="questions" id="age-question">
                     Age:
-                    <input id="age" type="number" pattern="[0-9]" onkeypress="return isNumericKey(event)" name="age">
+                    <input id="age-input" type="number" min="18" max="99" 
+                    onkeypress="return isNumericKey(event)" 
+                    oninput="validateTwoDigits(this)"
+                    name="age">
                 </div>
-
+                <script>
+                    function isNumericKey(event) {
+                        // Allow only numeric key presses
+                        return event.charCode >= 48 && event.charCode <= 57;
+                    }
+                    
+                    function validateTwoDigits(input) {
+                        // Get the current value
+                        let value = input.value;
+                        
+                        // Remove any non-digit characters
+                        value = value.replace(/\D/g, '');
+                        
+                        // Limit to 2 digits
+                        if (value.length > 2) {
+                            value = value.slice(0, 2);
+                        }
+                        
+                        // Ensure it's in the 18-99 range
+                        const num = parseInt(value);
+                        if (num < 18) {
+                            // Don't update for now, wait for second digit
+                            if (value.length >= 2) {
+                                value = "18";
+                            }
+                        }
+                
+                        // Update the input value
+                        input.value = value;
+                    }
+                </script>
                 <div class="questions" id="sex">
                     Gender:
                     <select id="gender" name="gender">
@@ -433,48 +466,14 @@
         </div>
     </div>
 
-<script src="static/lib/jquery-min.js"></script>
-<script src="static/lib/bootstrap.min.js"></script>
-<script src="static/lib/d3.v3.min.js"></script>
-<script src="static/lib/underscore-min.js"></script>
-<script src="static/lib/backbone-min.js"></script>
-<script src="index.js"></script>
-<script>
-// Add this below your existing scripts or at the bottom of the page
-document.addEventListener('DOMContentLoaded', function() {
-    const consentAge = document.getElementById('consent-age');
-    const consentRead = document.getElementById('consent-read');
-    const consentParticipate = document.getElementById('consent-participate');
-    const agreeButton = document.getElementById('agreeButton');
+    <script src="static/lib/jquery-min.js"></script>
+    <script src="static/lib/bootstrap.min.js"></script>
+    <script src="static/lib/d3.v3.min.js"></script>
+    <script src="static/lib/underscore-min.js"></script>
+    <script src="static/lib/backbone-min.js"></script>
+    <!-- Remove or comment this line if index.js doesn't exist -->
+    <script src="index.js"></script>
     
-    // Function to check if all consent boxes are checked
-    function checkConsentStatus() {
-        if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
-            agreeButton.disabled = false;
-        } else {
-            agreeButton.disabled = true;
-        }
-    }
-    
-    // Add event listeners to all checkboxes
-    consentAge.addEventListener('change', checkConsentStatus);
-    consentRead.addEventListener('change', checkConsentStatus);
-    consentParticipate.addEventListener('change', checkConsentStatus);
-    
-    // Function to validate consent before proceeding
-    window.validateConsent = function() {
-        if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
-            return show("container-instructions1");
-        } else {
-            alert("Please check all three consent boxes to proceed.");
-            return false;
-        }
-    }
-});
-</script>
-
-
-
 
 </body>
 </html>
