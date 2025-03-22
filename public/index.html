@@ -60,61 +60,109 @@
 </head>
 
 <body>
-    <!-- Consent Page--> 
-    <div id="container-consent">
-        <div id="consent">
-            <h1><b>Welcome!</b></h1>
-            <hr />
-            <div class="legal well">
-                <!-- **TODO** REPLACE COMPENSATION AND CONSENT FORM TO YOUR OWN-->
-                <p>
-                    You're invited to participate in a study named "Playing a New Instrument!"
-                </p>
-                <p>
-                    This will take ~15 minutes and you will be compensated upon completion.</p>
-                <p>
-                    Please understand that we <em>reserve the right to not compensate entries that fail to follow
-                    instructions.</em></p>
-                <p>
-                    <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned
-                        on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
-                </p>
-                <br>
+<!-- Consent Page--> 
+<div id="container-consent">
+    <div id="consent">
+        <h1><b>Welcome!</b></h1>
+        <hr />
+        <div class="legal well">
+            <!-- **TODO** REPLACE COMPENSATION AND CONSENT FORM TO YOUR OWN-->
+            <p>
+                You're invited to participate in a study named "Playing a New Instrument!"
+            </p>
+            <p>
+                This will take ~15 minutes and <b>you will be compensated with course credit upon completion.</b>
+            </p>
+            <p>
+                Please understand that we <em>reserve the right to not compensate entries that fail to follow
+                instructions.</em>
+            </p>
+            <p>
+                <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned
+                    on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
+            </p>
+            <br>
+        
+            <div id="consentForm">
+                <iframe frameborder="1" id="consentForm"
+                    src="https://docs.google.com/file/d/1y6cf3jdVH3puvdBohDbm51slTmXfn_42S6K98tVNxo8/preview"></iframe>
             </div>
-            
-            <br />
-            <center>
-                <button type="button" class="btn btn-danger btn-lg btn-left"
-                    onClick='return show("final-page");'>
-                    <span class="glyphicon glyphicon-ban-circle"></span> I do <b>NOT</b> wish to continue
-                </button>
-                <button type="button" class="btn btn-primary btn-lg btn-right"
-                    onClick='return show("container-instructions1");'>
-                    <span class="glyphicon glyphicon-ok"></span> Continue
-                </button>
-            </center>
+            <button type="button" class="btn btn-default btn-sm">
+                <a href="https://docs.google.com/file/d/1y6cf3jdVH3puvdBohDbm51slTmXfn_42S6K98tVNxo8/preview" target="_blank">
+                    <span class="glyphicon glyphicon-print"></span> Print a copy of this
+                </a>
+            </button>
         </div>
+        
+        <h4>If you agree to each of these three specific consent term, check each box and then click "Continue" to proceed.
+            <p>If you do not agree to these terms, click the red button or simply exit the page.</p>
+        </h4>
+        
+        <div class="consent-checkboxes" style="text-align: left; margin: 20px auto; max-width: 600px;">
+            <div class="checkbox">
+                <label>
+                    <input type="checkbox" id="consent-age" name="consent-age" required> 
+                    I am 18 years or older.
+                </label>
+            </div>
+            <div class="checkbox">
+                <label>
+                    <input type="checkbox" id="consent-read" name="consent-read" required> 
+                    I have read and understand the information above.
+                </label>
+            </div>
+            <div class="checkbox">
+                <label>
+                    <input type="checkbox" id="consent-participate" name="consent-participate" required> 
+                    I want to participate in this research and continue with the tasks.
+                </label>
+            </div>
+        </div>
+        
+        <br />
+        <center>
+            <button type="button" class="btn btn-danger btn-lg btn-left"
+                onClick='return show("final-page");'>
+                <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
+            </button>
+            <button type="button" class="btn btn-primary btn-lg btn-right" id="agreeButton" disabled
+                onClick='return validateConsent();'>
+                <span class="glyphicon glyphicon-ok"></span> Continue
+            </button>
+        </center>
     </div>
+</div>
 
     <!-- Instruction Page 1-->
     <div id="container-instructions1" style="display:none">
         <h1>Playing a New Instrument!</h1>
         <hr>
         <div class="instructions well">
-            <p><u>
-                    This experiment has two phases:
+            <p><u><strong>This experiment has two phases:</strong>
             </p></u>
-            <p>
-                1. TRAINING 
+            <p style="margin-left: 20px; margin-bottom: 20px;">
+                <strong>1. Phase 1: TRAINING</strong> 
             </p>
-            <p>    Your cursor will start in the middle of the screen and a blue dot will appear somewhere within the box. You will then move your cursor toward the blue dot and listen to the sound it creates. You'll be asked to recreate those sounds so listen carefully! 
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                Your cursor will start in the middle of the screen and a blue dot will appear somewhere within the box. 
             </p>
-            <p>
-                2. RECREATING SOUNDS 
+            <p  style="margin-left: 40px; margin-bottom: 10px;">
+                When a blue dot appears, you can then move your cursor toward the blue dot and listen to the sound created along the way. After reaching the target, bring your cursor back to the center circle.
             </p>
-            <p> In this phase, the instrument will play a sound and you will move your cursor along the line you believe makes that sound. You'll only hear the sound once for each trial. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! 
+            <p style="margin-left: 40px; margin-bottom: 40px;">
+                You'll be asked to recreate those sounds so listen carefully! 
             </p>
-            <u>Remember:</u>
+ 
+            <p style="margin-left: 20px; margin-bottom: 20px;">
+                <strong>2. Phase 2: RECREATING SOUNDS</strong><p>   
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                In Phase 2, the instrument will play a sound while you listen. When the sound finishes, your cursor will turn green indicating you can move it along the line you believe makes that sound. You are trying to recreate the sound you heard.
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                Each trial will play the sound only once before you move and recreate it. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! </p>
+            </p>
+            <p><strong><u>Remember:</u></strong>
             <ul>
                 <li>Complete on a laptop (not phone) and use a <strong>trackpad</strong> (not traditional mouse) to complete the task.</li>
                 <li>Use CHROME browser. (Others may not work correctly).</li>
@@ -122,6 +170,10 @@
             these checks will result in an incomplete session!</li>
                 
             </p>
+<!-- Empty paragraphs with increasing space at the end -->
+<p style="margin-bottom: 10px;"></p>
+<p style="margin-bottom: 20px;"></p>
+<p style="margin-bottom: 30px;"></p>
         </div>
         <hr>
         <center>
@@ -219,6 +271,27 @@
                     </select>
                 </div>
 
+                <div class="questions" id="music-experience">
+                    How many years of formal music training do you have:
+                    <select id="music-training" name="music_training">
+                        <option value=""></option>
+                        <option value="0-1">0-1 year</option>
+                        <option value="1-5">1-5 years</option>
+                        <option value="5-10">5-10 years</option>
+                        <option value="10+">10+ years</option>
+                    </select>
+                </div>
+                
+                <div class="questions" id="languages">
+                    How many languages do you speak fluently:
+                    <select id="language-count" name="language_count">
+                        <option value=""></option>
+                        <option value="1">1 (one language only)</option>
+                        <option value="2">2 (two languages total)</option>
+                        <option value="3+">3+ (three or more languages)</option>
+                    </select>
+                </div>
+
                 <div class="questions" id="returner">
                     Have you done our experiments before?
                     <select id="repeat" name="repeater">
@@ -262,7 +335,7 @@
         </form>
         <hr>
         <center>
-            <!-- <h1><b><em>Please enter fullscreen mode before you begin.</em></b></h1> //only for safari
+
             <hr> -->
             <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
                 onClick="return show('container-instructions2');">
@@ -359,7 +432,6 @@
             <h1>Your responses has been saved, thank you!</h1>
         </div>
     </div>
-</body>
 
 <script src="static/lib/jquery-min.js"></script>
 <script src="static/lib/bootstrap.min.js"></script>
@@ -367,5 +439,42 @@
 <script src="static/lib/underscore-min.js"></script>
 <script src="static/lib/backbone-min.js"></script>
 <script src="index.js"></script>
+<script>
+// Add this below your existing scripts or at the bottom of the page
+document.addEventListener('DOMContentLoaded', function() {
+    const consentAge = document.getElementById('consent-age');
+    const consentRead = document.getElementById('consent-read');
+    const consentParticipate = document.getElementById('consent-participate');
+    const agreeButton = document.getElementById('agreeButton');
+    
+    // Function to check if all consent boxes are checked
+    function checkConsentStatus() {
+        if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+            agreeButton.disabled = false;
+        } else {
+            agreeButton.disabled = true;
+        }
+    }
+    
+    // Add event listeners to all checkboxes
+    consentAge.addEventListener('change', checkConsentStatus);
+    consentRead.addEventListener('change', checkConsentStatus);
+    consentParticipate.addEventListener('change', checkConsentStatus);
+    
+    // Function to validate consent before proceeding
+    window.validateConsent = function() {
+        if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+            return show("container-instructions1");
+        } else {
+            alert("Please check all three consent boxes to proceed.");
+            return false;
+        }
+    }
+});
+</script>
 
+
+
+
+</body>
 </html>
