@@ -7,8 +7,6 @@ recruited using [Amazon Mechanical Turk Requester](https://requester.mturk.com/)
 
 [Try the experiment here.](https://onpoint-music.web.app/)
 
-<img src="public/images/demo-auditory-motor-mapping_trimmed.mov" width="720" height="404" />
-
 ## To run the experiment local host
 
 Once you're logged into Firebase you can run 'Firebase serve' via terminal or your command line 
@@ -44,7 +42,7 @@ For a detailed step-by-step breakdown, please visit
 ## Origin of this experiment
 
 The original code base is  
-[github's issue tab](https://github.com/alan-s-lee/Reaching_Exp_Online/)!
+[Alan Lee's Reaching Experiment](https://github.com/alan-s-lee/Reaching_Exp_Online/)!
 
 ## Acknowledgements
 
