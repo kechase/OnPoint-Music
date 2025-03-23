@@ -1131,7 +1131,8 @@ function gameSetup(data) {
           const hi_pitch = 350;
 
           // CHANGE: Now calculating pitch based on y position instead of x
-          const y_proportion = (point.y - squareTop) / squareSize;
+          // top of square is higher pitch, bottom is lower pitch
+          const y_proportion = 1 - (point.y - squareTop) / squareSize;
           const pitch =
             (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
 
@@ -1344,7 +1345,7 @@ function gameSetup(data) {
       // CHANGE: Now calculating pitch from y position
       const lo_pitch = 80;
       const hi_pitch = 350;
-      const y_proportion = (y - squareTop) / squareSize;
+      const y_proportion = 1 - (y - squareTop) / squareSize;
       const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
 
       // update musicbox
