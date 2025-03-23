@@ -20,7 +20,7 @@ This script extracts and visualizes hand movement trajectories from the experime
 
 ```{r data_loading}
 # Load participant data
-my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-18trials.csv") 
+my_data <- read.csv("~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-23_katiesundaysunday.csv") 
 
 # Clean column names
 names(my_data) <- gsub(" ", ".", names(my_data))
@@ -574,7 +574,7 @@ if(all(c("Target.Angle", "Phase") %in% names(trajectories_df))) {
 ## Save Results
 ```{r save_results}
 # Extract the filename from the input path
-input_file_path <- "~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-18trials.csv"
+input_file_path <- "~/Documents/workspace/OnPoint-Music/Data/raw/2025-03-23_katiesundaysunday.csv"
 input_filename <- basename(input_file_path)
 input_name <- tools::file_path_sans_ext(input_filename)
 

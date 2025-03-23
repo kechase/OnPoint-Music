@@ -318,8 +318,8 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
 
 
 # **TODO** Fill in trial_ids list with an appropriate field saved in the database
-trial_ids = ['testing', 'katiekatie', 'katiecc']  
+trial_ids = ['katiefinaldeploytest']  
 # **TODO** Fill in getTrialData('Trials', 40, 'your pathway to TrialData_csv_name.csv', subjects, db)
-getTrialData('Trials', 40, '/Users/katie/Documents/workspace/OnPoint-Music/Data/2trials_march162025.csv', trial_ids, db)
+getTrialData('Trials', 100, '/Users/katie/Documents/workspace/OnPoint-Music/Data/raw/2025-03-23_katiefinaldeploytest.csv', trial_ids, db)
 
 #addTrialData('Trials', 294, 'you_csv_name.csv', subjects, db)

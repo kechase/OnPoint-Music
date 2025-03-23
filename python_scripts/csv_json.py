@@ -58,10 +58,10 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
 Please reference 'OnPoint-Music/csv_tgt_files/demo_csv_file.csv' for how csv files should be formatted.
 """
 #MANUALLY ENTER THIS REAL FILE PATH
-csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/csv_tgt_files/Katie2_csv_file.csv'
+csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/csv_tgt_files/csv_tgt_file_2025-03-25.csv'
 
 #MANUALLY CREATE THIS NOT-YET-REAL FILEPATH SO THIS SCRIPT WILL CREATE THE FILE 
-jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/2025-03-09_csv_file.json'
+jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/csv_tgt_file_2025-03-25.json'
 
 jsonFromCsv(csvFilePath, jsonFilePath)
 
