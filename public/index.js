@@ -608,16 +608,18 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicTraining, languageCount) {
+  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicTraining, languageCount, musicInstrument, musicPractice) {
     super("subject");
-    this.id = id,
+      this.id = id,
       this.age = age,
       this.sex = sex,
       this.handedness = handedness,
       this.mousetype = mousetype,
       this.returner = returner,
-      this.musicTraining = musicTraining, // Now properly defined
-      this.languageCount = languageCount, // Now properly defined
+      this.musicTraining = musicTraining, 
+      this.languageCount = languageCount,
+      this.musicInstrument = musicInstrument,
+      this.musicPractice = musicPractice,
       this.tgt_file = fileName,
       this.ethnicity = ethnicity,
       this.race = race,
@@ -631,7 +633,7 @@ class Subject extends Database {
     // Validation logic - if these fields are required, add them to the check
     return this.id !== "" && this.age !== "" && this.sex !== "" && 
            this.handedness !== "" && this.mousetype !== "" && this.returner !== "" &&
-           this.musicTraining !== "" && this.languageCount !== "";
+           this.musicTraining !== "" && this.musicInstrument !== "" && this.musicPractice !== "" && this.languageCount !== "";
   }
 }
 
@@ -736,6 +738,15 @@ class Log extends Database {
 function isNumericKey(event) {
   const code = (event.which) ? event.which : event.keyCode;
   return !(code > 31 && (code < 48 || code > 57));
+}
+
+function getFormValue(formValues, name) {
+  for (let i = 0; i < formValues.length; i++) {
+    if (formValues[i].name === name) {
+      return formValues[i].value;
+    }
+  }
+  return "";
 }
 
 // variable to hold current display page. Will be used to hide when show is called
@@ -912,17 +923,19 @@ const Phase = Object.freeze({
 // Function used to create/update data in the target collection
 function updateCollection(collection, subject) {
   if (noSave) {
+    console.log("Would have saved to database:", subject);
     return null;
   }
+  console.log("Saving to Firebase:", subject);
 
   // **TODO**: Test and verify this working
   return collection.doc(subject.id).set(subject)
     .then(function () {
-      console.log(subject);
+      console.log("Successfully saved data:", subject);
       return true;
     })
     .catch(function (err) {
-      console.error(err);
+      console.error("Error saving to Firebase:", err);
       throw err;
     });
 }
@@ -953,6 +966,10 @@ function saveFeedback() {
     tgt_file: fileName,
     ethnicity: subject.ethnicity,
     race: subject.race,
+    musicTraining: subject.musicTraining,  
+    languageCount: subject.languageCount, 
+    musicInstrument: subject.musicInstrument,
+    musicPractice: subject.musicPractice, 
     comments: subject.comments,
     distractions: subject.distractions,
     distracto: subject.distracto,
@@ -969,20 +986,22 @@ function checkInfo() {
   const values = $("#infoform").serializeArray();
   
   // Map the form values (adjust indices as needed based on your form)
-  const email = values[0].value;
-  const age = values[1].value;
-  const sex = values[2].value;
-  const handedness = values[3].value;
-  const mousetype = values[4].value;
-  const musicTraining = values[5].value;  // New field
-  const languageCount = values[6].value;  // New field
-  const returner = values[7].value;
-  const ethnicity = values[8].value;
-  const race = values[9].value;
+  const identification = getFormValue(values, "id");
+  const age = getFormValue(values, "age");
+  const sex = getFormValue(values, "gender");
+  const handedness = getFormValue(values, "hand");
+  const mousetype = getFormValue(values, "mousetype");
+  const musicTraining = getFormValue(values, "music_training");
+  const musicInstrument = getFormValue(values, "music_instrument");
+  const musicPractice = getFormValue(values, "music_practice");
+  const languageCount = getFormValue(values, "language_count");
+  const returner = getFormValue(values, "repeater");
+  const ethnicity = getFormValue(values, "ethnic");
+  const race = getFormValue(values, "race");
 
   // Basic validation
-  if (!email || !age || !sex || !handedness || !mousetype || 
-      !musicTraining || !languageCount || !returner) {
+  if (!identification || !age || !sex || !handedness || !mousetype || 
+      !musicTraining || !languageCount || !returner || !musicInstrument || !musicPractice) {
     alert("Please fill out all required information!");
     return false;
   }
@@ -1001,7 +1020,7 @@ function checkInfo() {
 
   // Create subject with all fields
   subject = new Subject(
-    email,
+    identification,
     age,
     sex,
     handedness,
@@ -1009,13 +1028,17 @@ function checkInfo() {
     returner,
     ethnicity,
     race,
-    musicTraining,  // new parameter
-    languageCount   // new parameter
+    musicTraining,  
+    languageCount,
+    musicInstrument,
+    musicPractice  
   );
   
   // Add the new properties to the subject object
   subject.musicTraining = musicTraining;
   subject.languageCount = languageCount;
+  subject.musicInstrument = musicInstrument;
+  subject.musicPractice = musicPractice;
 
   // Continue with experiment
   show("container-exp");
@@ -1029,6 +1052,41 @@ function checkInfo() {
   
   return false; // Prevent form submission
 }
+
+function validateHours(input) {
+  // Get the current value
+  let value = input.value;
+  
+  // Remove any non-digit characters
+  value = value.replace(/\D/g, '');
+  
+    // Ensure it's in the 0-168 range (max hours in a week)
+    if (value !== "") {
+      const num = parseInt(value);
+      if (num > 168) {
+          value = "168";
+      }
+  }
+  
+  // Update the input value
+  input.value = value;
+}
+
+function validateConsent() {
+  const consentAge = document.getElementById('consent-age');
+  const consentRead = document.getElementById('consent-read');
+  const consentParticipate = document.getElementById('consent-participate');
+  
+  if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+    return show('container-instructions1');
+  } else {
+    alert("Please check all three consent boxes to proceed.");
+    return false;
+  }
+}
+
+// Make the function globally accessible
+window.validateConsent = validateConsent;
 
 const deg2rad = Math.PI / 180;
 const rad2deg = 180 / Math.PI;

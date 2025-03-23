@@ -285,12 +285,12 @@
                 </div>
 
                 <div class="questions" id="handedness">
-                    Right or left handed:
+                    Please select your handedness:
                     <select id="hand" name="hand">
                         <option value=""></option>
-                        <option value="righth">Right</option>
-                        <option value="lefth">Left</option>
                         <option value="bothh">Ambidextrous</option>
+                        <option value="lefth">Left</option>
+                        <option value="righth">Right</option>
                     </select>
                 </div>
 
@@ -305,7 +305,7 @@
                 </div>
 
                 <div class="questions" id="music-experience">
-                    How many years of formal music training do you have:
+                    How many total years of musical experience do you have? (Formal and informal)
                     <select id="music-training" name="music_training">
                         <option value=""></option>
                         <option value="0-1">0-1 year</option>
@@ -315,6 +315,23 @@
                     </select>
                 </div>
                 
+                <div class="questions" id="music-instrument">
+                    Do you, or have you ever, played a musical instrument?
+                    <select id="music-instrument-input" name="music_instrument">
+                        <option value=""></option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>       
+                    </select>
+                </div>
+               
+                <div class="questions" id="music-practice">
+                    How many hours of practice do you complete per week:
+                    <input id="music-practice-input" type="number" min="0" max="168" 
+                    onkeypress="return isNumericKey(event)" 
+                    oninput="validateHours(this)"
+                    name="music_practice">
+                </div>
+               
                 <div class="questions" id="languages">
                     How many languages do you speak fluently:
                     <select id="language-count" name="language_count">
@@ -433,7 +450,6 @@
                 </button>
             </center>
             <!-- **TODO** Customize the message you want for your experiment -->
-            <h2>If you do not receive compensation in 14 business days please reach out to ___.</h2>
             <h2>Have a wonderful day!</h2>
             <!-- <h2>You have a wonderful life now!</h2> -->
         </div>
