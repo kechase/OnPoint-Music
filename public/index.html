@@ -413,10 +413,8 @@
             <img id="adlogo" src="images/university.png" alt="Lab Logo" />
         </div>
         <div class="media-body">
-            <h1>Thanks for your participation!</h1>
-            <hr />
 
-            <h2>Now just two more question and you're done! You must answer these questions and click SUBMIT to get credit!</h2>
+            <h2>You must answer these questions and click SUBMIT to get credit! Just two more question and you're done! </h2>
             <form id="distractionForm">
                 <div class="question" id="distraction">
                     Please check any items that you have engaged in during the task. Please answer truthfully (there
@@ -447,13 +445,15 @@
                     <input id="feedback1" type="text" name="feedback1" value="">
                 </div>
             </form>
-            <center>
+            <div style="text-align: left;">
                 <button type="button" id="end" value="final" onClick="saveFeedback();">
-                    SUBMIT
+                    <b>SUBMIT</b>
                 </button>
-            </center>
+            </div>
             <!-- **TODO** Customize the message you want for your experiment -->
-            <h2>Have a wonderful day!</h2>
+            <br>
+        </br>
+            
             <!-- <h2>You have a wonderful life now!</h2> -->
         </div>
     </div>
@@ -481,6 +481,7 @@
             <img id="adlogo" src="images/university.png" alt="Lab Logo" />
         </div>
         <div class="media-body">
+            <h1>Thanks for your participation!</h1>
             <h1>Your responses has been saved, thank you!</h1>
 
             <p>
@@ -496,7 +497,7 @@
             Technically, this is called auditory-motor mapping, and we're interested in how it works. Thanks for contributing your time to help us advance our knowledge! </p>
         </div>
     </div>
-
+    
     <script src="static/lib/jquery-min.js"></script>
     <script src="static/lib/bootstrap.min.js"></script>
     <script src="static/lib/d3.v3.min.js"></script>
