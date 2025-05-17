@@ -74,12 +74,10 @@
                 This will take ~15 minutes and <b>you will be compensated with course credit upon completion.</b>
             </p>
             <p>
-                Please understand that we <em>reserve the right to not compensate entries that fail to follow
-                instructions.</em>
+                Please understand that we <em>reserve the right to not compensate entries that fail to follow instructions.</em>
             </p>
             <p>
-                <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned
-                    on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
+                <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
             </p>
             <br>
         
@@ -234,9 +232,9 @@
         <form id='infoform'>
             <div class="row question">
 
-                <div class="questions" id="id">
+                <div class="questions" id="prolific_id">
                     Prolific ID:
-                    <input id="email-input" type="text" name="id" value="">
+                    <input id="prolific_id" type="text" name="prolific_id" value="">
                 </div>
                 <script>
                     function isNumericKey(event) {
@@ -279,15 +277,40 @@
                     </select>
                 </div>
 
-                <div class="questions" id="music-experience">
+                <div class="questions" id="music_experience">
                     How many total years of musical experience do you have? (Formal and informal)
-                    <select id="music-training" name="music_training">
-                        <option value=""></option>
-                        <option value="0-1">0-1 year</option>
-                        <option value="1-5">1-5 years</option>
-                        <option value="5-10">5-10 years</option>
-                        <option value="10+">10+ years</option>
-                    </select>
+                    <input id="music_experience" type="number" name="music_experience" min="0" max="99" 
+                           onkeypress="return isNumericKey(event)" 
+                           oninput="validateTwoDigits(this)">
+                </div>
+                <script>
+                    function isNumericKey(event) {
+                        // Allow only numeric key presses
+                        return event.charCode >= 48 && event.charCode <= 57;
+                    }
+                    
+                    function validateTwoDigits(input) {
+                        // Get the current value
+                        let value = input.value;
+                        
+                        // Remove any non-digit characters
+                        value = value.replace(/\D/g, '');
+                        
+                        // Limit to 2 digits
+                        if (value.length > 2) {
+                            value = value.slice(0, 2);
+                        }
+                        
+                        // Ensure it's in the 0-99 range
+                        const num = parseInt(value);
+                        if (num > 99) {
+                            value = "99";
+                        }
+                        
+                        // Update the input value
+                        input.value = value;
+                    }
+                </script>
                 </div>
                 
 
@@ -307,75 +330,6 @@
             </button>
         </center>
     </div>
-    <script>
-        // New checkInfo function specifically for your modified form
-        function checkInfo() {
-            // Get all required fields from your modified form
-            const prolificId = document.getElementById('email-input').value.trim();
-            const mouseType = document.getElementById('mousetype').value;
-            const musicTraining = document.getElementById('music-training').value;
-            
-            // Check if all fields are filled
-            if (!prolificId) {
-                alert('Please enter your Prolific ID');
-                document.getElementById('email-input').focus();
-                return false;
-            }
-            
-            if (!age) {
-                alert('Please enter your age');
-                document.getElementById('age-input').focus();
-                return false;
-            }
-            
-            if (!gender) {
-                alert('Please select your gender');
-                document.getElementById('gender').focus();
-                return false;
-            }
-            
-            if (!mouseType) {
-                alert('Please select your mouse type');
-                document.getElementById('mousetype').focus();
-                return false;
-            }
-            
-            if (!musicTraining) {
-                alert('Please select your musical experience');
-                document.getElementById('music-training').focus();
-                return false;
-            }
-            
-            // If we get here, all fields are filled
-            console.log('All fields validated successfully!');
-            
-            // Proceed to experiment container
-            show('container-exp');
-            return true;
-        }
-        
-        // Make sure the show function exists if not already defined
-        if (typeof window.show !== 'function') {
-            window.show = function(id) {
-                // Hide all containers
-                const containers = document.querySelectorAll('[id^="container-"]');
-                containers.forEach(container => {
-                    container.style.display = 'none';
-                });
-                
-                // Show the requested container
-                document.getElementById(id).style.display = 'block';
-                return false;
-            };
-        }
-        
-        // Additional function to bypass validation if needed for debugging
-        function skipToExperiment() {
-            show('container-exp');
-        }
-        
-        console.log("Form validation updated for the modified form structure");
-        </script>
 
     <!-- Game page -->
     <div id="container-exp" style="display:none">
@@ -411,10 +365,12 @@
                     <input type="checkbox" id="distract7" name="distract7" value="other">
                     <label for="distract4"> Other</label><br>
                 </div>
-                <div class="question" id="feedback">
+                <div class="question" id="distracto">
                     If you checked "Other," please indicate here:
                     <input id="distracto" type="text" name="distracto" value="">
                 </div>
+                </form>
+                <form id="demographicsForm">
                 <div class="questions" id="age-question">
                     Age:
                     <input id="age-input" type="number" min="18" max="99" 
@@ -439,7 +395,6 @@
                         <option value="no">No</option>       
                     </select>
                 </div>
-               
                 <div class="questions" id="music-practice">
                     How many hours of practice do you complete per week:
                     <input id="music-practice-input" type="number" min="0" max="168" 
@@ -447,7 +402,6 @@
                     oninput="validateHours(this)"
                     name="music_practice">
                 </div>
-               
                 <div class="questions" id="languages">
                     How many languages do you speak?
                     <select id="language-count" name="language_count">
@@ -457,7 +411,6 @@
                         <option value="3+">3+ (three or more languages)</option>
                     </select>
                 </div>
-
                 <div class="questions" id="returner">
                     Have you done our experiments before?
                     <select id="repeat" name="repeater">
@@ -476,8 +429,7 @@
                         <option value="righth">Right</option>
                     </select>
                 </div>
-                <hr>
-
+                <hr style="height: 3px; background-color: black; border: none;">
                 <p>
                     The following information is requested by the National Institute of Health. You are not
                     <em>required</em>, but are encouraged to complete these.
@@ -506,10 +458,11 @@
                     </select>
                 </div>
             </form>
+            <hr style="height: 3px; background-color: black; border: none;">
             <form id="feedbackForm">
                 <div class="question" id="feedback1">
-                    Let us know if you had any issues with this experiment.
-                    <input id="feedback1" type="text" name="feedback1" value="">
+                    Let us know if you had any issues with this experiment or if you have any feedback for us (or simply type "none")
+                    <input id="feedback_final" type="text" name="feedback_final" value="">
                 </div>
             </form>
             <div style="text-align: left;">
@@ -517,6 +470,8 @@
                     <b>SUBMIT</b>
                 </button>
             </div>
+            </form>
+            </hr> 
             <!-- **TODO** Customize the message you want for your experiment -->
             <!-- <h2>You have a wonderful life now!</h2> -->
         </div>

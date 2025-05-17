@@ -208,7 +208,7 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicTraining, languageCount, musicInstrument, musicPractice) {
+  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicExperience, languageCount, musicInstrument, musicPractice) {
     super("subject");
       this.id = id,
       this.age = age,
@@ -216,7 +216,7 @@ class Subject extends Database {
       this.handedness = handedness,
       this.mousetype = mousetype,
       this.returner = returner,
-      this.musicTraining = musicTraining, 
+      this.musicExperience = musicExperience, 
       this.languageCount = languageCount,
       this.musicInstrument = musicInstrument,
       this.musicPractice = musicPractice,
@@ -233,7 +233,7 @@ class Subject extends Database {
     // Validation logic - if these fields are required, add them to the check
     return this.id !== "" && this.age !== "" && this.sex !== "" && 
            this.handedness !== "" && this.mousetype !== "" && this.returner !== "" &&
-           this.musicTraining !== "" && this.musicInstrument !== "" && this.musicPractice !== "" && this.languageCount !== "";
+           this.musicExperience !== "" && this.musicInstrument !== "" && this.musicPractice !== "" && this.languageCount !== "";
   }
 }
 
@@ -503,7 +503,7 @@ try {
   console.error(e);
 }
 
-// this issue may have to do with the fact that I'm running in offline mode, no internet connected to provide me access to firebase data information?
+// Initialize Firebase
 // Setting up firebase variables
 const firestore = firebase.firestore(); // (a.k.a.) db
 const firebasestorage = firebase.storage();
@@ -540,58 +540,18 @@ function updateCollection(collection, subject) {
     });
 }
 
-// Function used to save the feedback from the final HTML page
-function saveFeedback() {
-  let values = $("#feedbackForm").serializeArray();
-  for (let i = 0; i < values.length; i++) {
-    if (values[0].value != "") {
-      subject.comments = values[0].value;
-    }
-
-    values = $("#distractionForm").serializeArray();
-    subject.distractions.push(values[i].value);
-    if (values[i].value == "other") {
-      subject.distracto = values[i + 1].value;
-      break;
-    }
-  }
-
-  const subject_data = {
-    id: subject.id,
-    age: subject.age,
-    sex: subject.sex,
-    handedness: subject.handedness,
-    mousetype: subject.mousetype,
-    returner: subject.returner,
-    tgt_file: fileName,
-    ethnicity: subject.ethnicity,
-    race: subject.race,
-    musicTraining: subject.musicTraining,  
-    languageCount: subject.languageCount, 
-    musicInstrument: subject.musicInstrument,
-    musicPractice: subject.musicPractice, 
-    comments: subject.comments,
-    distractions: subject.distractions,
-    distracto: subject.distracto,
-  };
-
-  // we should be saving the subject here?
-  updateCollection(subjectcollection, subject_data);
-  show("final-page");
-}
-
-// Function used to check if all questions were filled in info form, if so, starts the experiment
+// Function used to check if all pre-experiment questions were filled in and, if so, starts the experiment
 function checkInfo() {
   // Get form data using jQuery
   const values = $("#infoform").serializeArray();
   
-  // Map the form values (adjust indices as needed based on your form)
-  const identification = getFormValue(values, "id");
+  // Map the form values 
+  const prolific_id = getFormValue(values, "prolific_id");
   const mousetype = getFormValue(values, "mousetype");
-  const musicTraining = getFormValue(values, "music_training");
+  const musicExperience = getFormValue(values, "music_experience");
 
   // Basic validation
-  if (!identification || !mousetype || !musicTraining ) {
+  if (!prolific_id || !mousetype || !musicExperience ) {
     alert("Please fill out all required information!");
     return false;
   }
@@ -602,9 +562,23 @@ function checkInfo() {
     return false;
   }
 
+  // music experience validation
+  // Additional validation to ensure musicExperience is not empty
+  if (!musicExperience) {
+    alert("Please enter your music experience!");
+    document.getElementById("music_experience").focus();
+    return false;
+}
+  // Optional: Ensure it's a number if that's what you expect
+  if (isNaN(musicExperience)) {
+    alert("Please enter a valid number for music experience!");
+    document.getElementById("music_experience").focus();
+    return false;
+}
+
   // Create subject with all fields
   subject = new Subject(
-    identification,  // Prolific ID
+    prolific_id,  // Prolific ID
     "",              // Age (will collect later)
     "",              // Gender (will collect later)
     "",              // Handedness (will collect later)
@@ -612,7 +586,7 @@ function checkInfo() {
     "",              // Returner (will collect later)
     "",              // Ethnicity (will collect later)
     "",              // Race (will collect later)
-    musicTraining,   // Music training
+    musicExperience, // Music experience
     "",              // Language count (will collect later)
     "",              // Music instrument (will collect later)
     ""               // Music practice (will collect later)
@@ -630,25 +604,11 @@ function checkInfo() {
   
   return false; // Prevent form submission
 }
-
-function validateHours(input) {
-  // Get the current value
-  let value = input.value;
-  
-  // Remove any non-digit characters
-  value = value.replace(/\D/g, '');
-  
-    // Ensure it's in the 0-168 range (max hours in a week)
-    if (value !== "") {
-      const num = parseInt(value);
-      if (num > 168) {
-          value = "168";
-      }
-  }
-  
-  // Update the input value
-  input.value = value;
-}
+// Function to validate consent checkboxes
+// This function is called when the user clicks the "I agree" button
+// It checks if all three consent checkboxes are checked
+// If they are, it shows the next page; if not, it alerts the user
+// and prevents the form from being submitted
 
 function validateConsent() {
   const consentAge = document.getElementById('consent-age');
@@ -1675,7 +1635,7 @@ function helpEnd() {
   try {
     console.log("Preparing trial data for save...");
     
-    // Create a comprehensive record of all trial data
+    // #### Create a comprehensive record of all trial data
     const subjTrial_data = {
       id: subjTrials.id,
       experimentID: subjTrials.experimentID,
@@ -1780,8 +1740,189 @@ function badGame() {
 
 // Function that ends the game appropriately after the experiment has been completed
 function endGame() {
+  // save the data
+
+  // show questionaire
   show("container-not-an-ad");
+  
+  // release fullscreen and restore cursor
   helpEnd();
+
+  // participant has completed the experiment
+  // show the questionaire
+  // the SUBMIT button will call the function to save the data
+  // and close the questionaire
+  // show("container-questionaire");
+}
+
+// Functions that need to be outside of the main function
+
+// Function to validate the age input
+function validateAge(input) {
+  // Get the current value
+  let value = input.value;
+
+  // Remove any non-digit characters
+  value = value.replace(/\D/g, '');
+  // Ensure it's in the 0-120 range
+  if (value !== "") {
+    const num = parseInt(value);
+    if (num > 120) {
+      value = "120";
+    }
+  }
+  // Update the input value
+  input.value = value;
+}
+// Function to validate the music practice input
+function validateHours(input) {
+  // Get the current value
+  let value = input.value;   
+  // Remove any non-digit characters
+  value = value.replace(/\D/g, '');
+    // Ensure it's in the 0-168 range (max hours in a week)
+    if (value !== "") {
+      const num = parseInt(value);
+      if (num > 168) {
+          value = "168";
+      }
+  }
+  // Update the input value
+  input.value = value;
+}
+
+// Function used to save the feedback from the final HTML page
+function saveFeedback() {
+  // Initialize distractions array
+  subject.distractions = [];
+  
+  // Process distraction checkboxes
+  for (let i = 1; i <= 7; i++) {
+    const checkbox = document.getElementById(`distract${i}`);
+    if (checkbox && checkbox.checked) {
+      subject.distractions.push(checkbox.value);
+      
+      // If "Other" is checked, get the text
+      if (checkbox.value === "other") {
+        const distractoInput = document.querySelector('input[name="distracto"]');
+        if (distractoInput) {
+          subject.distracto = distractoInput.value;
+        }
+      }
+    }
+  }
+
+  // Get demographic information directly from DOM elements
+  const age = document.getElementById("age-input") ? document.getElementById("age-input").value : "";
+  const gender = document.getElementById("gender") ? document.getElementById("gender").value : "";
+  const musicInstrument = document.getElementById("music-instrument-input") ? document.getElementById("music-instrument-input").value : "";
+  const musicPractice = document.getElementById("music-practice-input") ? document.getElementById("music-practice-input").value : "";
+  const languageCount = document.getElementById("language-count") ? document.getElementById("language-count").value : "";
+  const returner = document.getElementById("repeat") ? document.getElementById("repeat").value : "";
+  const handedness = document.getElementById("hand") ? document.getElementById("hand").value : "";
+  const ethnicity = document.getElementById("ethnic") ? document.getElementById("ethnic").value : "";
+  const race = document.getElementById("race") ? document.getElementById("race").value : "";
+
+  
+  // Calling the function to validate the age input
+  const ageInput = document.getElementById("age-input");
+  if (ageInput) {
+    // Call the validation function
+    validateAge(ageInput);
+  }
+  
+  // Calling the function to validate the hours input
+  const hoursInput = document.getElementById("music-practice-input");
+  if (hoursInput) {
+    // Call the validation function
+    validateHours(hoursInput);
+  }
+  // Validate required fields
+  const requiredFields = [
+    { name: "Age", value: age },
+    { name: "Music practice hours", value: musicPractice },
+    { name: "Gender", value: gender },
+    { name: "Musical instrument question", value: musicInstrument },
+    { name: "Language count", value: languageCount },
+    { name: "Experiment returner", value: returner },
+    { name: "Handedness", value: handedness }
+  ];
+  
+  // Get feedback text - SIMPLIFIED VERSION
+  const feedbackInput = document.getElementById('feedback_final');
+  // Always set comments to a string value, empty string if no input
+  subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
+
+  // Log for debugging
+  console.log("Feedback captured:", subject.comments);
+
+  const missingFields = requiredFields.filter(field => !field.value);
+  
+  if (missingFields.length > 0) {
+    alert(`Please complete all required fields before submitting. Missing: ${missingFields.map(f => f.name).join(", ")}`);
+    return false;
+  }
+
+  // Update the subject object with the new information
+  subject.age = age;
+  subject.sex = gender;
+  subject.handedness = handedness;
+  subject.returner = returner;
+  subject.ethnicity = ethnicity || ""; // Optional field
+  subject.race = race || ""; // Optional field
+  subject.languageCount = languageCount;
+  subject.musicInstrument = musicInstrument;
+  subject.musicPractice = musicPractice || "0"; // Default to 0 if empty
+
+  // Log for debugging
+  console.log("Subject data before saving:", {
+    id: subject.id,
+    age: subject.age,
+    sex: subject.sex,
+    handedness: subject.handedness,
+    mousetype: subject.mousetype,
+    returner: subject.returner,
+    musicExperience: subject.musicExperience,
+    languageCount: subject.languageCount,
+    musicInstrument: subject.musicInstrument,
+    musicPractice: subject.musicPractice,
+    ethnicity: subject.ethnicity,
+    race: subject.race,
+    comments: subject.comments,
+    distractions: subject.distractions,
+    distracto: subject.distracto
+  });
+
+  // Prepare data for Firebase
+  const subject_data = {
+    id: subject.id,
+    age: subject.age,
+    sex: subject.sex,
+    handedness: subject.handedness,
+    mousetype: subject.mousetype,
+    returner: subject.returner,
+    tgt_file: fileName,
+    ethnicity: subject.ethnicity,
+    race: subject.race,
+    musicExperience: subject.musicExperience,
+    languageCount: subject.languageCount,
+    musicInstrument: subject.musicInstrument,
+    musicPractice: subject.musicPractice,
+    comments: subject.comments,
+    distractions: subject.distractions,
+    distracto: subject.distracto
+  };
+
+  // Save to Firebase
+  updateCollection(subjectcollection, subject_data)
+    .then(function() {
+      console.log("Subject data successfully saved to Firebase");
+      show("final-page");
+    })
+    .catch(function(error) {
+      console.error("Error saving subject data to Firebase:", error);
+      alert("There was an error saving your data. Please contact the experimenter.");
+    });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
