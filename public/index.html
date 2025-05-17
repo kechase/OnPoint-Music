@@ -191,7 +191,7 @@
     <!-- Instruction Page 2
         **TODO** Update the code in the instructions if necessary-->
     <div id="container-instructions2" style="display:none">
-        <h1>We're almost ready, Let's Make Sure You've Got it</h1>
+        <h1>We're almost ready, let's make sure you've got it</h1>
         <hr>
         <div class="instructions well">
             <center><p style="color:red">
@@ -225,7 +225,7 @@
     </div>
 
     <!-- Initial Form for basic information 
-    **TODO** Update questions accordingly to what kinds of information you require-->
+    **TODO** Update questions based on information your requires -->
     <div id="container-info" style="display:none">
         <!-- CHANGE INDEX.JS CHECKINFO() IF MODIFIED -->
         <h1>Basic Information</h1>
@@ -235,16 +235,8 @@
             <div class="row question">
 
                 <div class="questions" id="id">
-                    SONA ID:
+                    Prolific ID:
                     <input id="email-input" type="text" name="id" value="">
-                </div>
-
-                <div class="questions" id="age-question">
-                    Age:
-                    <input id="age-input" type="number" min="18" max="99" 
-                    onkeypress="return isNumericKey(event)" 
-                    oninput="validateTwoDigits(this)"
-                    name="age">
                 </div>
                 <script>
                     function isNumericKey(event) {
@@ -277,26 +269,6 @@
                         input.value = value;
                     }
                 </script>
-                <div class="questions" id="sex">
-                    Gender:
-                    <select id="gender" name="gender">
-                        <option value=""></option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Genderqueer/Non-Binary</option>
-                    </select>
-                </div>
-
-                <div class="questions" id="handedness">
-                    Please select your handedness:
-                    <select id="hand" name="hand">
-                        <option value=""></option>
-                        <option value="bothh">Ambidextrous</option>
-                        <option value="lefth">Left</option>
-                        <option value="righth">Right</option>
-                    </select>
-                </div>
-
                 <div class="questions" id="mouseQ">
                     What kind of mouse are you using (Please only use trackpads):
                     <select id="mousetype" name="mousetype">
@@ -318,6 +290,147 @@
                     </select>
                 </div>
                 
+
+            </div>
+        </form>
+        <hr>
+        <center>
+
+            <hr>
+            <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
+                onClick="return show('container-instructions2');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
+                onClick="return checkInfo();">
+                Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
+            </button>
+        </center>
+    </div>
+    <script>
+        // New checkInfo function specifically for your modified form
+        function checkInfo() {
+            // Get all required fields from your modified form
+            const prolificId = document.getElementById('email-input').value.trim();
+            const mouseType = document.getElementById('mousetype').value;
+            const musicTraining = document.getElementById('music-training').value;
+            
+            // Check if all fields are filled
+            if (!prolificId) {
+                alert('Please enter your Prolific ID');
+                document.getElementById('email-input').focus();
+                return false;
+            }
+            
+            if (!age) {
+                alert('Please enter your age');
+                document.getElementById('age-input').focus();
+                return false;
+            }
+            
+            if (!gender) {
+                alert('Please select your gender');
+                document.getElementById('gender').focus();
+                return false;
+            }
+            
+            if (!mouseType) {
+                alert('Please select your mouse type');
+                document.getElementById('mousetype').focus();
+                return false;
+            }
+            
+            if (!musicTraining) {
+                alert('Please select your musical experience');
+                document.getElementById('music-training').focus();
+                return false;
+            }
+            
+            // If we get here, all fields are filled
+            console.log('All fields validated successfully!');
+            
+            // Proceed to experiment container
+            show('container-exp');
+            return true;
+        }
+        
+        // Make sure the show function exists if not already defined
+        if (typeof window.show !== 'function') {
+            window.show = function(id) {
+                // Hide all containers
+                const containers = document.querySelectorAll('[id^="container-"]');
+                containers.forEach(container => {
+                    container.style.display = 'none';
+                });
+                
+                // Show the requested container
+                document.getElementById(id).style.display = 'block';
+                return false;
+            };
+        }
+        
+        // Additional function to bypass validation if needed for debugging
+        function skipToExperiment() {
+            show('container-exp');
+        }
+        
+        console.log("Form validation updated for the modified form structure");
+        </script>
+
+    <!-- Game page -->
+    <div id="container-exp" style="display:none">
+    </div>
+
+    <!-- Thank you page 
+        **TODO** Update the completion code if necessary-->
+    <div id="container-not-an-ad" style="display:none">
+        <div class="media-left pull-left" href="#">
+            <!-- REPLACE THE LOGO HERE WITH YOUR  UNIVERSITY, LAB, or COMPANY -->
+            <img id="adlogo" src="images/university.png" alt="Lab Logo" />
+        </div>
+        <div class="media-body">
+
+            <h2><p>You're almost done. </p>
+                <p>You must answer these questions and click SUBMIT to get credit!</p>  </h2>
+            <form id="distractionForm">
+                <div class="question" id="distraction">
+                    Please check any items that you have engaged in during the task. Please answer truthfully (there
+                    will be no penalty). <br>
+                    <input type="checkbox" id="distract1" name="distract1" value="Phone">
+                    <label for="distract1"> I used my cellphone</label><br>
+                    <input type="checkbox" id="distract2" name="distract2" value="internet">
+                    <label for="distract2"> I browsed the internet</label><br>
+                    <input type="checkbox" id="distract3" name="distract3" value="person">
+                    <label for="distract3"> I talked to another person</label><br>
+                    <input type="checkbox" id="distract4" name="distract4" value="tv">
+                    <label for="distract4"> I watched TV</label><br>
+                    <input type="checkbox" id="distract5" name="distract5" value="music">
+                    <label for="distract5"> I listened to music</label><br>
+                    <input type="checkbox" id="distract6" name="distract6" value="restroom">
+                    <label for="distract6"> I went to the restroom</label><br>
+                    <input type="checkbox" id="distract7" name="distract7" value="other">
+                    <label for="distract4"> Other</label><br>
+                </div>
+                <div class="question" id="feedback">
+                    If you checked "Other," please indicate here:
+                    <input id="distracto" type="text" name="distracto" value="">
+                </div>
+                <div class="questions" id="age-question">
+                    Age:
+                    <input id="age-input" type="number" min="18" max="99" 
+                    onkeypress="return isNumericKey(event)" 
+                    oninput="validateTwoDigits(this)"
+                    name="age">
+                </div>
+                <div class="questions" id="sex">
+                    Gender:
+                    <select id="gender" name="gender">
+                        <option value=""></option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Genderqueer/Non-Binary</option>
+                    </select>
+                </div>
                 <div class="questions" id="music-instrument">
                     Do you, or have you ever, played a musical instrument?
                     <select id="music-instrument-input" name="music_instrument">
@@ -354,7 +467,15 @@
                         <option value="idk">I don't remember</option>
                     </select>
                 </div>
-
+                <div class="questions" id="handedness">
+                    Please select your handedness:
+                    <select id="hand" name="hand">
+                        <option value=""></option>
+                        <option value="bothh">Ambidextrous</option>
+                        <option value="lefth">Left</option>
+                        <option value="righth">Right</option>
+                    </select>
+                </div>
                 <hr>
 
                 <p>
@@ -383,60 +504,6 @@
                         <option value="multiple">More than one race</option>
                         <option value="unkown">Unknown</option>
                     </select>
-                </div>
-            </div>
-        </form>
-        <hr>
-        <center>
-
-            <hr>
-            <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
-                onClick="return show('container-instructions2');">
-                <span class="glyphicon glyphicon-arrow-left"></span> Back
-            </button>
-            <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
-                onClick="return checkInfo();">
-                Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
-            </button>
-        </center>
-    </div>
-
-    <!-- Game page -->
-    <div id="container-exp" style="display:none">
-    </div>
-
-    <!-- Thank you page 
-        **TODO** Update the completion code if necessary-->
-    <div id="container-not-an-ad" style="display:none">
-        <div class="media-left pull-left" href="#">
-            <!-- REPLACE THE LOGO HERE WITH YOUR  UNIVERSITY, LAB, or COMPANY -->
-            <img id="adlogo" src="images/university.png" alt="Lab Logo" />
-        </div>
-        <div class="media-body">
-
-            <h2>You must answer these questions and click SUBMIT to get credit! Just two more question and you're done! </h2>
-            <form id="distractionForm">
-                <div class="question" id="distraction">
-                    Please check any items that you have engaged in during the task. Please answer truthfully (there
-                    will be no penalty). <br>
-                    <input type="checkbox" id="distract1" name="distract1" value="Phone">
-                    <label for="distract1"> I used my cellphone</label><br>
-                    <input type="checkbox" id="distract2" name="distract2" value="internet">
-                    <label for="distract2"> I browsed the internet</label><br>
-                    <input type="checkbox" id="distract3" name="distract3" value="person">
-                    <label for="distract3"> I talked to another person</label><br>
-                    <input type="checkbox" id="distract4" name="distract4" value="tv">
-                    <label for="distract4"> I watched TV</label><br>
-                    <input type="checkbox" id="distract5" name="distract5" value="music">
-                    <label for="distract5"> I listened to music</label><br>
-                    <input type="checkbox" id="distract6" name="distract6" value="restroom">
-                    <label for="distract6"> I went to the restroom</label><br>
-                    <input type="checkbox" id="distract7" name="distract7" value="other">
-                    <label for="distract4"> Other</label><br>
-                </div>
-                <div class="question" id="feedback">
-                    If you checked "Other," please indicate here:
-                    <input id="distracto" type="text" name="distracto" value="">
                 </div>
             </form>
             <form id="feedbackForm">
