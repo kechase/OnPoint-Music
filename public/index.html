@@ -57,6 +57,7 @@
             margin-left: 60px;
         }
     </style>
+    <script src="headphone-check.js"></script>
 </head>
 
 <body>
@@ -325,6 +326,30 @@
             </button>
         </center>
     </div>
+
+    <!-- Add this after the container-info div and before the container-exp div -->
+    <div id="container-headphone-check" style="display:none">
+        <h1>Headphone Check</h1>
+        <hr>
+        <div class="instructions well">
+            <p>Before we begin the experiment, we need to verify that you're wearing headphones.</p>
+            <p>This experiment requires you to hear subtle differences in sounds, which is only possible with headphones.</p>
+            <p>The check will take about 30 seconds to complete.</p>
+            <div id="headphone-check-container"></div>
+        </div>
+        <hr>
+        <div id="headphone-buttons" style="display:none; text-align:center; margin-top:20px;">
+            <button type="button" id="retry-headphone-check" class="btn btn-primary btn-lg"
+                onClick="retryHeadphoneCheck()">
+                Try Again
+            </button>
+            <button type="button" id="continue-after-headphone-check" class="btn btn-primary btn-lg"
+                onClick="continueAfterHeadphoneCheck()">
+                Continue to Experiment
+            </button>
+        </div>
+    </div>
+
 
     <!-- Game page -->
     <div id="container-exp" style="display:none">

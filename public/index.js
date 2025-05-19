@@ -352,6 +352,10 @@ function getFormValue(formValues, name) {
 // variable to hold current display page. Will be used to hide when show is called
 let prevpage = "container-consent";
 
+// headphone check added to global variables
+let headphoneCheckPassed = false;
+let headphoneCheck = null;
+
 // Function to switch between HTML pages
 window.show = function(shown) {
   // Pause any playing videos when switching pages
@@ -398,6 +402,16 @@ window.show = function(shown) {
 // Additional event listener to handle initial page load
 // Combine both DOMContentLoaded event listeners into one
 document.addEventListener('DOMContentLoaded', function() {
+  // Ensure only consent form is visible initially, all other containers are hidden
+  document.getElementById('container-consent').style.display = 'block';
+  document.getElementById('container-instructions1').style.display = 'none';
+  document.getElementById('container-instructions2').style.display = 'none';
+  document.getElementById('container-info').style.display = 'none';
+  document.getElementById('container-headphone-check').style.display = 'none';
+  document.getElementById('container-exp').style.display = 'none';
+  document.getElementById('container-not-an-ad').style.display = 'none';
+  document.getElementById('container-failed').style.display = 'none';
+  document.getElementById('final-page').style.display = 'none';
   // Video player setup for instructions page
   const instructionButton = document.querySelector('button[onClick="return show(\'container-instructions2\');"]');
   if (instructionButton) {
@@ -592,18 +606,81 @@ function checkInfo() {
     ""               // Music practice (will collect later)
   );
 
-  // Continue with experiment
-  show("container-exp");
+  // Show headphone check instead of starting the game immediately
+  show("container-headphone-check");
   
-  // Only enter full screen if not disabled
-  if (!disableFullScreen) {
-    openFullScreen();
-  }
-  console.log("Starting game with subject data:", subject);  
-  startGame();
-  
+  // Initialize the headphone check
+  runHeadphoneCheck();
+    
   return false; // Prevent form submission
 }
+
+function runHeadphoneCheck() {
+  // Clear any previous instance
+  document.getElementById('headphone-check-container').innerHTML = '';
+  document.getElementById('headphone-buttons').style.display = 'none';
+  
+  // Initialize headphone check
+  headphoneCheck = new HeadphoneCheck({
+    trials: 6,
+    passingScore: 5,
+    volumeLevel: 0.6,
+    onPass: (score) => {
+      console.log('Headphone check passed with score:', score);
+      headphoneCheckPassed = true;
+      document.getElementById('headphone-buttons').style.display = 'block';
+      document.getElementById('retry-headphone-check').style.display = 'none';
+      document.getElementById('continue-after-headphone-check').style.display = 'inline-block';
+    },
+    onFail: (score) => {
+      console.log('Headphone check failed with score:', score);
+      headphoneCheckPassed = false;
+      document.getElementById('headphone-buttons').style.display = 'block';
+      document.getElementById('retry-headphone-check').style.display = 'inline-block';
+      document.getElementById('continue-after-headphone-check').style.display = 'none';
+    }
+  });
+  // Manually call init() after construction
+  headphoneCheck.init();
+  document.getElementById('continue-after-headphone-check').onclick = function() {
+    console.log("Continue button clicked");
+    continueAfterHeadphoneCheck();
+  }
+}
+
+// Function to retry the headphone check 
+function retryHeadphoneCheck() {
+  console.log("Retrying headphone check");
+  runHeadphoneCheck();
+}
+
+function continueAfterHeadphoneCheck() {
+  console.log("continueAfterHeadphoneCheck called");
+  console.log("headphoneCheckPassed:", headphoneCheckPassed);
+  if (headphoneCheckPassed) {
+    console.log("Attempting to continue to experiment");
+    // Continue with experiment 
+    show("container-exp");
+    console.log("Showed container-exp");
+  
+    // Only enter full screen if not disabled
+    if (!disableFullScreen) {
+      console.log("Entering full screen");
+      openFullScreen();
+    }
+  
+    console.log("Starting game with subject data:", subject);
+    startGame();
+  } else {
+    console.log("Headphone check not passed, showing alert");
+    alert("Please complete the headphone check successfully before continuing.");
+  }
+}
+
+// Make these functions globally accessible
+window.retryHeadphoneCheck = retryHeadphoneCheck;
+window.continueAfterHeadphoneCheck = continueAfterHeadphoneCheck;
+
 // Function to validate consent checkboxes
 // This function is called when the user clicks the "I agree" button
 // It checks if all three consent checkboxes are checked
