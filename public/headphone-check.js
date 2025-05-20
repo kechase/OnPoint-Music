@@ -109,116 +109,126 @@ class HeadphoneCheck {
     const instructions = document.createElement('div');
     instructions.innerHTML = `
       <h2>Volume Adjustment</h2>
-      <p>Before we check your headphones, let's make sure your volume is set correctly.</p>
-      <p>Please put on your headphones now and ensure you are in a quiet environment.</p>
-      <p>Click the button below to play a calibration tone. Adjust your volume to a comfortable level where you can clearly hear the tone.</p>
-      <p><strong>The tone should be clearly audible but not too loud.</strong></p>
+      <p>First, let's get your volume set to a comfortable level.
+      <p>Please put on your headphones and ensure you are in a quiet environment.</p>
+      <p>Click the button below to play a calibration tone. Adjust your volume so it's audible and clear.</p>
     `;
     this.container.appendChild(instructions);
     
-    // Create audio player
-    const audioPlayer = document.createElement('div');
-    audioPlayer.className = 'audio-player';
-    audioPlayer.style.cssText = `
-      margin: 30px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-    `;
+    // Variables to store audio nodes
+  let oscillator = null;
+  let gainNode = null;
+  
+  // Create audio player controls
+  const audioControls = document.createElement('div');
+  audioControls.style.cssText = `
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+  `;
+  
+  // Create play button
+  const playButton = document.createElement('button');
+  playButton.textContent = 'Play Tone';
+  playButton.style.cssText = `
+    padding: 12px 24px;
+    font-size: 16px;
+    background-color: #03a9f4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  
+  // Create stop button (initially hidden)
+  const stopButton = document.createElement('button');
+  stopButton.textContent = 'Stop Tone';
+  stopButton.style.cssText = `
+    padding: 12px 24px;
+    font-size: 16px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: none;
+  `;
+  
+  audioControls.appendChild(playButton);
+  audioControls.appendChild(stopButton);
+  this.container.appendChild(audioControls);
+  
+  // Continue button
+  const continueButton = document.createElement('button');
+  continueButton.textContent = 'Continue to Headphone Setup';
+  continueButton.style.cssText = `
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 20px;
+    display: none;
+  `;
+  
+  this.container.appendChild(continueButton);
+  
+  // Add event listeners for tone control
+  playButton.addEventListener('click', () => {
+    // Initialize audio context (must be initiated by user gesture)
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: this.config.sampleRate
+      });
+    }
     
-    // Create play button
-    const playButton = document.createElement('button');
-    playButton.textContent = 'Play Calibration Tone';
-    playButton.style.cssText = `
-      padding: 12px 24px;
-      font-size: 16px;
-      background-color: #03a9f4;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
+    // Create and start a looping calibration tone
+    oscillator = this.audioContext.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = this.config.toneFrequency;
     
-    // Create volume slider
-    const volumeControl = document.createElement('div');
-    volumeControl.style.cssText = `
-      width: 80%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    `;
+    gainNode = this.audioContext.createGain();
+    gainNode.gain.value = this.config.volumeLevel;
     
-    const volumeLabel = document.createElement('label');
-    volumeLabel.textContent = 'Volume';
-    volumeLabel.style.cssText = `
-      font-weight: bold;
-    `;
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
+    oscillator.start();
     
-    const volumeSlider = document.createElement('input');
-    volumeSlider.type = 'range';
-    volumeSlider.min = '0';
-    volumeSlider.max = '1';
-    volumeSlider.step = '0.01';
-    volumeSlider.value = this.config.volumeLevel.toString();
-    volumeSlider.style.cssText = `
-      width: 100%;
-    `;
+    // Show stop button and hide play button
+    playButton.style.display = 'none';
+    stopButton.style.display = 'inline-block';
+  });
+  
+  stopButton.addEventListener('click', () => {
+    // Stop the oscillator
+    if (oscillator) {
+      oscillator.stop();
+      oscillator.disconnect();
+      oscillator = null;
+    }
     
-    volumeControl.appendChild(volumeLabel);
-    volumeControl.appendChild(volumeSlider);
+    if (gainNode) {
+      gainNode.disconnect();
+      gainNode = null;
+    }
     
-    audioPlayer.appendChild(playButton);
-    audioPlayer.appendChild(volumeControl);
-    this.container.appendChild(audioPlayer);
-    
-    // Continue button
-    const continueButton = document.createElement('button');
-    continueButton.textContent = 'Continue to Headphone Check';
-    continueButton.style.cssText = `
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 20px;
-    `;
-    continueButton.disabled = true;
-    
-    this.container.appendChild(continueButton);
-    
-    // Add event listeners
-    playButton.addEventListener('click', () => {
-      // Initialize audio context (must be initiated by user gesture)
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-          sampleRate: this.config.sampleRate
-        });
-      }
-      
-      // Play calibration tone
-      this.playCalibrationTone(parseFloat(volumeSlider.value));
-      
-      // Enable continue button after playing the tone
-      continueButton.disabled = false;
-    });
-    
-    volumeSlider.addEventListener('input', () => {
-      this.config.volumeLevel = parseFloat(volumeSlider.value);
-    });
-    
-    continueButton.addEventListener('click', () => {
-      this.volumeCheckComplete = true;
-      this.initHeadphoneCheck();
-    });
-  }
+    // Update button visibility
+    stopButton.style.display = 'none';
+    continueButton.style.display = 'inline-block';
+  });
+  
+  continueButton.addEventListener('click', () => {
+    this.volumeCheckComplete = true;
+    this.initHeadphoneCheck();
+  });
+}
   
   playCalibrationTone(volume) {
-    // Create a 2-second calibration tone
-    const duration = 2;
+    // Create a x-second calibration tone
+    const duration = 5;
     const frequency = this.config.toneFrequency;
     
     // Create an oscillator
@@ -256,13 +266,12 @@ class HeadphoneCheck {
     `;
     
     preCheckContainer.innerHTML = `
-      <h3>Quick Headphone Check</h3>
-      <p>Please put on your headphones now. Click the button below and you should hear:</p>
+      <h3>Now let's verify stereo setup</h3>
+      <p>Click the 'Test' button below and you should hear:</p>
       <ul>
-        <li>A clicking sound in your LEFT ear only</li>
-        <li>Then a clicking sound in your RIGHT ear only</li>
+        <li>A clicking sound in your LEFT ear followed by a clicking sound in your RIGHT ear.</li>
       </ul>
-      <p>If you hear the sound from both ears or from your speakers, please adjust your setup.</p>
+      <p>If you hear the sound in both ears or from your speakers, adjust your setup.</p>
       <button id="pre-check-button" style="
         padding: 10px 20px;
         background-color: #4CAF50;
@@ -271,7 +280,7 @@ class HeadphoneCheck {
         border-radius: 4px;
         cursor: pointer;
         margin: 10px 0;
-      ">Test Left/Right Audio</button>
+      ">Test Left / Right Audio</button>
     `;
     
     this.container.appendChild(preCheckContainer);
@@ -336,22 +345,65 @@ class HeadphoneCheck {
     // Clear container content
     this.container.innerHTML = '';
     
-    // Add instructions
-    const instructions = document.createElement('div');
-    instructions.innerHTML = `
-      <h2>Headphone Check</h2>
-      <p>This test verifies that you're wearing headphones, which are required for this experiment.</p>
-      <p>You will hear three tones. Select the tone that sounds different from the others.</p>
-      <p>Please ensure you are in a quiet environment with your headphones on.</p>
+    // Main heading
+    const mainHeading = document.createElement('h2');
+    mainHeading.textContent = 'Headphone Setup';
+    mainHeading.style.marginBottom = '10px';
+    this.container.appendChild(mainHeading);
+    
+    // Step 1: Left/Right Check - styled to match other sections
+    const stereoCheckSection = document.createElement('div');
+    stereoCheckSection.style.cssText = `
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      border-radius: 4px;
     `;
-    this.container.appendChild(instructions);
-   
-    // Add the preliminary left/right headphone check
-    this.addPreHeadphoneCheck();
-
+    
+    stereoCheckSection.innerHTML = `
+      <h3>Step 1: Stereo Check</h3>
+        Click the button below to test your stereo setup:
+        <p>You should hear a click in your <strong>LEFT</strong> ear, followed by a click in your <strong>RIGHT</strong> ear</p>
+      </ul>
+      <p>If you can't distinguish the left and right sounds, please check your headphone connection and settings. Retest as many times as you need until you can distingush the sounds.</p>
+      <button id="stereo-check-button" style="
+        padding: 10px 20px;
+        background-color: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px 0;
+      ">Test Left/Right Audio</button>
+    `;
+    
+    this.container.appendChild(stereoCheckSection);
+    
+    // Step 2: Headphone Verification Test
+    const verificationSection = document.createElement('div');
+    verificationSection.style.cssText = `
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+    `;
+    
+    verificationSection.innerHTML = `
+      <h3>Step 2: Headphone Verification</h3>
+      <p>Now, let's verify your headphone setup.</p>
+      <p>In this test, you'll hear three tones total: Two identical tones and one different tone. There will be a button for each tone (Tone 1, 2 and 3)</p>
+      <p><strong>In each round, click the button that sounds different.</strong></p>      
+      <br>Correctly complete ${this.config.passingScore} out of ${this.config.trials} trials to proceed.</br>
+      <br><p>Click the button below to start the test.</p></br>
+    `;
+    
+    this.container.appendChild(verificationSection);
+    
     // Create start button
     this.startButton = document.createElement('button');
-    this.startButton.textContent = 'Start Headphone Check';
+    this.startButton.textContent = 'Start Headphone Verification';
     this.startButton.style.cssText = `
       padding: 10px 20px;
       font-size: 16px;
@@ -361,6 +413,9 @@ class HeadphoneCheck {
       border-radius: 4px;
       cursor: pointer;
       margin: 20px 0;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     `;
     this.startButton.addEventListener('click', this.startTest);
     this.container.appendChild(this.startButton);
@@ -402,6 +457,14 @@ class HeadphoneCheck {
       min-height: 40px;
     `;
     this.container.appendChild(this.statusText);
+    
+    // Add click event listener for the stereo check button
+    setTimeout(() => {
+      const stereoCheckButton = document.getElementById('stereo-check-button');
+      if (stereoCheckButton) {
+        stereoCheckButton.addEventListener('click', () => this.runPreCheck());
+      }
+    }, 0);
     
     // Randomize trial order
     this.createTrialOrder();
@@ -611,41 +674,37 @@ class HeadphoneCheck {
     // Calculate if participant passed
     const passed = this.correctAnswers >= this.config.passingScore;
     
-    // Show results
-    this.statusText.innerHTML = `
-      <h3>${passed ? 'Headphone Check Passed!' : 'Headphone Check Failed'}</h3>
-      <p>You correctly identified ${this.correctAnswers} out of ${this.config.trials} tones.</p>
-      <p>${passed ? 'You may proceed to the experiment.' : 'Please ensure you are wearing headphones and try again.'}</p>
-    `;
-    
-    // Show restart button if failed
-    if (!passed) {
+    if (passed) {
+      // Call the appropriate callback
+      if (this.config.onPass) {
+        this.config.onPass(this.correctAnswers);
+      }
+      
+      // We don't need to show any results or continue button here since
+      // the onPass callback will handle showing the next page (container-instructions1)
+      
+      this.statusText.innerHTML = `
+        <h3>Headphone Check Passed!</h3>
+        <p>You correctly identified ${this.correctAnswers} out of ${this.config.trials} tones.</p>
+      `;
+    } else {
+      // Failed - Show restart button and message
+      this.statusText.innerHTML = `
+        <h3>Headphone Check Failed</h3>
+        <p>You correctly identified ${this.correctAnswers} out of ${this.config.trials} tones.</p>
+        <p>Please ensure you are wearing headphones and try again.</p>
+      `;
+      
       this.startButton.textContent = 'Try Again';
       this.startButton.style.display = 'inline-block';
-    } else {
-      // Create continue button if passed
-      const continueButton = document.createElement('button');
-      continueButton.textContent = 'Continue to Experiment';
-      continueButton.style.cssText = `
-        padding: 10px 20px;
-        font-size: 16px;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        margin: 20px 0;
-      `;
-      this.container.appendChild(continueButton);
+      
+      // Call the onFail callback if provided
+      if (this.config.onFail) {
+        this.config.onFail(this.correctAnswers);
+      }
     }
     
-    // Call appropriate callback
-    if (passed && this.config.onPass) {
-      this.config.onPass(this.correctAnswers);
-    } else if (!passed && this.config.onFail) {
-      this.config.onFail(this.correctAnswers);
-    }
-    
+    // Call the onFinish callback if provided
     if (this.config.onFinish) {
       this.config.onFinish({
         passed,

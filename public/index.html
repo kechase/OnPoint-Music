@@ -72,13 +72,13 @@
                 You're invited to participate in a study named "Playing a New Instrument!"
             </p>
             <p>
-                This will take ~15 minutes and <b>you will be compensated with course credit upon completion.</b>
+                This will take ~15 minutes and <b>you will be compensated upon completion.</b>
             </p>
             <p>
                 Please understand that we <em>reserve the right to not compensate entries that fail to follow instructions.</em>
             </p>
             <p>
-                <b>This experiment will use your computer's audio capabilities. Please ensure your sound is turned on and you're in a quiet environment. You will need to hear nuanced sounds.</b>
+                <b>In this experiment you'll listen to nuanced sounds. <em>Headphones are requred. Ensure your sound is turned on and that you're in a quiet environment.</em></b>
             </p>
             <br>
         
@@ -131,97 +131,6 @@
         </center>
     </div>
 </div>
-
-    <!-- Instruction Page 1-->
-    <div id="container-instructions1" style="display:none">
-        <h1>Playing a New Instrument!</h1>
-        <hr>
-        <div class="instructions well">
-            <p><u><strong>This experiment has two phases:</strong>
-            </p></u>
-            <p style="margin-left: 20px; margin-bottom: 20px;">
-                <strong>1. Phase 1: TRAINING</strong> 
-            </p>
-            <p style="margin-left: 40px; margin-bottom: 10px;">
-                Your cursor will start in the middle of the screen and a blue dot will appear somewhere within the box. 
-            </p>
-            <p  style="margin-left: 40px; margin-bottom: 10px;">
-                When a blue dot appears, you can then move your cursor toward the blue dot and listen to the sound created along the way. You'll be asked to recreate those sounds so listen carefully!
-            </p>
-            <p style="margin-left: 40px; margin-bottom: 40px;">
-                After reaching the target, bring your cursor back to the center circle to begin the next trial. 
-            </p>
- 
-            <p style="margin-left: 20px; margin-bottom: 20px;">
-                <strong>2. Phase 2: RECREATING SOUNDS</strong><p>   
-            </p>
-            <p style="margin-left: 40px; margin-bottom: 10px;">
-                In Phase 2, the instrument will play a sound while you listen. When the sound finishes, your cursor will turn green indicating you can move it along the line you believe makes that sound. You are trying to recreate the sound you heard.
-            </p>
-            <p style="margin-left: 40px; margin-bottom: 10px;">
-                Each trial will play the sound only once before you move and recreate it. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! </p>
-            </p>
-            <p><strong><u>Remember:</u></strong>
-            <ul>
-                <li>Complete on a laptop (not phone) and use a <strong>trackpad</strong> (not traditional mouse) to complete the task.</li>
-                <li>Use CHROME browser. (Others may not work correctly).</li>
-                <li>There are attention checks, so be sure to read their instructions thoroughly. Failing
-            these checks will result in an incomplete session!</li>
-                
-            </p>
-<!-- Empty paragraphs with increasing space at the end -->
-<p style="margin-bottom: 10px;"></p>
-<p style="margin-bottom: 20px;"></p>
-<p style="margin-bottom: 30px;"></p>
-        </div>
-        <hr>
-        <center>
-            <button type="button" class="btn btn-primary btn-lg btn-left"
-                onClick="return show('container-consent');">
-                <span class="glyphicon glyphicon-arrow-left"></span> Back
-            </button>
-            <button type="button" class="btn btn-primary btn-lg btn-right"
-                onClick="return show('container-instructions2')">
-                <span class="glyphicon glyphicon-arrow-right"></span> Next
-            </button>
-        </center>
-    </div>
-
-    <!-- Instruction Page 2
-        **TODO** Update the code in the instructions if necessary-->
-    <div id="container-instructions2" style="display:none">
-        <h1>We're almost ready, let's make sure you've got it</h1>
-        <hr>
-        <div class="instructions well">
-            <center><p style="color:red">
-                When a blue dot appears, move your cursor toward it and listen to the sound.
-            </p> 
-            <p>
-                That's the sound of this instrument! You'll be asked to replicate these sounds. 
-            </p></center>
-
-            <p style="color:red">
-
-            <div class="row">
-                <center>
-                    <div class="columnB2">
-                        <video id="demo-video" controls autoplay loop muted playsinline src="images/demo-auditory-motor-mapping_trimmed.mp4" alt="Game image" style="width:100%"></video>
-                    </div>
-                </center>
-            </div>
-        </div>
-        <hr>
-        <center>
-            <button type="button" class="btn btn-primary btn-lg btn-left"
-                onClick="return show('container-instructions1');">
-                <span class="glyphicon glyphicon-arrow-left"></span> Back
-            </button>
-            <button type="button" class="btn btn-primary btn-lg btn-right"
-                onClick="return show('container-info');">
-                <span class="glyphicon glyphicon-arrow-right"></span> Next
-            </button>
-        </center>
-    </div>
 
     <!-- Initial Form for basic information 
     **TODO** Update questions based on information your requires -->
@@ -317,24 +226,23 @@
         <hr>
         <center>
             <button type="button" id="back" value="back" class="btn btn-primary btn-lg btn-left previous"
-                onClick="return show('container-instructions2');">
+                onClick="return show('container-consent');">
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
             <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
                 onClick="return checkInfo();">
-                Begin Experiment <span class="glyphicon glyphicon-arrow-right"></span>
+                Continue <span class="glyphicon glyphicon-arrow-right"></span>
             </button>
         </center>
     </div>
 
-    <!-- Add this after the container-info div and before the container-exp div -->
+    <!-- Headphone check -->
     <div id="container-headphone-check" style="display:none">
         <h1>Headphone Check</h1>
         <hr>
         <div class="instructions well">
-            <p>Before we begin the experiment, we need to verify that you're wearing headphones.</p>
-            <p>This experiment requires you to hear subtle differences in sounds, which is only possible with headphones.</p>
-            <p>The check will take about 30 seconds to complete.</p>
+            <p>This experiment asks you to listen for subtle differences in sounds.</p>
+            <p>Headphones are required -- setting them up will only take about 30 seconds.</p>
             <div id="headphone-check-container"></div>
         </div>
         <hr>
@@ -345,11 +253,102 @@
             </button>
             <button type="button" id="continue-after-headphone-check" class="btn btn-primary btn-lg"
                 onClick="continueAfterHeadphoneCheck()">
-                Continue to Experiment
+                Continue
             </button>
         </div>
     </div>
 
+    <!-- Instruction Page 1-->
+    <div id="container-instructions1" style="display:none">
+        <h1>Playing a New Instrument!</h1>
+        <hr>
+        <div class="instructions well">
+            <p><u><strong>This experiment has two phases:</strong>
+            </p></u>
+            <p style="margin-left: 20px; margin-bottom: 20px;">
+                <strong>1. Phase 1: TRAINING</strong> 
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                Your cursor will start in the middle of the screen and a blue dot will appear somewhere within the box. 
+            </p>
+            <p  style="margin-left: 40px; margin-bottom: 10px;">
+                When a blue dot appears, you can then move your cursor toward the blue dot and listen to the sound created along the way. You'll be asked to recreate those sounds so listen carefully!
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 40px;">
+                After reaching the target, bring your cursor back to the center circle to begin the next trial. 
+            </p>
+ 
+            <p style="margin-left: 20px; margin-bottom: 20px;">
+                <strong>2. Phase 2: RECREATING SOUNDS</strong><p>   
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                In Phase 2, the instrument will play a sound while you listen. When the sound finishes, your cursor will turn green indicating you can move it along the line you believe makes that sound. You are trying to recreate the sound you heard.
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                Each trial will play the sound only once before you move and recreate it. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! </p>
+            </p>
+            <p><strong><u>Remember:</u></strong>
+            <ul>
+                <li>Complete on a laptop (not phone) and use a <strong>trackpad</strong> (not traditional mouse) to complete the task.</li>
+                <li>Use CHROME browser. (Others may not work correctly).</li>
+                <li>Wear headphones! </li>
+                <li>There are attention checks, so be sure to read their instructions thoroughly. Failing
+            these checks will result in an incomplete session!</li>
+                
+            </p>
+<!-- Empty paragraphs with increasing space at the end -->
+<p style="margin-bottom: 10px;"></p>
+<p style="margin-bottom: 20px;"></p>
+<p style="margin-bottom: 30px;"></p>
+        </div>
+        <hr>
+        <center>
+            <button type="button" class="btn btn-primary btn-lg btn-left"
+                onClick="return show('container-headphone-check');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" class="btn btn-primary btn-lg btn-right"
+                onClick="return show('container-instructions2')">
+                <span class="glyphicon glyphicon-arrow-right"></span> Continue
+            </button>
+        </center>
+    </div>
+
+    <!-- Instruction Page 2
+        **TODO** Update the code in the instructions if necessary-->
+    <div id="container-instructions2" style="display:none">
+        <h1>We're almost ready, let's make sure you've got it</h1>
+        <hr>
+        <div class="instructions well">
+            <center><p style="color:red">
+                When a blue dot appears, move your cursor toward it and listen to the sound.
+            </p> 
+            <p>
+                That's the sound of this instrument! You'll be asked to replicate these sounds. 
+            </p></center>
+
+            <p style="color:red">
+
+            <div class="row">
+                <center>
+                    <div class="columnB2">
+                        <video id="demo-video" controls autoplay loop muted playsinline src="images/demo-auditory-motor-mapping_trimmed.mp4" alt="Game image" style="width:100%"></video>
+                    </div>
+                </center>
+            </div>
+        </div>
+        <hr>
+        <center>
+            <button type="button" class="btn btn-primary btn-lg btn-left"
+                onClick="return show('container-instructions1');">
+                <span class="glyphicon glyphicon-arrow-left"></span> Back
+            </button>
+            <button type="button" class="btn btn-primary btn-lg btn-right"
+            onClick="startExperiment(); return show('container-exp');">
+            <span class="glyphicon glyphicon-arrow-right"></span> Start Experiment
+</button>
+        </center>
+    </div>
 
     <!-- Game page -->
     <div id="container-exp" style="display:none">
@@ -365,11 +364,11 @@
         <div class="media-body">
 
             <h2><p>You're almost done. </p>
-                <p>You must answer these questions and click SUBMIT to get credit!</p>  </h2>
+                <p>You must answer these questions and click SUBMIT to complete the experiment and receive compensation!</p>  </h2>
             <form id="distractionForm">
                 <div class="question" id="distraction">
                     Please check any items that you have engaged in during the task. Please answer truthfully (there
-                    will be no penalty). <br>
+                    is no penalty). <br>
                     <input type="checkbox" id="distract1" name="distract1" value="Phone">
                     <label for="distract1"> I used my cellphone</label><br>
                     <input type="checkbox" id="distract2" name="distract2" value="internet">

@@ -334,7 +334,7 @@ class Log extends Database {
 
 //#region html event functions
 
-// Function used on html side of code.
+// Function used on html side of code
 function isNumericKey(event) {
   const code = (event.which) ? event.which : event.keyCode;
   return !(code > 31 && (code < 48 || code > 57));
@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update the button's click handler
     agreeButton.onclick = function() {
       if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
-        return window.show("container-instructions1");
+        return window.show("container-info");
       } else {
         alert("Please check all three consent boxes to proceed.");
         return false;
@@ -465,96 +465,26 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Function used to enter full screen mode
-function openFullScreen() {
-  const elem = document.getElementById("container-info");
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-    console.log("enter1");
-  } else if (elem.msRequestFullscreen) {
-    elem.msRequestFullscreen();
-    console.log("enter2");
-  } else if (elem.mozRequestFullScreen) {
-    elem.mozRequestFullScreen();
-    console.log("enter3");
-  } else if (elem.webkitRequestFullscreen) {
-    elem.webkitRequestFullscreen();
-    console.log("enter4");
+// Function to validate consent checkboxes
+// This function is called when the user clicks the "I agree" button
+// It checks if all three consent checkboxes are checked
+// If they are, it shows the next page; if not, it alerts the user
+// and prevents the form from being submitted
+// 
+  function validateConsent() {
+  const consentAge = document.getElementById('consent-age');
+  const consentRead = document.getElementById('consent-read');
+  const consentParticipate = document.getElementById('consent-participate');
+  
+  if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+    return show('container-info');
+  } else {
+    alert("Please check all three consent boxes to proceed.");
+    return false;
   }
 }
 
-// Function used to exit full screen mode
-function closeFullScreen() {
-  if (document.exitFullscreen) {
-    try {
-      document.exitFullscreen();
-    } catch (e) {
-      console.log(
-        "Somehow the client was not in full screen mode but we're still calling this anyway?",
-        e,
-      );
-    }
-  } else if (document.mozCancelFullScreen) {
-    document.mozCancelFullScreen();
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen();
-  } else if (document.msExitFullscreen) {
-    document.msExitFullscreen();
-  }
-}
-
-//#endregion
-// Object used track subject data (uploaded to database)
-let subject; // : Subject
-
-// Object used to track reaching data (updated every reach and uploaded to database)
-let subjTrials; // : Trial
-
-/* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
-try {
-  let app = firebase.app();
-} catch (e) {
-  console.error(e);
-}
-
-// Initialize Firebase
-// Setting up firebase variables
-const firestore = firebase.firestore(); // (a.k.a.) db
-const firebasestorage = firebase.storage();
-const subjectcollection = firestore.collection("Subjects");
-const trialcollection = firestore.collection("Trials");
-
-const Phase = Object.freeze({
-  UNINIT: -1, // to avoid handling keyboard inputs
-  SEARCHING: 0, // Looking for the center after a reach
-  HOLDING: 1, // Holding at start to begin the next target
-  SHOW_TARGETS: 2, // Displaying the target
-  MOVING: 3, // The reaching motion
-  FEEDBACK: 4, // Displaying the feedback after reach
-  BETWEEN_BLOCKS: 5, // Displaying break messages if necessary
-});
-
-// Function used to create/update data in the target collection
-function updateCollection(collection, subject) {
-  if (noSave) {
-    console.log("Would have saved to database:", subject);
-    return null;
-  }
-  console.log("Saving to Firebase:", subject);
-
-  // **TODO**: Test and verify this working
-  return collection.doc(subject.id).set(subject)
-    .then(function () {
-      console.log("Successfully saved data:", subject);
-      return true;
-    })
-    .catch(function (err) {
-      console.error("Error saving to Firebase:", err);
-      throw err;
-    });
-}
-
-// Function used to check if all pre-experiment questions were filled in and, if so, starts the experiment
+// Function used to check if all pre-experiment questions were filled in
 function checkInfo() {
   // Get form data using jQuery
   const values = $("#infoform").serializeArray();
@@ -658,19 +588,12 @@ function continueAfterHeadphoneCheck() {
   console.log("continueAfterHeadphoneCheck called");
   console.log("headphoneCheckPassed:", headphoneCheckPassed);
   if (headphoneCheckPassed) {
-    console.log("Attempting to continue to experiment");
-    // Continue with experiment 
-    show("container-exp");
-    console.log("Showed container-exp");
-  
-    // Only enter full screen if not disabled
-    if (!disableFullScreen) {
-      console.log("Entering full screen");
-      openFullScreen();
-    }
-  
-    console.log("Starting game with subject data:", subject);
-    startGame();
+    console.log("Headphone check passed, continuing to instructions");
+    // Continue to instructions1
+    show("container-instructions1");
+    
+    // Don't enter fullscreen or start game yet
+    // These will be handled when the user clicks the final button on instructions2
   } else {
     console.log("Headphone check not passed, showing alert");
     alert("Please complete the headphone check successfully before continuing.");
@@ -680,28 +603,113 @@ function continueAfterHeadphoneCheck() {
 // Make these functions globally accessible
 window.retryHeadphoneCheck = retryHeadphoneCheck;
 window.continueAfterHeadphoneCheck = continueAfterHeadphoneCheck;
+window.checkInfo = checkInfo;
+window.validateConsent = validateConsent;
 
-// Function to validate consent checkboxes
-// This function is called when the user clicks the "I agree" button
-// It checks if all three consent checkboxes are checked
-// If they are, it shows the next page; if not, it alerts the user
-// and prevents the form from being submitted
-
-function validateConsent() {
-  const consentAge = document.getElementById('consent-age');
-  const consentRead = document.getElementById('consent-read');
-  const consentParticipate = document.getElementById('consent-participate');
+// Add this function
+function startExperiment() {
+  // Enter full screen if not disabled
+  if (!disableFullScreen) {
+    console.log("Entering full screen");
+    openFullScreen();
+  }
   
-  if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
-    return show('container-instructions1');
-  } else {
-    alert("Please check all three consent boxes to proceed.");
-    return false;
+  console.log("Starting game with subject data:", subject);
+  startGame();
+  return true;
+}
+
+// Make it accessible
+window.startExperiment = startExperiment;
+
+// Function used to enter full screen mode
+function openFullScreen() {
+  const elem = document.getElementById("container-instructions2");
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+    console.log("enter1");
+  } else if (elem.msRequestFullscreen) {
+    elem.msRequestFullscreen();
+    console.log("enter2");
+  } else if (elem.mozRequestFullScreen) {
+    elem.mozRequestFullScreen();
+    console.log("enter3");
+  } else if (elem.webkitRequestFullscreen) {
+    elem.webkitRequestFullscreen();
+    console.log("enter4");
   }
 }
 
-// Make the function globally accessible
-window.validateConsent = validateConsent;
+// Function used to exit full screen mode
+function closeFullScreen() {
+  if (document.exitFullscreen) {
+    try {
+      document.exitFullscreen();
+    } catch (e) {
+      console.log(
+        "Somehow the client was not in full screen mode but we're still calling this anyway?",
+        e,
+      );
+    }
+  } else if (document.mozCancelFullScreen) {
+    document.mozCancelFullScreen();
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  } else if (document.msExitFullscreen) {
+    document.msExitFullscreen();
+  }
+}
+
+//#endregion
+// Object used track subject data (uploaded to database)
+let subject; // : Subject
+
+// Object used to track reaching data (updated every reach and uploaded to database)
+let subjTrials; // : Trial
+
+/* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
+try {
+  let app = firebase.app();
+} catch (e) {
+  console.error(e);
+}
+
+// Initialize Firebase
+// Setting up firebase variables
+const firestore = firebase.firestore(); // (a.k.a.) db
+const firebasestorage = firebase.storage();
+const subjectcollection = firestore.collection("Subjects");
+const trialcollection = firestore.collection("Trials");
+
+const Phase = Object.freeze({
+  UNINIT: -1, // to avoid handling keyboard inputs
+  SEARCHING: 0, // Looking for the center after a reach
+  HOLDING: 1, // Holding at start to begin the next target
+  SHOW_TARGETS: 2, // Displaying the target
+  MOVING: 3, // The reaching motion
+  FEEDBACK: 4, // Displaying the feedback after reach
+  BETWEEN_BLOCKS: 5, // Displaying break messages if necessary
+});
+
+// Function used to create/update data in the target collection
+function updateCollection(collection, subject) {
+  if (noSave) {
+    console.log("Would have saved to database:", subject);
+    return null;
+  }
+  console.log("Saving to Firebase:", subject);
+
+  // **TODO**: Test and verify this working
+  return collection.doc(subject.id).set(subject)
+    .then(function () {
+      console.log("Successfully saved data:", subject);
+      return true;
+    })
+    .catch(function (err) {
+      console.error("Error saving to Firebase:", err);
+      throw err;
+    });
+}
 
 const deg2rad = Math.PI / 180;
 const rad2deg = 180 / Math.PI;
