@@ -16,7 +16,7 @@ class HeadphoneCheck {
     // Default configuration
     this.config = {
       trials: options.trials || 6,
-      passingScore: options.passingScore || 5,
+      passingScore: options.passingScore || 6,
       sampleRate: options.sampleRate || 44100,
       toneDuration: options.toneDuration || 1,  // seconds
       fadeTime: options.fadeTime || 0.05,       // seconds
@@ -87,14 +87,14 @@ class HeadphoneCheck {
   checkAudioCapabilities() {
     // Check if AudioContext is supported
     if (!window.AudioContext && !window.webkitAudioContext) {
-      alert("Your browser doesn't support Web Audio API which is required for this test. Please try a different browser like Chrome or Firefox.");
+      alert("Your browser doesn't support Web Audio API which is required for this test. Please use Chrome.");
       return false;
     }
     
     // Try to detect mono output (though this isn't 100% reliable)
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     if (audioContext.destination.maxChannelCount < 2) {
-      alert("Your audio output appears to be mono, but this test requires stereo output (headphones). Please check your audio settings.");
+      alert("Your audio output appears to be mono, but this test requires stereo output headphones. Please check your audio settings.");
       return false;
     }
     
@@ -111,7 +111,7 @@ class HeadphoneCheck {
       <h2>Volume Adjustment</h2>
       <p>First, let's get your volume set to a comfortable level.
       <p>Please put on your headphones and ensure you are in a quiet environment.</p>
-      <p>Click the button below to play a calibration tone. Adjust your volume so it's audible and clear.</p>
+      <p>Click the button below to play a calibration tone. Adjust your volume so it's audible and clear. Repeat as necessary until you are satisfied with the level.</p>
     `;
     this.container.appendChild(instructions);
     
@@ -395,7 +395,6 @@ class HeadphoneCheck {
       <p>Now, let's verify your headphone setup.</p>
       <p>In this test, you'll hear three tones total: Two identical tones and one different tone. There will be a button for each tone (Tone 1, 2 and 3)</p>
       <p><strong>In each round, click the button that sounds different.</strong></p>      
-      <br>Correctly complete ${this.config.passingScore} out of ${this.config.trials} trials to proceed.</br>
       <br><p>Click the button below to start the test.</p></br>
     `;
     
@@ -672,7 +671,7 @@ class HeadphoneCheck {
     document.getElementById('tone-buttons').style.display = 'none';
     
     // Calculate if participant passed
-    const passed = this.correctAnswers >= this.config.passingScore;
+    const passed = this.correctAnswers == this.config.passingScore;
     
     if (passed) {
       // Call the appropriate callback

@@ -17,7 +17,7 @@ const disableFullScreen = false;
 const fileName = "./tgt_files/csv_tgt_file_2025-03-25.json";
 
 // **TODO**: Add the json content below here:
-// SHORTENED WHILE MAKING OTHER INFRANSTRUCTURE CHANGES
+// SHORTENED WHILE MAKING OTHER INFRASTRUCTURE CHANGES
 const fileContent = {
   "numtrials": 4, "trialnum": {"0": 1, "1": 2, "2": 3, "3": 4, 
   },
@@ -208,11 +208,11 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, sex, handedness, mousetype, returner, ethnicity, race, musicExperience, languageCount, musicInstrument, musicPractice) {
+  constructor(id, age, gender, handedness, mousetype, returner, ethnicity, race, musicExperience, languageCount, musicInstrument, musicPractice) {
     super("subject");
       this.id = id,
       this.age = age,
-      this.sex = sex,
+      this.gender = gender,
       this.handedness = handedness,
       this.mousetype = mousetype,
       this.returner = returner,
@@ -231,7 +231,7 @@ class Subject extends Database {
   // contains the basic information required to proceed
   isValid() {
     // Validation logic - if these fields are required, add them to the check
-    return this.id !== "" && this.age !== "" && this.sex !== "" && 
+    return this.id !== "" && this.age !== "" && this.gender !== "" && 
            this.handedness !== "" && this.mousetype !== "" && this.returner !== "" &&
            this.musicExperience !== "" && this.musicInstrument !== "" && this.musicPractice !== "" && this.languageCount !== "";
   }
@@ -551,9 +551,10 @@ function runHeadphoneCheck() {
   document.getElementById('headphone-buttons').style.display = 'none';
   
   // Initialize headphone check
+  // Perfect score is required to pass
   headphoneCheck = new HeadphoneCheck({
     trials: 6,
-    passingScore: 5,
+    passingScore: 6,
     volumeLevel: 0.6,
     onPass: (score) => {
       console.log('Headphone check passed with score:', score);
@@ -1950,7 +1951,7 @@ function saveFeedback() {
 
   // Update the subject object with the new information
   subject.age = age;
-  subject.sex = gender;
+  subject.gender = gender;
   subject.handedness = handedness;
   subject.returner = returner;
   subject.ethnicity = ethnicity || ""; // Optional field
@@ -1963,7 +1964,7 @@ function saveFeedback() {
   console.log("Subject data before saving:", {
     id: subject.id,
     age: subject.age,
-    sex: subject.sex,
+    gender: subject.gender,
     handedness: subject.handedness,
     mousetype: subject.mousetype,
     returner: subject.returner,
@@ -1982,7 +1983,7 @@ function saveFeedback() {
   const subject_data = {
     id: subject.id,
     age: subject.age,
-    sex: subject.sex,
+    gender: subject.gender,
     handedness: subject.handedness,
     mousetype: subject.mousetype,
     returner: subject.returner,
