@@ -1,45 +1,29 @@
 /*
-This is an auditory-motor mapping experiment that can be adapted to different reaching experiments depending on the target file.
+This is an auditory-motor mapping experiment that can be adapted depending on the target file.
 
-Remember to update necessary fields before starting the game. All fields that require change will be marked by a "**TODO**" comment.
+Update necessary fields before starting the game. All fields that require change will be marked by a "####" comment.
 */
 
-// Set to 'true' if you wish to only test the front-end (will not access databases)
-// **TODO** Make sure this is set to false before deploying!
+// Set to 'true' if you only want to TEST the front-end (i.e. it will not access databases)
+// #### Make sure this is set to 'false' before deploying!
 const noSave = false;
 
 // Set to 'true' to disable full screen mode during development
-// **TODO** Make sure this is set to false before deploying!
+// #### Make sure this is set to false before deploying!
 const disableFullScreen = false;
 
-// **TODO**: Replace this with your own experiment file.
-// This is the file that will be used to generate the targets for the game alternately, you can hard enter the info below in the fileContent variable. 
-const fileName = "./tgt_files/csv_tgt_file_2025-03-25.json";
+// Set to 'true' to disable headphone check during development
+// #### Make sure this is set to false before deploying!
+const SKIP_HEADPHONE_CHECK = true;
 
-// **TODO**: Add the json content below here:
-// SHORTENED WHILE MAKING OTHER INFRASTRUCTURE CHANGES
-const fileContent = {
-  "numtrials": 4, "trialnum": {"0": 1, "1": 2, "2": 3, "3": 4, 
-  },
-  "aiming_landmarks": {"0": 0, "1": 0, "2": 0, "3": 0, 
-  },
-  "online_fb": {"0": 1, "1": 1, "2": 1, "3": 1, 
-  },
-  "endpoint_feedback": {"0": 1, "1": 1, "2": 1, "3": 1, 
-  },
-  "rotation": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, 
-  },
-  "clamped_fb": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, 
-  },
-  "tgt_angle": {"0": 45, "1": 135, "2": 225, "3": 315, 
-  },
-  "tgt_distance": {"0": 80, "1": 80, "2": 80, "3": 80,  
-  },
-  "between_blocks": {"0": 0.0, "1": 0.0, "2": 0.0, "3": 0.0, 
-  // #19 2.0 will be the number to trigger the chance of phase message to TESTING PHASE
-  },
-  "target_jump": {"0": 1.0, "1": 1.0, "2": 1.0, "3": 1.0}};
+// #### Replace this with your own experiment file
+const fileName = "./tgt_files/csv_tgt_file_2025-05-21.json";
 
+// Load the JSON content
+let fileContent;
+$.getJSON(fileName, function(json) {
+    fileContent = json;
+});
 
 window.onerror = function(message, source, lineno, colno, error) {
   console.error("Error occurred: ", message, "at line", lineno);
@@ -142,32 +126,92 @@ class MusicBox {
   }
 
   play(currentTime) {
-    this.isPlaying = true;
-    this.gainNode.gain.setValueAtTime(8, currentTime);
-    this.audioContext.resume();
-  }
-
-  update(pitch, f1, f2) {
-    const currentTime = this.audioContext.currentTime;
-    if (!this.isPlaying) {
-      this.play(currentTime);
+    try {
+        this.isPlaying = true;
+        
+        // Ensure currentTime is valid
+        currentTime = isFinite(currentTime) ? currentTime : this.audioContext.currentTime;
+        
+        // Set gain with safety check
+        this.gainNode.gain.setValueAtTime(
+            Math.min(Math.max(8, 0), 10), // Clamp between 0 and 10
+            currentTime
+        ); 
+        
+        this.audioContext.resume();
+    } catch (error) {
+        console.error('MusicBox play error:', error);
     }
-    this.gainNode.gain.setValueAtTime(8, currentTime);
-    this.oscillator.frequency.setValueAtTime(pitch, currentTime);
-    this.filter1.frequency.setTargetAtTime(f1, currentTime, 0.1);
-    this.filter2.frequency.setTargetAtTime(f2, currentTime, 0.1);
+}
 
-    this.filter1.Q.setValueAtTime(5, currentTime);
-    this.filter2.Q.setValueAtTime(5, currentTime);
-  }
+update(pitch, f1, f2) {
+  try {
+      const currentTime = this.audioContext.currentTime;
 
-  pause() {
-    this.isPlaying = false;
-    // Set gain to 0 immediately
-    this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-    // Also suspend the audio context to be extra sure
-    this.audioContext.suspend();
+      // Validate and sanitize inputs
+      pitch = isFinite(pitch) ? Math.abs(pitch) : 220;
+      f1 = isFinite(f1) ? Math.abs(f1) : 440;
+      f2 = isFinite(f2) ? Math.abs(f2) : 880;
+
+      // Ensure playing
+      if (!this.isPlaying) {
+          this.play(currentTime);
+      }
+
+      // Set gain
+      this.gainNode.gain.setValueAtTime(8, currentTime);
+
+      // Set frequency and filters with safety checks
+      this.oscillator.frequency.setValueAtTime(
+          Math.min(Math.max(pitch, 20), 20000), // Audible frequency range
+          currentTime
+      );
+
+      // Use setTargetAtTime for smoother transitions
+      this.filter1.frequency.setTargetAtTime(
+          Math.min(Math.max(f1, 10), 22000), 
+          currentTime, 
+          0.1
+      );
+      this.filter2.frequency.setTargetAtTime(
+          Math.min(Math.max(f2, 10), 22000), 
+          currentTime, 
+          0.1
+      );
+
+      // Set Q values with safety
+      this.filter1.Q.setValueAtTime(
+          Math.min(Math.max(5, 0), 20), 
+          currentTime
+      );
+      this.filter2.Q.setValueAtTime(
+          Math.min(Math.max(5, 0), 20), 
+          currentTime
+      );
+
+  } catch (error) {
+      console.error('MusicBox update error:', {
+          pitch, f1, f2, 
+          error: error.message
+      });
   }
+}
+
+pause() {
+  try {
+      this.isPlaying = false;
+      
+      // Use current time for more precise stopping
+      const currentTime = this.audioContext.currentTime;
+      
+      // Gradual gain reduction
+      this.gainNode.gain.setTargetAtTime(0, currentTime, 0.1);
+      
+      this.audioContext.suspend();
+  } catch (error) {
+      console.error('MusicBox pause error:', error);
+  }
+}
 }
 
 function Point(x, y) {
@@ -225,7 +269,8 @@ class Subject extends Database {
       this.race = race,
       this.comments = null,
       this.distractions = [],
-      this.distracto = null;
+      this.distracto = null,
+      this.condition = null; // to store the condition (A or B)
   }
 
   // contains the basic information required to proceed
@@ -347,6 +392,33 @@ function getFormValue(formValues, name) {
     }
   }
   return "";
+}
+
+// Function to extract URL parameters
+function getUrlParameter(name) {
+  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+  const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+  const results = regex.exec(location.search);
+  return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+// Replace your existing getConditionFromId function with this enhanced version
+function getConditionFromId(id) {
+  // Check for URL parameter first
+  const conditionParam = getUrlParameter('condition');
+  if (conditionParam && (conditionParam.toUpperCase() === 'A' || conditionParam.toUpperCase() === 'B')) {
+      console.log("Condition set by URL parameter:", conditionParam.toUpperCase());
+      return conditionParam.toUpperCase();
+  }
+  
+  // If no URL parameter, or invalid value, use the hash function
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+  }
+  return Math.abs(hash) % 2 === 0 ? 'A' : 'B';
 }
 
 // variable to hold current display page. Will be used to hide when show is called
@@ -536,8 +608,20 @@ function checkInfo() {
     ""               // Music practice (will collect later)
   );
 
-  // Show headphone check instead of starting the game immediately
-  show("container-headphone-check");
+  // Assign condition directly to subject
+  subject.condition = getConditionFromId(prolific_id);
+  console.log("Participant assigned to condition:", subject.condition);
+
+  // Also set the global variable if you need it elsewhere
+  window.experimentCondition = subject.condition;
+
+  // skip headphone check if SKIP_HEADPHONE_CHECK is true
+  if (SKIP_HEADPHONE_CHECK) {
+    show("container-instructions1");
+  } else {
+    show("container-headphone-check");
+    runHeadphoneCheck();
+  }
   
   // Initialize the headphone check
   runHeadphoneCheck();
@@ -739,77 +823,173 @@ function monitorWindow(_event) {
 }
 
 // Function that sets up the game
-// All game functions are defined within this main function, treat as "main"
 function gameSetup(data) {
-  // **TODO** Update experiment_ID to label your experiments
-  const experiment_ID = "Katie2";
+
+  // Get the experiment condition from the subject object
+  const experimentCondition = subject.condition || 'A'; // Default to 'A' if missing
+   
+  // Update experiment_ID to include the condition
+  const experiment_ID = "AudioMotor_" + experimentCondition;
+
+  // Determine which condition's data to use
+  const conditionData = experimentCondition === 'A' 
+    ? data.conditionA 
+    : data.conditionB;
+
+  // COORDINATE CALCULATIONS
+  const screen_width = self.innerWidth;
+  const screen_height = self.innerHeight;
+  const tgt_distance = screen_height / 3;
+  const center = new Point(screen_width / 2.0, screen_height / 2.0);
+  // Red box dimensions
+  const squareLeft = center.x - tgt_distance;
+  const squareTop = center.y - tgt_distance;
+  const squareSize = 2 * tgt_distance;
+
+  // **MAKE THESE VARIABLES GLOBALLY ACCESSIBLE**
+  window.tgt_distance = tgt_distance;
+  window.squareLeft = squareLeft;
+  window.squareTop = squareTop;
+  window.squareSize = squareSize;
+  window.center = center;
+  window.screen_width = screen_width;
+  window.screen_height = screen_height;
+    
+  console.log('=== COORDINATE SETUP ===');
+  console.log('Screen:', screen_width, 'x', screen_height);
+  console.log('Center:', center.x, center.y);
+  console.log('Target distance:', tgt_distance);
+  console.log('Square bounds:', squareLeft, squareTop, 'size:', squareSize);
+  console.log('=== END COORDINATE SETUP ===');
   
-  // Add near the beginning of gameSetup function
+  // Combine training and testing data properly
+  const trainingData = conditionData.training;
+  const testingData = conditionData.testing;
+  
+  // Merge the arrays correctly
+  const rotation = {};
+  const tgt_angle = {};
+  const between_blocks = {};
+  const target_jump = {};
+
+  // Add training data (trials 0-3)
+  for (let i = 0; i < trainingData.numtrials; i++) {
+    rotation[i] = trainingData.rotation[i];
+    tgt_angle[i] = trainingData.tgt_angle[i];
+    between_blocks[i] = trainingData.between_blocks[i];
+    target_jump[i] = trainingData.target_jump[i];
+  }
+  
+  // Add testing data (trials 4-51, but indexed as 0-47 in testing data)
+  for (let i = 0; i < testingData.numtrials; i++) {
+    const globalTrialIndex = trainingData.numtrials + i; // This will be 4, 5, 6, ... 51
+    rotation[globalTrialIndex] = testingData.rotation[i];
+    tgt_angle[globalTrialIndex] = testingData.tgt_angle[i];
+    between_blocks[globalTrialIndex] = testingData.between_blocks[i];
+    target_jump[globalTrialIndex] = testingData.target_jump[i];
+  }
+  // **MAKE TRIAL DATA GLOBALLY ACCESSIBLE**
+  window.rotation = rotation;
+  window.tgt_angle = tgt_angle;
+  window.between_blocks = between_blocks;
+  window.target_jump = target_jump;
+
+  // **DEBUG: Verify specific trial that was failing**
+  console.log('=== TRIAL 47 CHECK ===');
+  console.log('Trial 47 angle:', tgt_angle[47]);
+  console.log('Trial 47 rotation:', rotation[47]);
+  console.log('Trial 47 jump:', target_jump[47]);
+  console.log('=== END TRIAL 47 CHECK ===');
+
+  // Number of trials from training + testing data
+  const num_trials = trainingData.numtrials + testingData.numtrials;
+  console.log('Total trials:', num_trials);
+
+  console.log('Global variables set:', {
+    tgt_distance,
+    squareLeft,
+    squareTop,
+    squareSize,
+    center,
+    totalTrials: num_trials
+  });
+
+  // Game state variables
   let trialOrder = [];
-
-  // game state
   let isPhase2 = false;
-
-  // array of cursor position during trials
   let handPositions = [];
-
-  // current trial
   let trial = 0;
 
-  // circle objects
+  // Circle objects
   let calibration = null;
   let target = null;
   let cursor = null;
 
-  // timeout timer
+  // Timeout timer
   let movement_timeout = null;
 
-  const feedback_time = 50; // length of time feedback remains (ms)
-  const feedback_time_slow = 1500; // length of "too slow" feedback (ms)
-  const hold_time = 500; // length of time users must hold in start before next trial (ms)
-  const green_time = 2000; // length of time the start circle in holding phase will turn to green (ms)
-  const search_too_slow = 3000; // Parameters and display for when users take too long to locate the center (ms)
-  const too_slow_time = 4000; // Setting up parameters and display when reach is too slow (ms)
+  // Timing variables
+    // length of time feedback remains (ms)
+  const feedback_time = 50; 
+    // length of "too slow" feedback (ms)
+  const feedback_time_slow = 1500; 
+    // length of time users must hold in start before next trial (ms)
+  const hold_time = 500; 
+    // length of time the start circle in holding phase will turn to green (ms)
+  const green_time = 2000; 
+    // Parameters and display for when users take too long to locate the center (ms)
+  const search_too_slow = 3000;
+    // Setting up parameters and display when reach is too slow (ms) 
+  const too_slow_time = 4000; 
 
-  // The between block messages that will be displayed
-  // **TODO** Update messages depending on your experiment
-  const messages = [
-    ["Way to go! Press any key to continue."],
-    [
-      // Message displayed when bb_mess == 1
-      "Wait until the center circle turns green.", 
-      "Listen to the sound, then move in the direction that recreates the sound.",
-      "Press 'b' when you are ready to proceed.",
-    ],
-    [
-      // Message displayed when bb_mess == 2
-      "Phase 2: Listen to the sound,", 
-      "then move in the direction that recreates the sound.", 
-      "Don't worry if you miss one -- it takes a little practice!",
-      "Press 'a' to continue.",
-    ],
-    [
-      "The white dot will now be hidden.", // bb_mess == 3
-      "Continue aiming DIRECTLY towards the target.",
-      "Press SPACE BAR when you are ready to proceed.",
-    ],
-    [
-      "This is an attention check.", // bb_mess == 4
-      "Press the key 'e' on your keyboard to CONTINUE.",
-      "Pressing any other key will result in a premature game termination and an incomplete HIT!",
-    ],
-    [
-      "This is an attention check.", // bb_mess == 5
-      "Press the key 'a' on your keyboard to CONTINUE.",
-      "Pressing any other key will result in a premature game termination and an incomplete HIT!",
-    ],
-    [
-      "The white dot will no longer be under your control.", // bb_mess == 6
-      "IGNORE the white dot as best as you can and continue aiming DIRECTLY towards the target.",
-      "This will be a practice trial",
-      "Press SPACE BAR when you are ready to proceed.",
-    ],
-  ];
+// The between block messages that will be displayed
+const messages = [
+  ["Way to go! Press any key to continue."],
+  [
+    // Message displayed when bb_mess == 1
+    "Wait until the center circle turns green.", 
+    "Listen to the sound, then move in the direction that recreates the sound.",
+    "Press 'b' when you are ready to proceed.",
+  ],
+  [
+    // Message displayed when bb_mess == 2
+    "Phase 2: Listen to the sound,", 
+    "then move in the direction that recreates the sound.", 
+    "Don't worry if you miss one -- it takes a little practice!",
+    "Press 'a' to continue.",
+  ],
+  [
+    "The white dot will now be hidden.", // bb_mess == 3
+    "Continue aiming DIRECTLY towards the target.",
+    "Press SPACE BAR when you are ready to proceed.",
+  ],
+  [
+    "This is an attention check.", // bb_mess == 4
+    "Press the key 'e' on your keyboard to CONTINUE.",
+    "Pressing any other key will result in a premature game termination and an incomplete HIT!",
+  ],
+  [
+    "This is an attention check.", // bb_mess == 5
+    "Press the key 'a' on your keyboard to CONTINUE.",
+    "Pressing any other key will result in a premature game termination and an incomplete HIT!",
+  ],
+  [
+    "The white dot will no longer be under your control.", // bb_mess == 6
+    "IGNORE the white dot as best as you can and continue aiming DIRECTLY towards the target.",
+    "This will be a practice trial",
+    "Press SPACE BAR when you are ready to proceed.",
+  ],
+];
+
+  // **CRITICAL DEBUGGING: Check if key variables are defined**
+  console.log('=== GAMESETUP DEBUGGING ===');
+  console.log('experimentCondition:', experimentCondition);
+  console.log('conditionData:', conditionData);
+  console.log('rotation:', rotation);
+  console.log('tgt_angle:', tgt_angle);
+  console.log('tgt_distance:', tgt_distance);
+  console.log('between_blocks:', between_blocks);
+  console.log('target_jump:', target_jump);
 
   const musicBox = new MusicBox(self);
   // Calculated hand angles
@@ -831,51 +1011,10 @@ function gameSetup(data) {
   let play_sound = true;
   let begin = new Date();
 
-  const target_file_data = data;
-
-  /**
-     * Python generate script output the following JSON format
-    // obsolete
-    "trialnum" = trialNums
-    "aiming_landmarks" = aimingLandmarks
-    "endpoint_feedback" = endpointFB
-    "rotation" = rotation
-    "tgt_angle" = anglesDict
-    "tgt_distance" = tgtDistance
-    "between_blocks" = betweenBlocks
-    "target_jump" = targetJump
-     */
-
-  // Reading the json target file into the game
-  // const endpt_fb = target_file_data.endpoint_feedback;
-  const rotation = target_file_data.rotation; // degrees
-  const tgt_angle = target_file_data.tgt_angle;
-  tgt_distance = target_file_data.tgt_distance;
-  const between_blocks = target_file_data.between_blocks;
-  target_jump = target_file_data.target_jump;
-
-  // there is missing variables unused - target_file_data.tgt_distance
-
   // Between blocks parameters
-  // **TODO**: Data normalization - what is this suppose to be?
   let bb_mess = between_blocks[0];
 
-  // [F] - Data optimization. We don't need to have a number of trials variable here. We would just rely on the number of trial we have in our collection in the database.
-  const num_trials = target_file_data.numtrials;
-
-  // **TODO**: Need to see if I clone this value properly, if it referenced, both variable would receive identical value.
-  const screen_width = self.innerWidth;
-  const screen_height = self.innerHeight;
   prev_screen_size = screen_width * screen_height;
-
-  // potential bug - what if some of the client plays in portrait mode?
-  const target_dist = screen_height / 3;
-  const center = new Point(screen_width / 2.0, screen_height / 2.0);
-
-  // Red box dimension
-  const squareLeft = center.x - target_dist;
-  const squareTop = center.y - target_dist;
-  const squareSize = 2 * target_dist;
 
   function setupPageRender(center) {
     // Initializations to make the screen full size and black background
@@ -1009,7 +1148,7 @@ function gameSetup(data) {
   calibration = new Circle(
     handler, // parent
     center, // point
-    Math.round(target_dist * 4.5 / 80.0), // radius
+    Math.round(tgt_distance * 4.5 / 80.0), // radius
     "none", // color
     "white", // stroke
   );
@@ -1019,7 +1158,7 @@ function gameSetup(data) {
     handler, // parent
     center, // point
     // this is confusing? How big is this suppose to be?
-    Math.round(target_dist * 4.5 / 80.0), // radius
+    Math.round(tgt_distance * 4.5 / 80.0), // radius
     "blue", // color
     "none", // stroke
   );
@@ -1033,7 +1172,7 @@ function gameSetup(data) {
     center, // point
     // this is confusing? How big is this suppose to be?
     // also what is the order of operation here? How are the number generated?
-    Math.round(target_dist * 1.75 * 1.5 / 80.0), // radius
+    Math.round(tgt_distance * 1.75 * 1.5 / 80.0), // radius
     "white",
     "none",
   );
@@ -1170,7 +1309,7 @@ function gameSetup(data) {
         }
 
         // Move from moving to feedback phase once their reach intersects the target ring
-        if (distance > target_dist *0.95) {
+        if (distance > tgt_distance *0.95) {
           // stop audio
           musicBox.pause();
           fb_phase();
@@ -1353,7 +1492,8 @@ function gameSetup(data) {
   function play_sounds(start, end, duration, update) {
     // Make sure any previous sound is stopped
       musicBox.pause();
-    function play_sound_along(t) {
+    
+      function play_sound_along(t) {
       // linear interpolate between two points over time (0-1)
       // This can be changed using different kind of interpolation or animation curve - future features
       const x = start.x + (end.x - start.x) * t;
@@ -1361,22 +1501,29 @@ function gameSetup(data) {
 
       update(x, y); // callback to update others based on coordinate given.
       
-      // Use the same pitch calculation as in update_cursor function
-      // This is original for vowel formants from on y-axis
-      // const { f1, f2, _vowel } = getVowelFormants(y, squareTop, squareSize);
-      // CHANGE: Now getting vowel formants from x position instead of y
-      const { f1, f2, _vowel } = getVowelFormants(x, squareLeft, squareSize);
-    
-      // Match the pitch calculation from the update_cursor function
-      // CHANGE: Now calculating pitch from y position
-      const lo_pitch = 80;
-      const hi_pitch = 350;
-      const y_proportion = 1 - (y - squareTop) / squareSize;
-      const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
+      // Project the current position onto the red square to ensure the sound is generated within the square
+      let soundX = x;
+      let soundY = y;
+      
+      // Clamp coordinates to be within the red square
+      soundX = Math.max(squareLeft, Math.min(soundX, squareLeft + squareSize));
+      soundY = Math.max(squareTop, Math.min(soundY, squareTop + squareSize));
 
-      // update musicbox
-      musicBox.update(pitch, f1, f2);
-    }
+    // Use the clamped coordinates for sound generation
+    const { f1, f2, _vowel } = getVowelFormants(soundX, squareLeft, squareSize);
+  
+    // Match the pitch calculation from the update_cursor function
+    const lo_pitch = 80;
+    const hi_pitch = 350;
+    const y_proportion = 1 - (soundY - squareTop) / squareSize;
+    const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
+
+    console.log(`Demo sound: x=${soundX.toFixed(1)}, y=${soundY.toFixed(1)}, f1=${f1.toFixed(1)}, f2=${f2.toFixed(1)}, pitch=${pitch.toFixed(1)}, vowel=${_vowel}`);
+
+    // update musicbox
+    musicBox.update(pitch, f1, f2);
+  }
+
     // Play the sound along the animation path
     animate((t) => play_sound_along(t), duration, () => {
       console.log("Animation ended, stopping sound");
@@ -1396,7 +1543,7 @@ function gameSetup(data) {
 
   // Phase when users have held cursor in start circle long enough so target shows up
   function show_targets() {
-    // Record search time as the time elapsed from the start of the search phase to the start of this phase
+    // "Search time" is time elapsed from start of the search phase to the start of movement phase
     d3.select("#message-line-1").attr("display", "none");
     search_time = new Date() - begin;
 
@@ -1412,11 +1559,12 @@ function gameSetup(data) {
     const start = calibration.point;
     const offset = (jump == 1.0) ? rotation[trial] : jump;
     const value = angle + offset;  
+    
     // When calculating a point on a circle (or positioning a target at a certain angle and distance): 
     // Math.cos is used for the x-coordinate because cosine represents the horizontal component of movement along a circle. When an angle is 0 degrees, cosine is 1, placing the point at maximum x-distance. 
     // Math.sin is used for the y-coordinate because sine represents the vertical component of movement along a circle. When an angle is 90 degrees, sine is 1, placing the point at maximum y-distance.
-    const x = start.x + target_dist * Math.cos(value * deg2rad);
-    const y = start.y - target_dist * Math.sin(value * deg2rad);
+    const x = start.x + tgt_distance * Math.cos(value * deg2rad);
+    const y = start.y - tgt_distance * Math.sin(value * deg2rad);
     const end = new Point(x, y);
 
     // Log for debugging
@@ -1435,9 +1583,15 @@ function gameSetup(data) {
     // Define the demo duration - match what is coded in play_sounds function
     const demoDuration = 2000;
     
-    // Play sound demonstration with the proper duration parameter
-    play_sounds(start, end, demoDuration, (x, y) => {
-      // Don't update target position during sound demo
+     // Callback that can visualize the sound path
+     play_sounds(start, end, demoDuration, (demoX, demoY) => {
+      // Optional: You could create a visual indicator during the demo
+      // For now, just log the path for debugging
+      // console.log(`Demo sound playing at: (${demoX.toFixed(1)}, ${demoY.toFixed(1)})`);
+      
+      // You could also temporarily show the cursor position during demo:
+      // cursor.update(demoX, demoY);
+      // cursor.display(true);
     });
     play_sound = false;
   }
@@ -1547,9 +1701,9 @@ function gameSetup(data) {
     }
 
     hand_fb_x = calibration.point.x +
-      target_dist * Math.cos(hand_fb_angle * deg2rad);
+      tgt_distance * Math.cos(hand_fb_angle * deg2rad);
     hand_fb_y = calibration.point.y -
-      target_dist * Math.sin(hand_fb_angle * deg2rad);
+      tgt_distance * Math.sin(hand_fb_angle * deg2rad);
 
     cursor.display(true);
 
@@ -1684,25 +1838,65 @@ function gameSetup(data) {
 function getVowelFormants(xPos, squareLeft, squareSize) {
   const vowelFormants = {
     i: { f1: 300, f2: 2300 },
-    // u: { f1: 300, f2: 800 },
-    a: { f1: 700, f2: 1200 },
-    // æ: { f1: 700, f2: 1800 }
+    a: { f1: 700, f2: 1200 }
   };
-  // need to be explicit about which segment these are delinating
+
+  // ensure input is a number
+  if (isNaN(xPos) || isNaN(squareLeft) || isNaN(squareSize)) {
+    console.error('Invalid input for getVowelFormants', { xPos, squareLeft, squareSize });
+
+  // validate input
+  if (xPos < 0 || squareLeft < 0 || squareSize <= 0) {
+    console.error('Invalid input for getVowelFormants', { xPos, squareLeft, squareSize });
+    return { f1: 500, f2: 1500, vowel: 'a' }; // Fallback values
+  }
+}
+  
+  // Need to be explicit about which segment these are delinating
   const vowels = Object.keys(vowelFormants);
+  
+  // Ensure xPos is within the square boundaries
+  xPos = Math.max(squareLeft, Math.min(xPos, squareLeft + squareSize));
+  
   const segmentWidth = squareSize / (vowels.length - 1);
   const offset = Math.max(xPos - squareLeft, 0);
-  const index = Math.min(Math.floor(offset / segmentWidth), vowels.length - 2); // which segment. floor(offset/segmentHeight) -> counts up through segments; vowels.length - 2 -> catches any round-off errors at the end.
-  const t = ((xPos - squareLeft) % segmentWidth) / segmentWidth; // where we are in the segment
-  const vowel1 = vowels[index]; // first fencepost for this segment
-  const vowel2 = vowels[index + 1]; // second fencepost for this segment
+  
+  // Ensure index is within bounds
+  const index = Math.min(
+    Math.max(Math.floor(offset / segmentWidth), 0), 
+    vowels.length - 2
+  );
+  
+  const t = ((xPos - squareLeft) % segmentWidth) / segmentWidth;
+  
+  const vowel1 = vowels[index];
+  const vowel2 = vowels[index + 1];
+  
+  // Add safety checks
+  if (!vowelFormants[vowel1] || !vowelFormants[vowel2]) {
+    console.warn('Unexpected vowel formant calculation', { 
+      xPos, 
+      squareLeft, 
+      squareSize, 
+      index, 
+      vowel1, 
+      vowel2 
+    });
+    
+    // Fallback to default values
+    return { 
+      f1: 500, 
+      f2: 1500, 
+      vowel: 'a' 
+    };
+  }
 
   const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
   const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
 
-  const currentVowel = t < 0.5 ? vowel1 : vowel2; // ? is an if then statement = "condition ? valueIfTrue : valueIfFalse"
+  const currentVowel = t < 0.5 ? vowel1 : vowel2;
 
-  return { f1, f2, vowel: currentVowel }; // final answer of what vowel we're in
+  return { f1, f2, _vowel: currentVowel };
 }
 
 // Helper function to end the game regardless good or bad
@@ -1996,7 +2190,8 @@ function saveFeedback() {
     musicPractice: subject.musicPractice,
     comments: subject.comments,
     distractions: subject.distractions,
-    distracto: subject.distracto
+    distracto: subject.distracto,
+    condition: subject.condition // to save condition
   };
 
   // Save to Firebase
