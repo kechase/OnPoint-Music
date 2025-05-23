@@ -252,18 +252,18 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, gender, handedness, mousetype, returner, ethnicity, race, musicExperience, languageCount, musicInstrument, musicPractice) {
+  constructor(id, age, gender, handedness, mouse_type, returner, ethnicity, race, music_experience, language_count, music_instrument, music_practice) {
     super("subject");
       this.id = id,
       this.age = age,
       this.gender = gender,
       this.handedness = handedness,
-      this.mousetype = mousetype,
+      this.mouse_type = mouse_type,
       this.returner = returner,
-      this.musicExperience = musicExperience, 
-      this.languageCount = languageCount,
-      this.musicInstrument = musicInstrument,
-      this.musicPractice = musicPractice,
+      this.music_experience = music_experience, 
+      this.language_count = language_count,
+      this.music_instrument = music_instrument,
+      this.music_practice = music_practice,
       this.tgt_file = fileName,
       this.ethnicity = ethnicity,
       this.race = race,
@@ -273,12 +273,11 @@ class Subject extends Database {
       this.condition = null; // to store the condition (A or B)
   }
 
-  // contains the basic information required to proceed
+  // Validation logic - if these fields are required, add them to the check
   isValid() {
-    // Validation logic - if these fields are required, add them to the check
     return this.id !== "" && this.age !== "" && this.gender !== "" && 
-           this.handedness !== "" && this.mousetype !== "" && this.returner !== "" &&
-           this.musicExperience !== "" && this.musicInstrument !== "" && this.musicPractice !== "" && this.languageCount !== "";
+           this.handedness !== "" && this.mouse_type !== "" && this.returner !== "" &&
+           this.music_experience !== "" && this.music_instrument !== "" && this.music_practice !== "" && this.language_count !== "";
   }
 }
 
@@ -308,8 +307,8 @@ class Trial extends Database {
     target_angle,
     rotation,
     hand_angle,
-    rt,
-    mt,
+    reaction_time,
+    movement_time,
     time,
     feedback,
     cursor_data,
@@ -321,18 +320,15 @@ class Trial extends Database {
       target_angle,
       rotation,
       hand_angle,
-      rt,
-      mt,
+      reaction_time,
+      movement_time,
       time,
       feedback,
     );
 
-    // does this create a new array or clears the reference to it?
-    // clone this array
+    // append the start position of the cursor
     const data = [...cursor_data];
     const path = [...hand_path];
-
-    // append newly copy data value.
     this.cursor_data.push(data);
     this.hand_path.push(path);
 
@@ -342,7 +338,7 @@ class Trial extends Database {
 }
 
 class Block extends Database {
-  constructor(num, target_angle, rotation, hand_angle, rt, mt, time, feedback) {
+  constructor(num, target_angle, rotation, hand_angle, reaction_time, movement_time, time, feedback) {
     super("block");
     // auto create the date
     const d = new Date();
@@ -350,15 +346,14 @@ class Block extends Database {
       d.getDate() + "/" + d.getFullYear() + " " + d.getHours() + ":" +
       d.getMinutes() + "." + d.getSeconds() + "." + d.getMilliseconds();
 
-    this.trialNum = num;
-    this.currentDate = current_date;
+    this.trial_num = num;
+    this.current_date = current_date;
     this.target_angle = target_angle;
-    // **TODO**: Check the other end process to see if this is still in use! This is deprecated for this experiment.
-    this.trial_type = "online_fb"; // No longer needed - however to keep the rest of the process flow, we're filling in "online_fb" data instead.
+    this.trial_type = "online_fb"; // No longer needed - legacy code
     this.rotation = rotation;
     this.hand_fb_angle = hand_angle;
-    this.rt = rt;
-    this.mt = mt;
+    this.reaction_time = reaction_time;
+    this.movement_time = movement_time;
     this.search_time = time;
     this.reach_feedback = feedback;
     // this.log = [];  // used to collect mouse movement
@@ -563,30 +558,30 @@ function checkInfo() {
   
   // Map the form values 
   const prolific_id = getFormValue(values, "prolific_id");
-  const mousetype = getFormValue(values, "mousetype");
-  const musicExperience = getFormValue(values, "music_experience");
+  const mouse_type = getFormValue(values, "mouse_type");
+  const music_experience = getFormValue(values, "music_experience");
 
   // Basic validation
-  if (!prolific_id || !mousetype || !musicExperience ) {
+  if (!prolific_id || !mouse_type || !music_experience ) {
     alert("Please fill out all required information!");
     return false;
   }
   
   // Trackpad validation
-  if (mousetype !== 'trackpad') {
+  if (mouse_type !== 'trackpad') {
     alert("This experiment requires using a trackpad. Please switch to a trackpad to continue.");
     return false;
   }
 
   // music experience validation
   // Additional validation to ensure musicExperience is not empty
-  if (!musicExperience) {
+  if (!music_experience) {
     alert("Please enter your music experience!");
     document.getElementById("music_experience").focus();
     return false;
 }
   // Optional: Ensure it's a number if that's what you expect
-  if (isNaN(musicExperience)) {
+  if (isNaN(music_experience)) {
     alert("Please enter a valid number for music experience!");
     document.getElementById("music_experience").focus();
     return false;
@@ -594,15 +589,15 @@ function checkInfo() {
 
   // Create subject with all fields
   subject = new Subject(
-    prolific_id,  // Prolific ID
+    prolific_id,     // Prolific ID
     "",              // Age (will collect later)
     "",              // Gender (will collect later)
     "",              // Handedness (will collect later)
-    mousetype,       // Mouse type
+    mouse_type,      // Mouse type
     "",              // Returner (will collect later)
     "",              // Ethnicity (will collect later)
     "",              // Race (will collect later)
-    musicExperience, // Music experience
+    music_experience,// Music experience
     "",              // Language count (will collect later)
     "",              // Music instrument (will collect later)
     ""               // Music practice (will collect later)
@@ -996,8 +991,8 @@ const messages = [
   let hand_fb_angle = 0;
 
   // Timing Variables
-  let rt = 0; // reaction time
-  let mt = 0; // movement time
+  let reaction_time = 0; // reaction time
+  let movement_time = 0; // movement time
   let search_time = 0; // time to reset trial (includes hold time);
 
   // Initializing timer objects and variables
@@ -1212,10 +1207,6 @@ const messages = [
   }
 
   setPointerLock();
-
-  // The distance from start at which they can see their cursor while searching in between trials
-  // **TODO**: Talk to Katie if we still need this? Used as an indicator to display cursor before moving back to start.
-  // search_tolerance = start.radius * 4 + cursor.radius * 4;
 
   /********************
     * Update Cursor Function*
@@ -1629,7 +1620,7 @@ const messages = [
     }
 
     
-    rt = new Date() - begin; // Record reaction time as time spent with target visible before moving
+    reaction_time = new Date() - begin; // Record reaction time as time spent with target visible before moving
     begin = new Date(); // Start of timer for movement time
 
     // Play audio
@@ -1672,12 +1663,12 @@ const messages = [
 
     // Record movement time as time spent reaching before intersecting target circle
     // Can choose to add audio in later if necessary
-    mt = new Date() - begin;
+    movement_time = new Date() - begin;
     let timer = 0;
     musicBox.pause();
 
     // Gives "hurry" message upon completing a trial that was done too slowly
-    if (mt > too_slow_time) {
+    if (movement_time > too_slow_time) {
       calibration.display(false);
       d3.select("#too_slow_message").attr("display", "block");
       target.setFill("red");
@@ -1736,8 +1727,8 @@ const messages = [
       tgt_angle[trial],
       rotation[trial],
       hand_fb_angle,
-      rt,
-      mt,
+      reaction_time,
+      movement_time,
       search_time,
       reach_feedback,
       handPositions, // cursor_data
@@ -1751,8 +1742,8 @@ const messages = [
     subjTrials.screen_width.push(screen_width);
   
     // Reset timing variables
-    rt = 0;
-    mt = 0;
+    reaction_time = 0;
+    movement_time = 0;
     search_time = 0;
     play_sound = true;
     handPositions = [];
@@ -1905,11 +1896,9 @@ function helpEnd() {
   // return the cursor back
   $("html").css("cursor", "auto");
   $("body").css("cursor", "auto");
-
   // restore the screen state
   $("body").css("background-color", "white");
   $("html").css("background-color", "white");
-
   d3.select("#stage").attr("display", "none");
 
   try {
@@ -1918,16 +1907,16 @@ function helpEnd() {
     // #### Create a comprehensive record of all trial data
     const subjTrial_data = {
       id: subjTrials.id,
-      experimentID: subjTrials.experimentID,
+      experiment_ID: subjTrials.experimentID,
       // cursor_data: subjTrials.cursor_data,
-      trialNum: [],
-      currentDate: [],
+      trial_num: [],
+      current_date: [],
       target_angle: [],
       trial_type: [],
       rotation: [],
       hand_fb_angle: [],
-      rt: [],
-      mt: [],
+      reaction_time: [],
+      movement_time: [],
       search_time: [],
       reach_feedback: [],
       start_x: subjTrials.start_x,
@@ -1941,14 +1930,14 @@ function helpEnd() {
 
     // Extract data from blocks
     subjTrials.blocks.forEach((block, index) => {
-      subjTrial_data.trialNum.push(block.trialNum);
-      subjTrial_data.currentDate.push(block.currentDate);
+      subjTrial_data.trial_num.push(block.trial_num);
+      subjTrial_data.current_date.push(block.current_date);
       subjTrial_data.target_angle.push(block.target_angle);
       subjTrial_data.trial_type.push(block.trial_type);
       subjTrial_data.rotation.push(block.rotation);
       subjTrial_data.hand_fb_angle.push(block.hand_fb_angle);
-      subjTrial_data.rt.push(block.rt);
-      subjTrial_data.mt.push(block.mt);
+      subjTrial_data.reaction_time.push(block.reaction_time);
+      subjTrial_data.movement_time.push(block.movement_time);
       subjTrial_data.search_time.push(block.search_time);
       subjTrial_data.reach_feedback.push(block.reach_feedback)
       subjTrial_data.hand_path_flattened = true;
@@ -2095,9 +2084,9 @@ function saveFeedback() {
   // Get demographic information directly from DOM elements
   const age = document.getElementById("age-input") ? document.getElementById("age-input").value : "";
   const gender = document.getElementById("gender") ? document.getElementById("gender").value : "";
-  const musicInstrument = document.getElementById("music-instrument-input") ? document.getElementById("music-instrument-input").value : "";
-  const musicPractice = document.getElementById("music-practice-input") ? document.getElementById("music-practice-input").value : "";
-  const languageCount = document.getElementById("language-count") ? document.getElementById("language-count").value : "";
+  const music_instrument = document.getElementById("music-instrument-input") ? document.getElementById("music-instrument-input").value : "";
+  const music_practice = document.getElementById("music-practice-input") ? document.getElementById("music-practice-input").value : "";
+  const language_count = document.getElementById("language-count") ? document.getElementById("language-count").value : "";
   const returner = document.getElementById("repeat") ? document.getElementById("repeat").value : "";
   const handedness = document.getElementById("hand") ? document.getElementById("hand").value : "";
   const ethnicity = document.getElementById("ethnic") ? document.getElementById("ethnic").value : "";
@@ -2120,15 +2109,15 @@ function saveFeedback() {
   // Validate required fields
   const requiredFields = [
     { name: "Age", value: age },
-    { name: "Music practice hours", value: musicPractice },
+    { name: "Music practice hours", value: music_practice },
     { name: "Gender", value: gender },
-    { name: "Musical instrument question", value: musicInstrument },
-    { name: "Language count", value: languageCount },
+    { name: "Musical instrument question", value: music_instrument },
+    { name: "Language count", value: language_count },
     { name: "Experiment returner", value: returner },
     { name: "Handedness", value: handedness }
   ];
   
-  // Get feedback text - SIMPLIFIED VERSION
+  // Get feedback 
   const feedbackInput = document.getElementById('feedback_final');
   // Always set comments to a string value, empty string if no input
   subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
@@ -2150,9 +2139,9 @@ function saveFeedback() {
   subject.returner = returner;
   subject.ethnicity = ethnicity || ""; // Optional field
   subject.race = race || ""; // Optional field
-  subject.languageCount = languageCount;
-  subject.musicInstrument = musicInstrument;
-  subject.musicPractice = musicPractice || "0"; // Default to 0 if empty
+  subject.language_count = language_count;
+  subject.music_instrument = music_instrument;
+  subject.music_practice = music_practice || "0"; // Default to 0 if empty
 
   // Log for debugging
   console.log("Subject data before saving:", {
@@ -2160,12 +2149,12 @@ function saveFeedback() {
     age: subject.age,
     gender: subject.gender,
     handedness: subject.handedness,
-    mousetype: subject.mousetype,
+    mouse_type: subject.mouse_type,
     returner: subject.returner,
-    musicExperience: subject.musicExperience,
-    languageCount: subject.languageCount,
-    musicInstrument: subject.musicInstrument,
-    musicPractice: subject.musicPractice,
+    music_experience: subject.music_experience,
+    language_count: subject.language_count,
+    music_instrument: subject.music_instrument,
+    music_practice: subject.music_practice,
     ethnicity: subject.ethnicity,
     race: subject.race,
     comments: subject.comments,
@@ -2179,15 +2168,15 @@ function saveFeedback() {
     age: subject.age,
     gender: subject.gender,
     handedness: subject.handedness,
-    mousetype: subject.mousetype,
+    mouse_type: subject.mouse_type,
     returner: subject.returner,
     tgt_file: fileName,
     ethnicity: subject.ethnicity,
     race: subject.race,
-    musicExperience: subject.musicExperience,
-    languageCount: subject.languageCount,
-    musicInstrument: subject.musicInstrument,
-    musicPractice: subject.musicPractice,
+    music_experience: subject.music_experience,
+    language_count: subject.language_count,
+    music_instrument: subject.music_instrument,
+    music_practice: subject.music_practice,
     comments: subject.comments,
     distractions: subject.distractions,
     distracto: subject.distracto,

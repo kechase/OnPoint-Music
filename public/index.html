@@ -142,44 +142,14 @@
         <form id='infoform'>
             <div class="row question">
 
-                <div class="questions" id="prolific_id">
+                <div class="questions">
                     Prolific ID:
                     <input id="prolific_id" type="text" name="prolific_id" value="">
                 </div>
-                <script>
-                    function isNumericKey(event) {
-                        // Allow only numeric key presses
-                        return event.charCode >= 48 && event.charCode <= 57;
-                    }
-                    
-                    function validateTwoDigits(input) {
-                        // Get the current value
-                        let value = input.value;
-                        
-                        // Remove any non-digit characters
-                        value = value.replace(/\D/g, '');
-                        
-                        // Limit to 2 digits
-                        if (value.length > 2) {
-                            value = value.slice(0, 2);
-                        }
-                        
-                        // Ensure it's in the 18-99 range
-                        const num = parseInt(value);
-                        if (num < 18) {
-                            // Don't update for now, wait for second digit
-                            if (value.length >= 2) {
-                                value = "18";
-                            }
-                        }
                 
-                        // Update the input value
-                        input.value = value;
-                    }
-                </script>
                 <div class="questions" id="mouseQ">
                     What kind of mouse are you using (Please only use trackpads):
-                    <select id="mousetype" name="mousetype">
+                    <select id="mouse_type" name="mouse_type">
                         <option value="">
                         <option value="optical">Optical mouse (standard mouse)</option>
                         <option value="trackpad">Trackpad</option>
@@ -191,7 +161,7 @@
                     How many total years of musical experience do you have? (Formal and informal)
                     <input id="music_experience" type="number" name="music_experience" min="0" max="99" 
                            onkeypress="return isNumericKey(event)" 
-                           oninput="validateTwoDigits(this)">
+                           oninput="validateMusicExperience(this)">
                 </div>
                 <script>
                     function isNumericKey(event) {
@@ -199,7 +169,7 @@
                         return event.charCode >= 48 && event.charCode <= 57;
                     }
                     
-                    function validateTwoDigits(input) {
+                    function validateMusicExperience(input) {
                         // Get the current value
                         let value = input.value;
                         
@@ -389,13 +359,9 @@
                     <input id="distracto" type="text" name="distracto" value="">
                 </div>
                 </form>
-                <form id="demographicsForm">
                 <div class="questions" id="age-question">
                     Age:
-                    <input id="age-input" type="number" min="18" max="99" 
-                    onkeypress="return isNumericKey(event)" 
-                    oninput="validateTwoDigits(this)"
-                    name="age">
+                    <input id="age-input" type="number" min="18" max="99" name="age">
                 </div>
                 <div class="questions" id="gender-question">
                     Gender:
@@ -451,7 +417,7 @@
                 <hr>
                 <p>
                     The following information is requested by the National Institute of Health. You are not
-                    <em>required</em>, but are encouraged to complete these.
+                    required, but are <em>encouraged</em> to complete these.
                 </p>
 
                 <div class="questions" id="ethnicity">
