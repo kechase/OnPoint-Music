@@ -475,6 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('container-instructions2').style.display = 'none';
   document.getElementById('container-info').style.display = 'none';
   document.getElementById('container-headphone-check').style.display = 'none';
+  document.getElementById('container-pre-experiment').style.display = 'none';
   document.getElementById('container-exp').style.display = 'none';
   document.getElementById('container-not-an-ad').style.display = 'none';
   document.getElementById('container-failed').style.display = 'none';
@@ -686,7 +687,37 @@ window.continueAfterHeadphoneCheck = continueAfterHeadphoneCheck;
 window.checkInfo = checkInfo;
 window.validateConsent = validateConsent;
 
-// Add this function
+function showPreExperimentInstructions() {
+  // Get the participant's condition
+  const condition = subject.condition || 'A';
+  
+  // Define condition-specific instructions
+  const conditionInstructions = {
+      'A': {
+          message: 'You are listening for both pitch changes and vowel sounds!',
+      },
+      'B': {
+          message: 'You are playing a new instrument!',
+      }
+  };
+  
+  // Get instructions for current condition
+  const instructions = conditionInstructions[condition];
+  
+  // Build simple HTML content
+  const instructionHTML = `
+      <p style="font-size: 26px; color: #337ab7; font-weight: bold; margin: 20px 0;">
+          ${instructions.message}
+      </p>
+  `;
+  
+  // Insert the content
+  document.getElementById('condition-specific-instructions').innerHTML = instructionHTML;
+  
+  // Show the pre-experiment page
+  return show('container-pre-experiment');
+}
+
 function startExperiment() {
   // Enter full screen if not disabled
   if (!disableFullScreen) {
@@ -695,8 +726,21 @@ function startExperiment() {
   }
   
   console.log("Starting game with subject data:", subject);
+
+  // start the game phase
   startGame();
+
   return true;
+}
+
+function showStartupMessage() {
+  // set up the game environment first
+  gameSetup(fileContent);
+
+  // then show the start up message
+  game_phase = Phase.BETWEEN_BLOCKS;
+  bb_mess = 7 // new start up message
+  displayMessageFlexible(7);
 }
 
 // Make it accessible
@@ -939,40 +983,56 @@ function gameSetup(data) {
 
 // The between block messages that will be displayed
 const messages = [
-  ["Way to go! Press any key to continue."],
   [
-    // Message displayed when bb_mess == 1
-    "Wait until the center circle turns green.", 
-    "Listen to the sound, then move in the direction that recreates the sound.",
+    // bb_mess == 0 - unused currently
+    "Way to go! Press any key to continue."
+  ],
+  [
+    // bb_mess == 1
+    "Way to go!",
     "Press 'b' when you are ready to proceed.",
   ],
   [
-    // Message displayed when bb_mess == 2
-    "Phase 2: Listen to the sound,", 
-    "then move in the direction that recreates the sound.", 
+    // bb_mess == 2
+    "Phase 2:", 
+    "The instrument will play a sound.", 
+    "Your white dot will turn green when it's time for you to move and recreate that sound.", 
+    "Each sound plays only once.",
     "Don't worry if you miss one -- it takes a little practice!",
     "Press 'a' to continue.",
   ],
   [
-    "The white dot will now be hidden.", // bb_mess == 3
+    // bb_mess == 3
+    "The white dot will now be hidden.", 
     "Continue aiming DIRECTLY towards the target.",
     "Press SPACE BAR when you are ready to proceed.",
   ],
   [
-    "This is an attention check.", // bb_mess == 4
+    // bb_mess == 4
+    "This is an attention check.", 
     "Press the key 'e' on your keyboard to CONTINUE.",
     "Pressing any other key will result in a premature game termination and an incomplete HIT!",
   ],
   [
-    "This is an attention check.", // bb_mess == 5
+    // bb_mess == 5
+    "This is an attention check.", 
     "Press the key 'a' on your keyboard to CONTINUE.",
     "Pressing any other key will result in a premature game termination and an incomplete HIT!",
   ],
   [
-    "The white dot will no longer be under your control.", // bb_mess == 6
+    // bb_mess == 6
+    "The white dot will no longer be under your control.", 
     "IGNORE the white dot as best as you can and continue aiming DIRECTLY towards the target.",
     "This will be a practice trial",
     "Press SPACE BAR when you are ready to proceed.",
+  ],
+  [ 
+    // bb_mess == 7
+    "Welcome to the experiment!",
+    "Phase 1:",
+    "A blue dot will appear somewhere within the box.",
+    "Move your white dot toward it and listen to the sound along the way.",
+    "Press SPACE BAR to begin.",
   ],
 ];
 
@@ -1186,6 +1246,7 @@ const messages = [
 
   // Function to monitor changes in pointer lock
   function lockChangeAlert() {
+    const stage = document.getElementById("stage");
     if (
       document.pointerLockElement === stage ||
       document.mozPointerLockElement === stage
@@ -1203,7 +1264,15 @@ const messages = [
   // Function to set pointer lock and log it
   function setPointerLock() {
     console.log("Attempted to lock pointer");
-    stage.requestPointerLock();
+    // get the stage element by ID
+    const stage = document.getElementById("stage");
+    // Check if stage exists AND supports pointer lock
+    if (stage && stage.requestPointerLock) {
+      stage.requestPointerLock();
+    } else {
+      console.warn("Stage element not found or does not support pointer lock.");
+      return;
+    }
   }
 
   setPointerLock();
@@ -1310,7 +1379,7 @@ const messages = [
   }
 
   // Function called whenever a key is pressed
-  // **TODO** Make sure the conditions match up to the messages displayed in "messages"
+  // #### Make sure conditions trigger intended action in "bb_mess"
   function advance_block(event) {
     const SPACE_BAR = " "; //32;
     const a = "a"; //97;
@@ -1354,46 +1423,63 @@ const messages = [
         return;
       }
 
+      if (bb_mess == 7 && key == SPACE_BAR) {
+        // Start the actual first trial
+        bb_mess = between_blocks[0]; // Get the first trial's bb_mess
+        search_phase();
+        return;
+      }
+
       // Only call badGame if none of the above conditions are met
     console.log("Failed attention check - ending game");
     badGame(); // Premature exit game if failed attention check
     }
   }
 
-  function displayMessage(idx) {
+  function displayMessageFlexible(idx) {
     // First clear existing messages
-  hideMessage();
-
-  // Safety check for undefined messages
-  if (!messages[idx]) {
-    console.error(`No message defined for index: ${idx}`);
-    return;
-  }
-
-    // Load messages
-    // Display line 1 (should always exist)
-    d3.select("#message-line-1").attr("display", "block").text(
-      messages[idx][0] || "");
+    hideMessageFlexible();
   
-    // Only display additional lines if they exist
-    if (messages[idx][1]) {
-      d3.select("#message-line-2").attr("display", "block").text(messages[idx][1]);
+    // Safety check for undefined messages
+    if (!messages[idx]) {
+      console.error(`No message defined for index: ${idx}`);
+      return;
+    }
+  
+    console.log(`Displaying message ${idx}:`, messages[idx]);
+  
+    // Get styling info
+    const line_size = Math.round(window.screen_height / 30);
+    const message_size = String(line_size).concat("px");
+  
+    // Display each line of the message
+    messages[idx].forEach((text, lineIndex) => {
+      const lineId = `message-line-${lineIndex + 1}`;
+      let lineElement = d3.select(`#${lineId}`);
+      
+      // Create the line element if it doesn't exist
+      if (lineElement.empty()) {
+        lineElement = d3.select("#stage").append("text")
+          .attr("text-anchor", "middle")
+          .attr("x", window.center.x)
+          .attr("y", window.center.y + (lineIndex - 1) * line_size) // Center around middle
+          .attr("fill", "white")
+          .attr("font-family", "sans-serif")
+          .attr("font-size", message_size)
+          .attr("id", lineId)
+          .attr("display", "none");
+      }
+      
+      // Display the text
+      lineElement.attr("display", "block").text(text);
+    });
   }
   
-    if (messages[idx][2]) {
-      d3.select("#message-line-3").attr("display", "block").text(messages[idx][2]);
-  }
-  
-    if (messages[idx][3]) {
-      d3.select("#message-line-4").attr("display", "block").text(messages[idx][3]);
-  }
-}
-
-  function hideMessage() {
-    d3.select("#message-line-1").attr("display", "none");
-    d3.select("#message-line-2").attr("display", "none");
-    d3.select("#message-line-3").attr("display", "none");
-    d3.select("#message-line-4").attr("display", "none");
+  function hideMessageFlexible() {
+    // Hide all message lines (assuming max 10 lines should be enough)
+    for (let i = 1; i <= 10; i++) {
+      d3.select(`#message-line-${i}`).attr("display", "none");
+    }
   }
 
   /***********************
@@ -1426,7 +1512,7 @@ const messages = [
     target_display_timer = setTimeout(() => target.display(false), 500);
     cursor.display(true);
 
-    hideMessage();
+    hideMessageFlexible();
     d3.select("#too_slow_message").attr("display", "none");
 
     // Displaying searching too slow message if threshold is crossed
@@ -1706,10 +1792,14 @@ const messages = [
     subjTrials = new Trial(experiment_ID, subject.id);
 
     d3.select("#too_slow_message").attr("display", "none");
+    
+    // hide calibration initially
     calibration.display(false);
 
-    // Waiting for keyboard inputs to begin
-    search_phase();
+    // show the start up message first instead of going directly to search phase
+    game_phase = Phase.BETWEEN_BLOCKS;
+    bb_mess = 7; // start up message
+    displayMessageFlexible(7);
   }
 
   function end_trial() {
@@ -1811,7 +1901,7 @@ const messages = [
       console.log(`Displaying message for bb_mess: ${bb_mess}`); 
       // Make sure all message lines exist in the messages array
       if (messages[bb_mess]) {
-        displayMessage(bb_mess);
+        displayMessageFlexible(bb_mess);
       } else {
         console.error(`No message found for bb_mess: ${bb_mess}`);
       }

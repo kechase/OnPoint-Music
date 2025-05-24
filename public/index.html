@@ -239,31 +239,34 @@
                 <strong>1. Phase 1: TRAINING</strong> 
             </p>
             <p style="margin-left: 40px; margin-bottom: 10px;">
-                Your cursor will start in the middle of the screen and a blue dot will appear somewhere within the box. 
+                Your cursor (a white dot) will start in the middle of a red box outlined on your screen. A blue dot will then appear somewhere within the box. 
             </p>
             <p  style="margin-left: 40px; margin-bottom: 10px;">
-                When a blue dot appears, you can then move your cursor toward the blue dot and listen to the sound created along the way. You'll be asked to recreate those sounds so listen carefully!
+                When a blue dot appears, move your white dot toward it and listen to the sound created along the way. 
             </p>
             <p style="margin-left: 40px; margin-bottom: 40px;">
-                After reaching the target, bring your cursor back to the center circle to begin the next trial. 
+                After reaching the target, bring your white dot back to the center circle to begin the next trial. 
             </p>
  
             <p style="margin-left: 20px; margin-bottom: 20px;">
                 <strong>2. Phase 2: RECREATING SOUNDS</strong><p>   
             </p>
             <p style="margin-left: 40px; margin-bottom: 10px;">
-                In Phase 2, the instrument will play a sound while you listen. When the sound finishes, your cursor will turn green indicating you can move it along the line you believe makes that sound. You are trying to recreate the sound you heard.
+                In Phase 2, the instrument will play a sound while you listen.
             </p>
             <p style="margin-left: 40px; margin-bottom: 10px;">
-                Each trial will play the sound only once before you move and recreate it. Don't worry if you miss one, you're learning a new instrument -- it might take a minute! </p>
+                Your dot will turn green when the sound finishes indicating it's your turn to recreate the sound you just heard. Move your white dot in the direction that plays that sound. 
+            </p>
+            <p style="margin-left: 40px; margin-bottom: 10px;">
+                Each trial will play the sound only once before you move and recreate it. Don't worry if you miss one, it takes a little practice! </p>
             </p>
             <p><strong><u>Remember:</u></strong>
             <ul>
-                <li>Complete on a laptop (not phone) and use a <strong>trackpad</strong> (not traditional mouse) to complete the task.</li>
+                <li>Complete on a laptop and use a <strong>trackpad</strong> (not a traditional mouse).</li>
                 <li>Use CHROME browser. (Others may not work correctly).</li>
                 <li>Wear headphones! </li>
                 <li>There are attention checks, so be sure to read their instructions thoroughly. Failing
-            these checks will result in an incomplete session!</li>
+            these checks will result in an incomplete session.</li>
                 
             </p>
 <!-- Empty paragraphs with increasing space at the end -->
@@ -278,13 +281,13 @@
                 <span class="glyphicon glyphicon-arrow-left"></span> Back
             </button>
             <button type="button" class="btn btn-primary btn-lg btn-right"
-                onClick="return show('container-instructions2')">
-                <span class="glyphicon glyphicon-arrow-right"></span> Continue
+                onClick="return showPreExperimentInstructions();">                 <span class="glyphicon glyphicon-arrow-right"></span> Continue
             </button>
         </center>
     </div>
 
-    <!-- Instruction Page 2
+    <!-- CURRENTLY SKIPPING THESE INSTRUCTIONS  
+        Instruction Page 2
         **TODO** Update the code in the instructions if necessary-->
     <div id="container-instructions2" style="display:none">
         <h1>We're almost ready, let's make sure you've got it</h1>
@@ -319,6 +322,33 @@
 </button>
         </center>
     </div>
+
+    <!-- Pre-experiment instructions
+        **TODO** Update the code in the instructions if necessary-->
+    <div id="container-pre-experiment" style="display:none">
+        <h1> One more quick thing</h1>
+        <hr>
+        <div class="instructions well">
+            <center>
+            <!-- Content will be dynamically populated based on condition -->
+            <div id="condition-specific-instructions">
+                <!-- This will be filled by JavaScript -->
+            </div>
+            
+        </center>
+    </div>
+    <hr>
+    <center>
+        <button type="button" class="btn btn-primary btn-lg btn-left"
+                onClick="return show('container-instructions1');">
+            <span class="glyphicon glyphicon-arrow-left"></span> Back to Instructions
+        </button>
+        <button type="button" class="btn btn-success btn-lg btn-right"
+                onClick="startExperiment(); return show('container-exp');">
+            <span class="glyphicon glyphicon-play"></span> Start Now
+        </button>
+    </center>
+</div>
 
     <!-- Game page -->
     <div id="container-exp" style="display:none">
