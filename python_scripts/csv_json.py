@@ -2,6 +2,10 @@ import csv
 import json
 import random
 
+# This script reads a CSV file containing trial data, processes it to separate training and testing conditions, and converts it into a structured JSON format.
+# Update the `csvFilePath` and `jsonFilePath` with the appropriate file paths before running the script.
+# Has a balanced block structure for testing trials, ensures each block contains one trial per angle.
+
 def jsonFromCsv(csvFilePath, jsonFilePath):
     # Read the CSV file
     with open(csvFilePath, 'r') as file:
@@ -42,45 +46,67 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
         if is_training:
             trial_order = list(range(len(rows)))
         else:
+            # Group testing rows by direction (angle)
+            angle_groups = {}
+            for row in rows:
+                angle = int(row[3])
+                if angle not in angle_groups:
+                    angle_groups[angle] = []
+                angle_groups[angle].append(row)
+
+            # Create balanced blocks of 8 (2 trials per angle per block)
+            balanced_trials = []
+            while all(len(angle_groups[angle]) >= 2 for angle in angle_groups):
+                block = []
+                angles_in_block = list(angle_groups.keys())
+                random.shuffle(angles_in_block)  # Optional shuffle within block
+                for angle in angles_in_block:
+                    block.append(angle_groups[angle].pop())
+                    block.append(angle_groups[angle].pop())
+                random.shuffle(block)  # Optional shuffle of block order
+                balanced_trials.extend(block)
+
+            # Add any remaining trials that didn't fit into a complete block
+            leftovers = [trial for trials in angle_groups.values() for trial in trials]
+            random.shuffle(leftovers)
+            balanced_trials.extend(leftovers)
+            
+            rows = balanced_trials
             trial_order = list(range(len(rows)))
-            random.shuffle(trial_order)
+
         
         rowCount = 0
         for trial_index in trial_order:
-            if trial_index < len(rows):  # Safety check
-                row = rows[trial_index]
-                key = str(rowCount)
-                
-                trialNums[key] = int(row[0])
-                aimingLandmarks[key] = int(row[2])
-                anglesDict[key] = int(row[3])
-                rotation[key] = float(row[4])
-                onlineFB[key] = int(row[5])
-                endpointFB[key] = int(row[6])
-                tgtDistance[key] = int(row[7])
-                betweenBlocks[key] = float(row[8])
-                targetJump[key] = float(row[9])
-                rowCount += 1
+            row = rows[trial_index]
+            key = str(rowCount)
+            trialNums[key] = int(row[0])
+            aimingLandmarks[key] = int(row[2])
+            anglesDict[key] = int(row[3])
+            rotation[key] = float(row[4])
+            onlineFB[key] = int(row[5])
+            endpointFB[key] = int(row[6])
+            tgtDistance[key] = int(row[7])
+            betweenBlocks[key] = float(row[8])
+            targetJump[key] = float(row[9])
+            rowCount += 1
 
-        # **NEW**: Add pre-training instructions
         if add_pre_instructions and is_training:
-            # Set the first trial to show training instructions (bb_mess = 1)
             betweenBlocks["0"] = 1.0
-        
-        jsonData["numtrials"] = rowCount
-        jsonData["trialnum"] = trialNums
-        jsonData["aiming_landmarks"] = aimingLandmarks
-        jsonData["online_fb"] = onlineFB
-        jsonData["endpoint_feedback"] = endpointFB
-        jsonData["rotation"] = rotation
-        jsonData["tgt_angle"] = anglesDict
-        jsonData["tgt_distance"] = tgtDistance
-        jsonData["between_blocks"] = betweenBlocks
-        jsonData["target_jump"] = targetJump
-        
+
+        jsonData = {
+            "numtrials": rowCount,
+            "trialnum": trialNums,
+            "aiming_landmarks": aimingLandmarks,
+            "online_fb": onlineFB,
+            "endpoint_feedback": endpointFB,
+            "rotation": rotation,
+            "tgt_angle": anglesDict,
+            "tgt_distance": tgtDistance,
+            "between_blocks": betweenBlocks,
+            "target_jump": targetJump
+        }
         return jsonData
-    
-    # Create JSON data for each condition
+
     final_json = {
         "conditionA": {
             "training": create_condition_data(condition_A_training_rows, is_training=True, add_pre_instructions=True),
@@ -89,56 +115,20 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
         "conditionB": {
             "training": create_condition_data(condition_B_training_rows, is_training=True, add_pre_instructions=True),
             "testing": create_condition_data(testing_rows, is_training=False)
-        },
-        "instructions": {
-            "conditionA": [
-                "Training Phase Instructions:",
-                "When the center circle turns green,",
-                "Move your cursor to the blue target."
-                "Listen for a TONE or a VOWEL SOUND as you move",
-                "This is the sound of the instrument!",
-                "Press 'b' when you are ready to proceed."
-            ],
-            "conditionB": [
-                "Training Phase Instructions:",
-                "When the center circle turns green,",
-                "Move your cursor to the blue target."
-                "Listen to the sound that plays as you move,",
-                "This is the sound of the instrument!",
-                "Press 'b' when you are ready to proceed."
-            ],
-            "testing": [
-                "Testing Phase Instructions:",
-                "Listen to the sound, then move in the direction that recreates the sound.",
-                "Don't worry if you miss one -- it takes a little practice!",
-                "Press 'a' to continue."
-            ]
         }
     }
-    
-    # Write to JSON file
+
     with open(jsonFilePath, 'w') as outfile:
         json.dump(final_json, outfile, indent=2)
 
-# Validation and summary
-    print("\nJSON Structure Created:")
-    print(f"Condition A Training: {final_json['conditionA']['training']['numtrials']} trials")
-    print(f"Condition A Testing: {final_json['conditionA']['testing']['numtrials']} trials")
-    print(f"Condition B Training: {final_json['conditionB']['training']['numtrials']} trials")
-    print(f"Condition B Testing: {final_json['conditionB']['testing']['numtrials']} trials")
-    
-    # Show between_blocks for validation
-    print("\nCondition A Training between_blocks:", [final_json['conditionA']['training']['between_blocks'][str(i)] 
-                                                   for i in range(final_json['conditionA']['training']['numtrials'])])
-    print("Condition B Training between_blocks:", [final_json['conditionB']['training']['between_blocks'][str(i)] 
-                                                   for i in range(final_json['conditionB']['training']['numtrials'])])
+    print("CSV converted to JSON with balanced testing blocks.")
 
 
 #### MANUALLY ENTER THE REAL PATH to THIS CSV FILE
-csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/csv_tgt_files/csv_tgt_file_2025-05-21.csv'
+csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/build_tools/csv_tgt_files/csv_tgt_file_2025-05-27.csv'
 
 #### MANUALLY CREATE THIS NOT-YET-REAL FILEPATH (SO THIS SCRIPT WILL CREATE and DROP THE FILE THERE)
-jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/csv_tgt_file_2025-05-21.json'
+jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/csv_tgt_file_2025-05-27.json'
 
 # Run the conversion
 jsonFromCsv(csvFilePath, jsonFilePath)

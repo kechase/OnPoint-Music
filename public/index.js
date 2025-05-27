@@ -23,8 +23,8 @@ const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
 
 
 
-// #### Replace this with your own experiment file
-const fileName = "./tgt_files/csv_tgt_file_2025-05-21.json";
+// #### Replace this with experiment file
+const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
 
 // Load the JSON content
 let fileContent;
@@ -1153,7 +1153,7 @@ function gameSetup(data) {
     target_jump[i] = trainingData.target_jump[i];
   }
   
-  // Add testing data (trials 4-51, but indexed as 0-47 in testing data)
+  // Add testing data (trials 4-104, but indexed as 0-99 in testing data)
   for (let i = 0; i < testingData.numtrials; i++) {
     const globalTrialIndex = trainingData.numtrials + i; // This will be 4, 5, 6, ... 51
     rotation[globalTrialIndex] = testingData.rotation[i];
