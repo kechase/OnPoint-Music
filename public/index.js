@@ -14,7 +14,7 @@ const disableFullScreen = false;
 
 // Set to 'true' to disable headphone check during development
 // #### Make sure this is set to false before deploying!
-const SKIP_HEADPHONE_CHECK = true;
+const SKIP_HEADPHONE_CHECK = false;
 
 // #### Replace this with your own experiment file
 const fileName = "./tgt_files/csv_tgt_file_2025-05-21.json";
@@ -26,8 +26,14 @@ $.getJSON(fileName, function(json) {
 });
 
 window.onerror = function(message, source, lineno, colno, error) {
-  console.error("Error occurred: ", message, "at line", lineno);
-  alert("Error: " + message + " at line " + lineno);
+  console.error("=== DETAILED ERROR INFO ===");
+  console.error("Message:", message);
+  console.error("Source:", source);
+  console.error("Line:", lineno);
+  console.error("Column:", colno);
+  console.error("Error object:", error);
+  console.error("Stack trace:", error ? error.stack : "No stack trace available");
+  console.error("=== END ERROR INFO ===");
   return true;
 };
 
@@ -521,15 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
     consentRead.addEventListener('change', checkConsentStatus);
     consentParticipate.addEventListener('change', checkConsentStatus);
     
-    // Update the button's click handler
-    agreeButton.onclick = function() {
-      if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
-        return window.show("container-info");
-      } else {
-        alert("Please check all three consent boxes to proceed.");
-        return false;
-      }
-    };
+
   }
 });
 
@@ -539,12 +537,13 @@ document.addEventListener('DOMContentLoaded', function() {
 // If they are, it shows the next page; if not, it alerts the user
 // and prevents the form from being submitted
 // 
-  function validateConsent() {
+window.validateConsent = function() {
   const consentAge = document.getElementById('consent-age');
   const consentRead = document.getElementById('consent-read');
   const consentParticipate = document.getElementById('consent-participate');
   
   if (consentAge.checked && consentRead.checked && consentParticipate.checked) {
+    console.log("All consent boxes checked - proceeding to next page");
     return show('container-info');
   } else {
     alert("Please check all three consent boxes to proceed.");
@@ -616,76 +615,298 @@ function checkInfo() {
     show("container-instructions1");
   } else {
     show("container-headphone-check");
+    // Initialize the headphone check when showing the container
     runHeadphoneCheck();
   }
-  
-  // Initialize the headphone check
-  runHeadphoneCheck();
-    
+
   return false; // Prevent form submission
 }
 
+// Initialize the global variable at the top
+window.headphoneCheckPassed = false;
+window.headphoneCheckInstance = null;
+window.headphoneCheckRunning = false;
+window.headphoneCheckInitialized = false; // Add this flag
+
+// Function to run the headphone check
 function runHeadphoneCheck() {
-  // Clear any previous instance
-  document.getElementById('headphone-check-container').innerHTML = '';
-  document.getElementById('headphone-buttons').style.display = 'none';
+  console.log("🔧 Starting runHeadphoneCheck()");
   
-  // Initialize headphone check
-  // Perfect score is required to pass
-  headphoneCheck = new HeadphoneCheck({
-    trials: 6,
-    passingScore: 6,
-    volumeLevel: 0.6,
-    onPass: (score) => {
-      console.log('Headphone check passed with score:', score);
-      headphoneCheckPassed = true;
-      document.getElementById('headphone-buttons').style.display = 'block';
-      document.getElementById('retry-headphone-check').style.display = 'none';
-      document.getElementById('continue-after-headphone-check').style.display = 'inline-block';
-    },
-    onFail: (score) => {
-      console.log('Headphone check failed with score:', score);
-      headphoneCheckPassed = false;
-      document.getElementById('headphone-buttons').style.display = 'block';
-      document.getElementById('retry-headphone-check').style.display = 'inline-block';
-      document.getElementById('continue-after-headphone-check').style.display = 'none';
-    }
-  });
-  // Manually call init() after construction
-  headphoneCheck.init();
-  document.getElementById('continue-after-headphone-check').onclick = function() {
-    console.log("Continue button clicked");
-    continueAfterHeadphoneCheck();
+  // Check if already initialized
+  if (window.headphoneCheckInitialized) {
+    console.warn("⚠️ Headphone check already initialized!");
+    return;
   }
+  
+  // Check if already running
+  if (window.headphoneCheckRunning) {
+    console.warn("⚠️ Headphone check already running!");
+    return;
+  }
+  
+  window.headphoneCheckRunning = true;
+  window.headphoneCheckInitialized = true;
+  
+  // Clear any previous instance and ensure buttons are hidden
+  document.getElementById('headphone-check-container').innerHTML = '<p>Loading headphone check...</p>';
+  const buttonContainer = document.getElementById('headphone-buttons');
+  if (buttonContainer) {
+    buttonContainer.style.display = 'none';
+    buttonContainer.style.visibility = 'hidden'; // Extra safety
+    // Remove any inline styles that might override
+    buttonContainer.removeAttribute('style');
+    buttonContainer.style.cssText = 'display: none !important; visibility: hidden !important;';
+  }
+  
+  // Also disable the continue button as extra safety
+  const proceedBtn = document.getElementById('continue-after-headphone-check');
+  if (proceedBtn) {
+    proceedBtn.disabled = true;
+  }
+  
+  // Reset global state
+  window.headphoneCheckPassed = false;
+  window.headphoneCheckInstance = null;
+
+  // Check jQuery availability
+  console.log("jQuery available:", typeof $ !== 'undefined');
+  console.log("jQuery UI available:", typeof $.ui !== 'undefined');
+  
+  // Ensure DOM is ready
+  $(document).ready(function() {
+    console.log("DOM ready, initializing headphone check...");
+    
+    // Small delay to ensure everything is loaded
+    setTimeout(function() {
+      try {
+        console.log("Creating HeadphonesCheck instance...");
+        
+        const headphoneCheck = new HeadphonesCheck({
+          // Callback - this is called AFTER all trials are complete
+          callback: function(result) {
+            console.log("🎧 HEADPHONE CHECK CALLBACK TRIGGERED!");
+            console.log("🎧 Result:", result);
+            console.log("🎧 Result type:", typeof result);
+            console.log("🎧 Time:", new Date().toISOString());
+            
+            // Add a delay to ensure dialog processing is complete
+            setTimeout(function() {
+              handleHeadphoneCheckResult(result);
+            }, 300); // 300ms delay to ensure dialog cleanup
+          },
+
+          // Your settings
+          volumeSound: 'stimuli_HugginsPitch/HugginsPitch_calibration.flac',
+          checkExample: 'stimuli_HugginsPitch/HugginsPitch_example_2.flac',
+          checkSounds: [
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set1_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set1_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set1_3.flac'},
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set2_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set2_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set2_3.flac'},
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set3_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set3_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set3_3.flac'},
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set4_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set4_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set4_3.flac'},
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set5_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set5_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set5_3.flac'},
+            {answer: 1, file: 'stimuli_HugginsPitch/HugginsPitch_set6_1.flac'},
+            {answer: 2, file: 'stimuli_HugginsPitch/HugginsPitch_set6_2.flac'},
+            {answer: 3, file: 'stimuli_HugginsPitch/HugginsPitch_set6_3.flac'}
+          ],
+          checkType: 'huggins',
+          trialCount: 6,
+          passMark: 6,  // only perfect score is accepted
+          maxAttempts: 2,
+          checkVolume: 0.8,  // Increased volume
+        });
+
+        console.log("HeadphonesCheck instance created:", headphoneCheck);
+        window.headphoneCheckInstance = headphoneCheck;
+
+        // Start the headphone check
+        console.log("Starting headphone check...");
+        const checkPromise = headphoneCheck.checkHeadphones();
+        console.log("checkHeadphones() called, promise:", checkPromise);
+
+        // Monitor the promise - but don't rely on it for UI updates
+        if (checkPromise && typeof checkPromise.then === 'function') {
+          checkPromise
+            .then((result) => {
+              console.log("✅ Headphone check promise resolved (passed)");
+              // The callback handles the UI updates
+            })
+            .catch((error) => {
+              console.log("❌ Headphone check promise rejected (failed after max attempts)");
+              // The callback handles the UI updates
+            });
+        }
+          
+      } catch (error) {
+        console.error("❌ CRITICAL ERROR creating HeadphonesCheck:", error);
+        console.error("Stack trace:", error.stack);
+        
+        window.headphoneCheckRunning = false;
+        
+        // Show error state
+        document.getElementById('headphone-check-container').innerHTML = 
+          '<p style="color: red;">Error loading headphone check. Please refresh the page.</p>';
+        document.getElementById('headphone-buttons').style.display = 'block';
+        document.getElementById('retry-headphone-check').style.display = 'inline-block';
+        document.getElementById('continue-after-headphone-check').style.display = 'none';
+        window.headphoneCheckPassed = false;
+      }
+    }, 100); // Small delay to ensure everything is ready
+  });
+}
+
+// Separate function to handle the result with proper timing
+function handleHeadphoneCheckResult(result) {
+  console.log("🎯 handleHeadphoneCheckResult called with:", result);
+  
+  // The result is a boolean - true if passed, false if failed
+  const passed = (result === true);
+  
+  console.log("🎧 Headphone check passed:", passed);
+  
+  // Set the global variable 
+  window.headphoneCheckPassed = passed;
+  window.headphoneCheckRunning = false;
+  
+  // Clear the container message
+  document.getElementById('headphone-check-container').innerHTML = '';
+  
+  // Make sure all dialogs are closed
+  $('.ui-dialog').each(function() {
+    $(this).dialog('close');
+  });
+  
+  // Wait a bit more to ensure dialog cleanup
+  setTimeout(function() {
+    // NOW show the buttons
+    const buttonContainer = document.getElementById('headphone-buttons');
+    if (buttonContainer) {
+      // Force the buttons to be visible
+      buttonContainer.removeAttribute('style');
+      buttonContainer.style.cssText = 'display: block !important; visibility: visible !important; text-align: center; margin-top: 20px;';
+    }
+    
+    if (passed) {
+      // Passed 
+      document.getElementById('retry-headphone-check').style.display = 'none';
+      const proceedBtn = document.getElementById('continue-after-headphone-check');
+      if (proceedBtn) {
+        proceedBtn.style.display = 'inline-block';
+        proceedBtn.disabled = false; // Enable the button
+      }
+      
+      // Add success message
+      const container = document.getElementById('headphone-check-container');
+      if (container) {
+        container.innerHTML = '<p style="color: green; font-weight: bold; font-size: 20px; text-align: center;">✓ Headphone check passed!</p>';
+      }
+      
+      // Auto-click the continue button after a short delay
+      setTimeout(function() {
+        const continueBtn = document.getElementById('continue-after-headphone-check');
+        if (continueBtn && continueBtn.style.display !== 'none') {
+          console.log("Auto-clicking continue button after successful headphone check");
+          continueBtn.click();
+        }
+      }, 800); // Longer delay to ensure everything is properly displayed
+      
+    } else {
+      // Failed
+      document.getElementById('retry-headphone-check').style.display = 'inline-block';    
+      document.getElementById('continue-after-headphone-check').style.display = 'none';
+      
+      // Add failure message
+      const container = document.getElementById('headphone-check-container');
+      if (container) {
+        container.innerHTML = '<p style="color: red; font-weight: bold; font-size: 20px; text-align: center;">✗ Headphone check failed. Please try again.</p>';
+      }
+    }
+  }, 100); // Small additional delay for dialog cleanup
 }
 
 // Function to retry the headphone check 
 function retryHeadphoneCheck() {
-  console.log("Retrying headphone check");
-  runHeadphoneCheck();
+  console.log("🔄 Retrying headphone check");
+  
+  // Close any remaining dialogs
+  $('.ui-dialog').each(function() {
+    $(this).dialog('close');
+  });
+  
+  // Reset state
+  window.headphoneCheckPassed = false;
+  window.headphoneCheckRunning = false;
+  window.headphoneCheckInitialized = false; // Reset this flag for retry
+  
+  // Wait a moment for cleanup
+  setTimeout(function() {
+    runHeadphoneCheck();
+  }, 200);
 }
 
+// Simplified continue function
 function continueAfterHeadphoneCheck() {
-  console.log("continueAfterHeadphoneCheck called");
-  console.log("headphoneCheckPassed:", headphoneCheckPassed);
-  if (headphoneCheckPassed) {
-    console.log("Headphone check passed, continuing to instructions");
-    // Continue to instructions1
+  console.log("🚀 continueAfterHeadphoneCheck called");
+  console.log("🎧 headphoneCheckPassed:", window.headphoneCheckPassed);
+  console.log("🎧 Button container display:", document.getElementById('headphone-buttons').style.display);
+  console.log("🎧 This button display:", document.getElementById('continue-after-headphone-check').style.display);
+  
+  if (window.headphoneCheckPassed === true) {
+    console.log("✅ Headphone check passed, continuing to instructions");
     show("container-instructions1");
-    
-    // Don't enter fullscreen or start game yet
-    // These will be handled when the user clicks the final button on instructions2
   } else {
-    console.log("Headphone check not passed, showing alert");
+    console.log("❌ Headphone check not passed");
     alert("Please complete the headphone check successfully before continuing.");
   }
 }
 
+// Debug function to check the current state
+function debugHeadphoneCheck() {
+  console.log("=== HEADPHONE CHECK DEBUG INFO ===");
+  console.log("Global headphoneCheckPassed:", window.headphoneCheckPassed);
+  console.log("headphoneCheckRunning:", window.headphoneCheckRunning);
+  console.log("Buttons display:", document.getElementById('headphone-buttons').style.display);
+  console.log("Continue button display:", document.getElementById('continue-after-headphone-check').style.display);
+  console.log("Retry button display:", document.getElementById('retry-headphone-check').style.display);
+  
+  if (window.headphoneCheckInstance) {
+    console.log("Instance exists:", true);
+    console.log("Instance.isHeadphones:", window.headphoneCheckInstance.isHeadphones);
+    console.log("Instance.attemptCount:", window.headphoneCheckInstance.attemptCount);
+    console.log("Instance.attemptRecord:", window.headphoneCheckInstance.attemptRecord);
+  } else {
+    console.log("Instance exists:", false);
+  }
+  
+  // Check for jQuery UI dialogs
+  console.log("Active jQuery UI dialogs:", $('.ui-dialog').length);
+  console.log("Visible jQuery UI dialogs:", $('.ui-dialog:visible').length);
+  console.log("Headphones dialog exists:", $('#headphones-dialog').length);
+  console.log("=================================");
+}
+
+// Add keyboard shortcut for debugging (Ctrl+Shift+D)
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+    debugHeadphoneCheck();
+  }
+});
+
 // Make these functions globally accessible
+window.runHeadphoneCheck = runHeadphoneCheck;
 window.retryHeadphoneCheck = retryHeadphoneCheck;
 window.continueAfterHeadphoneCheck = continueAfterHeadphoneCheck;
-window.checkInfo = checkInfo;
-window.validateConsent = validateConsent;
+window.debugHeadphoneCheck = debugHeadphoneCheck;
+window.handleHeadphoneCheckResult = handleHeadphoneCheckResult;
 
 function showPreExperimentInstructions() {
   // Get the participant's condition

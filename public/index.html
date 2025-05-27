@@ -25,7 +25,16 @@
     <script src="/__/firebase/8.10.1/firebase-storage.js"></script>
     <!-- initialize the SDK after all desired features are loaded -->
     <script src="/__/firebase/init.js"></script>
-    <style>
+    
+    <!-- JQUERY DEPENDENCIES -->
+    <script src="static/lib/jquery-min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/ui-lightness/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    
+    <!-- Zhao headphone check -->
+    <script src="headphone-check-zhao.js"></script>
+
+<style>
         #vowelSquare {
             position: absolute;
             width: 400px;
@@ -57,7 +66,6 @@
             margin-left: 60px;
         }
     </style>
-    <script src="headphone-check.js"></script>
 </head>
 
 <body>
@@ -124,8 +132,7 @@
                 onClick='return show("final-page");'>
                 <span class="glyphicon glyphicon-ban-circle"></span> I do <u><b>NOT</b></u> consent to these terms.
             </button>
-            <button type="button" class="btn btn-primary btn-lg btn-right" id="agreeButton" disabled
-                onClick='return validateConsent();'>
+            <button type="button" class="btn btn-primary btn-lg btn-right" id="agreeButton" disabled onclick="validateConsent()">
                 <span class="glyphicon glyphicon-ok"></span> Continue
             </button>
         </center>
@@ -201,7 +208,7 @@
             </button>
             <button type="button" id="begin" value="next" class="btn btn-primary btn-lg btn-right continue"
                 onClick="return checkInfo();">
-                Continue <span class="glyphicon glyphicon-arrow-right"></span>
+                Next <span class="glyphicon glyphicon-arrow-right"></span>
             </button>
         </center>
     </div>
@@ -518,14 +525,11 @@
         </div>
     </div>
     
-    <script src="static/lib/jquery-min.js"></script>
     <script src="static/lib/bootstrap.min.js"></script>
     <script src="static/lib/d3.v3.min.js"></script>
     <script src="static/lib/underscore-min.js"></script>
     <script src="static/lib/backbone-min.js"></script>
-    <!-- Remove or comment this line if index.js doesn't exist -->
-    <script src="index.js"></script>
-    
+    <script src="index.js"></script> 
 
 </body>
 </html>
