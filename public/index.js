@@ -8,13 +8,20 @@ Update necessary fields before starting the game. All fields that require change
 // #### Make sure this is set to 'false' before deploying!
 const noSave = false;
 
-// Set to 'true' to disable full screen mode during development
+// Set to 'true' to disable **full screen mode** during development
 // #### Make sure this is set to false before deploying!
 const disableFullScreen = false;
 
-// Set to 'true' to disable headphone check during development
+// Set to 'true' to disable **headphone check** during development
 // #### Make sure this is set to false before deploying!
 const SKIP_HEADPHONE_CHECK = false;
+
+// Set to 'true' to disable **pre-experiment instructions** during development
+// #### Make sure this is set to false before deploying!
+// This isn't fully functional as it requires additional logic in the showPreExperimentInstructions function related to pre-instructions and making it full screen; not ready yet.
+const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
+
+
 
 // #### Replace this with your own experiment file
 const fileName = "./tgt_files/csv_tgt_file_2025-05-21.json";
@@ -909,16 +916,22 @@ window.debugHeadphoneCheck = debugHeadphoneCheck;
 window.handleHeadphoneCheckResult = handleHeadphoneCheckResult;
 
 function showPreExperimentInstructions() {
+  // Skip pre-experiment instructions if toggle is true
+  if (SKIP_PRE_EXPERIMENT_INSTRUCTIONS) {
+    console.log('Skipping pre-experiment instructions');
+    return startExperiment(); // Go straight to the experiment
+  }
+  
   // Get the participant's condition
   const condition = subject.condition || 'A';
   
   // Define condition-specific instructions
   const conditionInstructions = {
       'A': {
-          message: 'You are listening for both pitch changes and vowel sounds!',
+          message: 'Good luck!',
       },
       'B': {
-          message: 'You are playing a new instrument!',
+          message: 'Good luck!',
       }
   };
   
