@@ -164,38 +164,29 @@
                     </select>
                 </div>
 
-                <div class="questions" id="music_experience">
+                <div class="questions" id="music_experience_container">
                     How many total years of musical experience do you have? (Formal and informal)
-                    <input id="music_experience" type="number" name="music_experience" min="0" max="99" 
-                           onkeypress="return isNumericKey(event)" 
-                           oninput="validateMusicExperience(this)">
+                    <select id="music_experience" name="music_experience">
+                        <option value="">Select years</option>
+                    </select>
                 </div>
                 <script>
-                    function isNumericKey(event) {
-                        // Allow only numeric key presses
-                        return event.charCode >= 48 && event.charCode <= 57;
-                    }
+                    // Generate options 0-99 for music experience dropdown
+                    const musicSelect = document.getElementById('music_experience');
                     
-                    function validateMusicExperience(input) {
-                        // Get the current value
-                        let value = input.value;
+                    for (let i = 0; i <= 99; i++) {
+                        const option = document.createElement('option');
+                        option.value = i;
                         
-                        // Remove any non-digit characters
-                        value = value.replace(/\D/g, '');
-                        
-                        // Limit to 2 digits
-                        if (value.length > 2) {
-                            value = value.slice(0, 2);
+                        if (i === 0) {
+                            option.textContent = 'No experience';
+                        } else if (i === 1) {
+                            option.textContent = '1 year';
+                        } else {
+                            option.textContent = `${i} years`;
                         }
                         
-                        // Ensure it's in the 0-99 range
-                        const num = parseInt(value);
-                        if (num > 99) {
-                            value = "99";
-                        }
-                        
-                        // Update the input value
-                        input.value = value;
+                        musicSelect.appendChild(option);
                     }
                 </script>
                 </div>
