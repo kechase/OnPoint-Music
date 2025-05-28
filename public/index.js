@@ -14,7 +14,7 @@ const disableFullScreen = false;
 
 // Set to 'true' to disable **headphone check** during development
 // #### Make sure this is set to false before deploying!
-const SKIP_HEADPHONE_CHECK = false;
+const SKIP_HEADPHONE_CHECK = true;
 
 // Set to 'true' to disable **pre-experiment instructions** during development
 // #### Make sure this is set to false before deploying!
@@ -2430,6 +2430,14 @@ function saveFeedback() {
     // Call the validation function
     validateHours(hoursInput);
   }
+
+  // Validate age vs musical experience
+const ageNum = parseInt(age) || 0;
+const musicExperience = parseInt(document.getElementById('music_experience').value) || 0;
+if (ageNum > 0 && musicExperience > 0 && musicExperience > ageNum) {
+  alert(`Error: You entered ${musicExperience} years of musical experience but your age is ${ageNum}. This seems incorrect. Please correct your entry, contact the researcher if you believe this is an error, or refresh the page to restart the experiment.`);
+  return false;
+}
   // Validate required fields
   const requiredFields = [
     { name: "Age", value: age },
@@ -2450,7 +2458,6 @@ function saveFeedback() {
   console.log("Feedback captured:", subject.comments);
 
   const missingFields = requiredFields.filter(field => !field.value);
-  
   if (missingFields.length > 0) {
     alert(`Please complete all required fields before submitting. Missing: ${missingFields.map(f => f.name).join(", ")}`);
     return false;
