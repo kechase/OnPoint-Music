@@ -56,17 +56,24 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
 
             # Create balanced blocks of 8 (2 trials per angle per block)
             balanced_trials = []
-            while all(len(angle_groups[angle]) >= 2 for angle in angle_groups):
+            num_angles = len(angle_groups)
+
+            # Continue while we have at least one trial for each angle
+            while all(len(angle_groups[angle]) >= 1 for angle in angle_groups):
                 block = []
                 angles_in_block = list(angle_groups.keys())
                 random.shuffle(angles_in_block)  # Optional shuffle within block
+                
+                # Take exactly one trial from each angle group
                 for angle in angles_in_block:
-                    block.append(angle_groups[angle].pop())
-                    block.append(angle_groups[angle].pop())
-                random.shuffle(block)  # Optional shuffle of block order
+                    if angle_groups[angle]:
+                        block.append(angle_groups[angle].pop())
+                random.shuffle(block)  # Shuffle the block to randomize order
                 balanced_trials.extend(block)
-
-            # Add any remaining trials that didn't fit into a complete block
+                
+            # If any angle groups still have trials left, add them to the end
+            # This ensures that we don't leave any trials behind
+            # This will not create a balanced block, but will ensure all trials are included
             leftovers = [trial for trials in angle_groups.values() for trial in trials]
             random.shuffle(leftovers)
             balanced_trials.extend(leftovers)
