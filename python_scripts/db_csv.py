@@ -1,4 +1,4 @@
-### This script is used to download files from your database to a csv file. 
+### This script is used to download files from the database to a csv file. 
 import os
 import csv
 import firebase_admin
@@ -7,7 +7,7 @@ from firebase_admin import firestore
 import json
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate("/Users/security-key.json")
+cred = credentials.Certificate("/Users/katie/Documents/workspace/z-Security-Keys/onpoint-music-security-key.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -287,9 +287,13 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
 # Download subject and trial data
 
 ## Get subject data
-subjects = ['test_participant']  # Update with your test participant ID
-getSubjectData(subjects, '/Documents/data_storage/subjects_raw/test_participant.csv', db, 'Subjects')
+# Update test participant ID
+subjects = ['katie']  
+# Update filepath with participant ID
+getSubjectData(subjects, '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage/subjects_raw/katie.csv', db, 'Subjects')
 
 ## Get trial data
-trial_ids = ['test_participant']  
-getTrialData('Trials', 100, '/Documents/data_storage/trials_raw/test_participant.csv', trial_ids, db)
+# Update test participant ID
+trial_ids = ['katie'] 
+# Update filepath with participant ID 
+getTrialData('Trials', 100, '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage/trials_raw/katie.csv', trial_ids, db)
