@@ -4,7 +4,7 @@ This is an auditory-motor mapping experiment that can be adapted depending on th
 Update necessary fields before starting the game. All fields that require change will be marked by a "####" comment.
 */
 
-// Set to 'true' if you only want to TEST the front-end (i.e. it will not access databases)
+// Set to 'true' if you only want to test front-end (i.e. it will not access databases)
 // #### Make sure this is set to 'false' before deploying!
 const noSave = false;
 
@@ -2519,6 +2519,11 @@ if (ageNum > 0 && musicExperience > 0 && musicExperience > ageNum) {
     .then(function() {
       console.log("Subject data successfully saved to Firebase");
       show("final-page");
+
+      // Redirect after 2 seconds
+    setTimeout(function() {
+      window.location.href = "https://app.prolific.com/submissions/complete?cc=CTZ4YN89";
+    }, 2000);
     })
     .catch(function(error) {
       console.error("Error saving subject data to Firebase:", error);
