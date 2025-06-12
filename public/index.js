@@ -2522,7 +2522,7 @@ if (ageNum > 0 && musicExperience > 0 && musicExperience > ageNum) {
 
       // Redirect after 2 seconds
     setTimeout(function() {
-      window.location.href = "https://app.prolific.com/submissions/complete?cc=CTZ4YN89";
+      window.location.href = "https://app.prolific.com/submissions/complete?cc=CSIP9LNR";
     }, 2000);
     })
     .catch(function(error) {
