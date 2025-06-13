@@ -39,12 +39,12 @@ function getParticipantSeed(participantId) {
     return Math.abs(hash);
 }
 
-function seededRandom(seed) {
-    let m = 2**35 - 31;
-    let a = 185852;
-    let s = seed % m;
+function seededRandom(startNumber) {
+    let current = startNumber;
+    
     return function() {
-        return (s = s * a % m) / m;
+        current = (current * 9301 + 49297) % 233280;
+        return current / 233280;
     };
 }
 
