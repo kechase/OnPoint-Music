@@ -77,11 +77,59 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
             leftovers = [trial for trials in angle_groups.values() for trial in trials]
             random.shuffle(leftovers)
             balanced_trials.extend(leftovers)
+
+            # Debug: Analyze the block structure
+            print("\n=== BLOCK ANALYSIS ===")
+            print(f"Total balanced trials: {len(balanced_trials)}")
+
+            # Determine expected block size (number of unique angles)
+            all_angles = set()
+            for trial in balanced_trials:
+                all_angles.add(int(trial[3]))  # Assuming angle is in column 3
+            expected_block_size = len(all_angles)
+            print(f"Number of unique angles: {expected_block_size}")
+            print(f"Unique angles: {sorted(list(all_angles))}")
+
+            # Calculate number of complete blocks
+            num_complete_blocks = len(balanced_trials) // expected_block_size
+            leftover_trials = len(balanced_trials) % expected_block_size
+            print(f"Number of complete blocks: {num_complete_blocks}")
+            print(f"Leftover trials: {leftover_trials}")
+
+            # Analyze each block
+            all_blocks_valid = True
+            for block_num in range(num_complete_blocks):
+                start_idx = block_num * expected_block_size
+                end_idx = start_idx + expected_block_size
+                block_trials = balanced_trials[start_idx:end_idx]
+                
+                # Get angles in this block
+                block_angles = [int(trial[3]) for trial in block_trials]
+                unique_block_angles = set(block_angles)
+                
+                # Check if block contains all angles
+                has_all_angles = len(unique_block_angles) == expected_block_size
+                contains_all = unique_block_angles == all_angles
+                
+                if not contains_all:
+                    all_blocks_valid = False
+                
+                print(f"Block {block_num + 1}: {sorted(list(unique_block_angles))} - Contains all 8 angles: {'YES' if contains_all else 'NO'}")
+
+            # Overall summary
+            print(f"\nSUMMARY:")
+            print(f"All {num_complete_blocks} blocks contain all {expected_block_size} angles: {'YES' if all_blocks_valid else 'NO'}")
+
+            if leftover_trials > 0:
+                leftover_start = num_complete_blocks * expected_block_size
+                leftover_angles = [int(trial[3]) for trial in balanced_trials[leftover_start:]]
+                print(f"Leftover trials angles: {sorted(leftover_angles)}")
+
+            print("=== END BLOCK ANALYSIS ===\n")
             
             rows = balanced_trials
             trial_order = list(range(len(rows)))
 
-        
         rowCount = 0
         for trial_index in trial_order:
             row = rows[trial_index]
