@@ -23,14 +23,147 @@ const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
 
 
 
-// #### Replace this with experiment file
+// Experiment files // #### Update this to the correct path of your target file
+// Dynamic file loading based on participant ID
 const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
-
-// Load the JSON content
 let fileContent;
-$.getJSON(fileName, function(json) {
-    fileContent = json;
-});
+
+// Add all the new functions here:
+function getParticipantSeed(participantId) {
+    let hash = 0;
+    for (let i = 0; i < participantId.length; i++) {
+        const char = participantId.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash);
+}
+
+function seededRandom(seed) {
+    let m = 2**35 - 31;
+    let a = 185852;
+    let s = seed % m;
+    return function() {
+        return (s = s * a % m) / m;
+    };
+}
+
+// Function to shuffle array with seeded randomness
+function shuffleWithSeed(array, seed) {
+    const rng = seededRandom(seed);
+    const shuffled = [...array];
+    
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    return shuffled;
+}
+
+// Simple function to shuffle blocks (8 trials each) while keeping each block intact
+function shuffleBlocks(testingData, participantId) {
+    if (!participantId) {
+        console.warn("No participant ID provided, using original order");
+        return testingData;
+    }
+    
+    const seed = getParticipantSeed(participantId);
+    console.log(`Using seed ${seed} for participant ${participantId}`);
+    
+    const numTrials = testingData.numtrials;
+    const blockSize = 8; // 8 angles per block
+    const numBlocks = numTrials / blockSize; // Should be 12 blocks
+    
+    console.log(`Found ${numBlocks} blocks of ${blockSize} trials each`);
+    
+    // Create array of block indices [0, 1, 2, ..., 11]
+    const blockIndices = [];
+    for (let i = 0; i < numBlocks; i++) {
+        blockIndices.push(i);
+    }
+    
+    // Shuffle the block order
+    const shuffledBlockIndices = shuffleWithSeed(blockIndices, seed);
+    console.log(`Block order: ${shuffledBlockIndices.join(', ')}`);
+    
+    // Create new data structure with shuffled blocks
+    const shuffledData = {
+        numtrials: numTrials,
+        trialnum: {},
+        aiming_landmarks: {},
+        online_fb: {},
+        endpoint_feedback: {},
+        rotation: {},
+        tgt_angle: {},
+        tgt_distance: {},
+        between_blocks: {},
+        target_jump: {}
+    };
+    
+    // Fill in the shuffled data
+    let newIndex = 0;
+    for (const blockIndex of shuffledBlockIndices) {
+        // For each block, copy its 8 trials
+        for (let trialInBlock = 0; trialInBlock < blockSize; trialInBlock++) {
+            const originalIndex = blockIndex * blockSize + trialInBlock;
+            const originalKey = originalIndex.toString();
+            const newKey = newIndex.toString();
+            
+            // Copy all the trial data
+            shuffledData.trialnum[newKey] = testingData.trialnum[originalKey];
+            shuffledData.aiming_landmarks[newKey] = testingData.aiming_landmarks[originalKey];
+            shuffledData.online_fb[newKey] = testingData.online_fb[originalKey];
+            shuffledData.endpoint_feedback[newKey] = testingData.endpoint_feedback[originalKey];
+            shuffledData.rotation[newKey] = testingData.rotation[originalKey];
+            shuffledData.tgt_angle[newKey] = testingData.tgt_angle[originalKey];
+            shuffledData.tgt_distance[newKey] = testingData.tgt_distance[originalKey];
+            shuffledData.between_blocks[newKey] = testingData.between_blocks[originalKey];
+            shuffledData.target_jump[newKey] = testingData.target_jump[originalKey];
+            
+            newIndex++;
+        }
+    }
+    
+    // Debug: Verify the shuffling worked
+    console.log("First few angles in shuffled order:");
+    for (let i = 0; i < Math.min(16, numTrials); i++) {
+        console.log(`Trial ${i}: angle ${shuffledData.tgt_angle[i.toString()]}`);
+    }
+    
+    return shuffledData;
+}
+
+// Load and randomize data
+function loadAndRandomizeData(participantId) {
+    return new Promise((resolve, reject) => {
+        $.getJSON(fileName)
+            .done(function(json) {
+                console.log(`Successfully loaded template file: ${fileName}`);
+                
+                // Shuffle blocks for both conditions
+                const randomizedJson = {
+                    conditionA: {
+                        training: json.conditionA.training, // Keep training the same
+                        testing: shuffleBlocks(json.conditionA.testing, participantId)
+                    },
+                    conditionB: {
+                        training: json.conditionB.training, // Keep training the same
+                        testing: shuffleBlocks(json.conditionB.testing, participantId)
+                    }
+                };
+                
+                fileContent = randomizedJson;
+                console.log("Blocks shuffled successfully for participant:", participantId);
+                resolve(randomizedJson);
+            })
+            .fail(function() {
+                console.error("Failed to load template file:", fileName);
+                reject(new Error("Unable to load experiment data"));
+            });
+    });
+}
+
 
 window.onerror = function(message, source, lineno, colno, error) {
   console.error("=== DETAILED ERROR INFO ===");
@@ -617,6 +750,16 @@ function checkInfo() {
   // Also set the global variable if you need it elsewhere
   window.experimentCondition = subject.condition;
 
+  // Load participant-specific data in the background
+  loadAndRandomizeData(prolific_id)  // <-- CHANGE THIS LINE
+  .then(function(data) {
+  console.log("Participant data loaded and randomized successfully");
+})
+.catch(function(error) {
+  console.error("Failed to load participant data:", error);
+  alert("Error loading experiment data. Please refresh the page and try again, or contact the experimenter.");
+});
+
   // skip headphone check if SKIP_HEADPHONE_CHECK is true
   if (SKIP_HEADPHONE_CHECK) {
     show("container-instructions1");
@@ -1074,10 +1217,14 @@ const rad2deg = 180 / Math.PI;
 
 // Function used to start running the game
 function startGame() {
+  if (!fileContent) {
+    console.error("No file content loaded");
+    alert("Experiment data not loaded. Please refresh the page.");
+    return;
+  }
+  
+  console.log(`Starting game with file: ${fileName}`);
   gameSetup(fileContent);
-  // $.getJSON(fileName, function(json) {
-  //     gameSetup(json);
-  // });
 }
 
 // Function to monitor changes in screen size;
@@ -2092,41 +2239,20 @@ const messages = [
     // Debug the phase transition
     console.log(`Trial completed: ${trial}, Next bb_mess: ${bb_mess}`);
   
-    // When transitioning to Phase 2, create randomized trial order for remaining trials
+    // When transitioning to Phase 2, just note the phase change
     if (bb_mess == 2) {
-      console.log("Transitioning to Phase 2");
+      console.log("Transitioning to Phase 2 - using pre-randomized order from JSON file");
       isPhase2 = true;
-      
-      // Create array of remaining trial indices (current trial+1 to end)
-      const remainingTrialIndices = [];
-      for (let i = trial + 1; i < num_trials; i++) {
-        remainingTrialIndices.push(i);
-      } 
+      // No randomization needed - the JSON file already has the randomized order
+}
   
-      // Shuffle the array using Fisher-Yates algorithm
-      for (let i = remainingTrialIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [remainingTrialIndices[i], remainingTrialIndices[j]] = [remainingTrialIndices[j], remainingTrialIndices[i]];
-      }
-  
-      trialOrder = remainingTrialIndices;
-      console.log("Randomized trial order for Phase 2:", trialOrder);
-    }
-  
-    // Determine which trial to run next
-    if (isPhase2 && trialOrder.length > 0) {
-      // In Phase 2, get the next trial from our randomized order
-      trial = trialOrder.shift(); // Remove and return the first element
-      console.log("Phase 2: Moving to randomized trial", trial);
-    } else if (!isPhase2) {
-      // In Phase 1, just increment normally
-      trial += 1;
-    } else {
-      // We're in Phase 2 but out of trials in trialOrder
-      // This shouldn't happen if all trials are accounted for
-      console.error("Ran out of trials in Phase 2 order but haven't completed all trials");
-      end_trial();
-      return;
+    // Determine which trial to run next - simple sequential order
+    trial += 1;
+    console.log(`Moving to trial ${trial} (Phase ${isPhase2 ? '2' : '1'})`);
+
+    // Debug code to verify JSON randomization is working
+    if (trial < num_trials) {
+      console.log(`Next trial: ${trial}, Angle: ${tgt_angle[trial]}, Rotation: ${rotation[trial]}`);
     }
   
     // Display any between-block messages if needed
