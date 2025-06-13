@@ -163,7 +163,11 @@ function loadAndRandomizeData(participantId) {
             });
     });
 }
-
+// Normalize angles so 360 and 0 are equivalent 
+function normalizeAngleForMath(angle) {
+    // Convert 360 to 0 for mathematical calculations
+    return angle === 360 ? 0 : angle;
+}
 
 window.onerror = function(message, source, lineno, colno, error) {
   console.error("=== DETAILED ERROR INFO ===");
@@ -1376,10 +1380,10 @@ const messages = [
   [
     // bb_mess == 2
     "Phase 2:", 
-    "The instrument will play a sound.", 
-    "Your white dot will turn green when it's time for you to move and recreate that sound.", 
-    "Each sound plays only once.",
-    "Don't worry if you miss one -- it takes a little practice!",
+    "The instrument will now play a sound and then you try to replicate it.", 
+    "The training directions were only a SUBSET of the potential sounds.",
+    "Accuracy is important! Listen carefully.",
+    "The white dot will turn green when it's time for you to move.", 
     "Press 'a' to continue.",
   ],
   [
@@ -2011,12 +2015,13 @@ const messages = [
     // If jump is 1.0, this means no variation was added to this target
     const jump = target_jump[trial];
     const angle = tgt_angle[trial];
+    const mathAngle = normalizeAngleForMath(angle); // Convert 360→0 for math
     target.setFill("blue");
   
     // Calculate target position - do this first so we have start/end available
     const start = calibration.point;
     const offset = (jump == 1.0) ? rotation[trial] : jump;
-    const value = angle + offset;  
+    const value = mathAngle + offset;  
     
     // When calculating a point on a circle (or positioning a target at a certain angle and distance): 
     // Math.cos is used for the x-coordinate because cosine represents the horizontal component of movement along a circle. When an angle is 0 degrees, cosine is 1, placing the point at maximum x-distance. 
