@@ -1075,10 +1075,10 @@ function showPreExperimentInstructions() {
   // Define condition-specific instructions
   const conditionInstructions = {
       'A': {
-          message: 'Good luck!',
+          message: 'Training is just a subset of the potential targets. Targets can be in any direction!',
       },
       'B': {
-          message: 'Good luck!',
+          message: 'Training is just a subset of the potential targets. Targets can be in any direction!',
       }
   };
   
