@@ -1101,9 +1101,12 @@ function showPreExperimentInstructions() {
 
 function startExperiment() {
   // Enter full screen if not disabled
+  console.log("startExperiment called, disableFullScreen:", disableFullScreen);
   if (!disableFullScreen) {
-    console.log("Entering full screen");
+    console.log("Attempting to enter full screen");
     openFullScreen();
+  } else {
+    console.log("Full screen disabled");
   }
   
   console.log("Starting game with subject data:", subject);
@@ -1129,7 +1132,7 @@ window.startExperiment = startExperiment;
 
 // Function used to enter full screen mode
 function openFullScreen() {
-  const elem = document.getElementById("container-instructions2");
+  const elem = document.getElementById("container-instructions1");
   if (elem.requestFullscreen) {
     elem.requestFullscreen();
     console.log("enter1");
@@ -1263,7 +1266,7 @@ function gameSetup(data) {
   // COORDINATE CALCULATIONS
   const screen_width = self.innerWidth;
   const screen_height = self.innerHeight;
-  const tgt_distance = screen_height / 3;
+  const tgt_distance = screen_height / 3 * .80;
   const center = new Point(screen_width / 2.0, screen_height / 2.0);
   // Red box dimensions
   const squareLeft = center.x - tgt_distance;
