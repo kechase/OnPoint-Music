@@ -1380,10 +1380,11 @@ const messages = [
   [
     // bb_mess == 2
     "Phase 2:", 
-    "The instrument will now play a sound and then you try to replicate it.", 
-    "The training directions were only a SUBSET of the potential sounds.",
-    "Accuracy is important! Listen carefully.",
-    "The white dot will turn green when it's time for you to move.", 
+    "The instrument will play a sound",
+    "and then you move the cursor to mimic that sound.",  
+    "Remember: Training was only a SUBSET of potential sounds.",
+    "Accuracy is important! Listen carefully!",
+    
     "Press 'a' to continue.",
   ],
   [
