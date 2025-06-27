@@ -1,10 +1,18 @@
-### This script is used to download files from the database to a csv file. 
+### This script is used to download files from your database to a csv file. 
 import os
 import csv
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 import json
+
+# =============================================================================
+# CONFIGURATION - UPDATE SUBJECT ID HERE
+# =============================================================================
+SUBJECT_ID = '37'  # Change this to desired subject ID
+BASE_DATA_PATH = '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage'
+# =============================================================================
+
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("/Users/katie/Documents/workspace/z-Security-Keys/onpoint-music-security-key.json")
@@ -138,8 +146,8 @@ def trialcsvread(collection, numTrials, csvFileName, subjects, db):
                 group = fields.get('group_type', 'Unknown')
 
                 # Check if required arrays exist
-                required_arrays = ['currentDate', 'trialNum', 'target_angle', 'trial_type', 
-                                  'rt', 'hand_fb_angle', 'rotation', 'mt', 'search_time', 'reach_feedback']
+                required_arrays = ['start_time', 'trial_number', 'target_angle', 'trial_type', 
+                                  'rotation', 'hand_fb_angle', 'reaction_time', 'movement_time', 'search_time', 'reach_feedback']
                 
                 missing = [field for field in required_arrays if field not in fields or not fields.get(field)]
                 if missing:
@@ -284,16 +292,24 @@ def addTrialData(collection, numTrials, csvFileName, subjects, db):
         writer = csv.writer(file)
         writer.writerows(trials)
 
-# Download subject and trial data
 
+# =============================================================================
+# MAIN EXECUTION - Uses the SUBJECT_ID variable defined at the top
+# =============================================================================
+
+print(f"Processing data for subject: {SUBJECT_ID}")
+
+# Download subject and trial data
 ## Get subject data
-# Update test participant ID
-subjects = ['katie']  
-# Update filepath with participant ID
-getSubjectData(subjects, '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage/subjects_raw/katie.csv', db, 'Subjects')
+subjects = [SUBJECT_ID]  
+subject_csv_path = f'{BASE_DATA_PATH}/subjects_raw/{SUBJECT_ID}.csv'
+getSubjectData(subjects, subject_csv_path, db, 'Subjects')
 
 ## Get trial data
-# Update test participant ID
-trial_ids = ['katie'] 
-# Update filepath with participant ID 
-getTrialData('Trials', 100, '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage/trials_raw/katie.csv', trial_ids, db)
+trial_ids = [SUBJECT_ID] 
+trial_csv_path = f'{BASE_DATA_PATH}/trials_raw/{SUBJECT_ID}.csv'
+getTrialData('Trials', 100, trial_csv_path, trial_ids, db)
+
+print(f"Data processing complete for subject: {SUBJECT_ID}")
+print(f"Subject data saved to: {subject_csv_path}")
+print(f"Trial data saved to: {trial_csv_path}")
