@@ -21,12 +21,12 @@ const SKIP_HEADPHONE_CHECK = true;
 // This isn't fully functional as it requires additional logic in the showPreExperimentInstructions function related to pre-instructions and making it full screen; not ready yet.
 const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
 
-
-
 // Experiment files // #### Update this to the correct path of your target file
-// Dynamic file loading based on participant ID
 const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
 let fileContent;
+
+// Global flag to prevent double randomization
+let dataAlreadyLoaded = false;
 
 // Add all the new functions here:
 function getParticipantSeed(participantId) {
@@ -62,35 +62,67 @@ function shuffleWithSeed(array, seed) {
 }
 
 // Simple function to shuffle blocks (8 trials each) while keeping each block intact
-function shuffleBlocks(testingData, participantId) {
+function shuffleBlocks(testing_data, participantId) {
     if (!participantId) {
         console.warn("No participant ID provided, using original order");
-        return testingData;
+        return testing_data;
     }
-    
+    // Add comprehensive validation
+    if (!testing_data || typeof testing_data !== 'object') {
+      console.error("Invalid testing_data provided:", testing_data);
+      return testing_data;
+    }
+    if (!testing_data.numtrials || typeof testing_data.numtrials !== 'number') {
+      console.error("Invalid or missing numtrials in testing_data:", testing_data.numtrials);
+      return testing_data;
+    }
+
     const seed = getParticipantSeed(participantId);
     console.log(`Using seed ${seed} for participant ${participantId}`);
     
-    const numTrials = testingData.numtrials;
-    const blockSize = 8; // 8 angles per block
-    const numBlocks = numTrials / blockSize; // Should be 12 blocks
+    const numtrials = testing_data.numtrials;
+    const block_size = 8; // 8 angles per block
+    const num_blocks = numtrials / block_size; // Should be 12 blocks
     
-    console.log(`Found ${numBlocks} blocks of ${blockSize} trials each`);
+    // Validate that numtrials is divisible by block_size
+    if (numtrials % block_size !== 0) {
+        console.error(`Number of trials (${numtrials}) is not divisible by block size (${block_size})`);
+        return testing_data;
+    }
+
+    console.log(`Found ${num_blocks} blocks of ${block_size} trials each`);
     
+    // Validate that all required data arrays exist and have the correct length
+    const requiredFields = ['rotation', 'tgt_angle', 'between_blocks', 'target_jump'];
+    for (const field of requiredFields) {
+        if (!testing_data[field]) {
+            console.error(`Missing field: ${field}`);
+            return testing_data;
+        }
+        
+        // Check if we have enough data for all trials
+        for (let i = 0; i < numtrials; i++) {
+            if (testing_data[field][i] === undefined) {
+                console.error(`Missing data for ${field}[${i}]. Available indices:`, Object.keys(testing_data[field]));
+                return testing_data;
+            }
+        }
+    }
+
     // Create array of block indices [0, 1, 2, ..., 11]
-    const blockIndices = [];
-    for (let i = 0; i < numBlocks; i++) {
-        blockIndices.push(i);
+    const block_indices = [];
+    for (let i = 0; i < num_blocks; i++) {
+        block_indices.push(i);
     }
     
     // Shuffle the block order
-    const shuffledBlockIndices = shuffleWithSeed(blockIndices, seed);
-    console.log(`Block order: ${shuffledBlockIndices.join(', ')}`);
+    const shuffled_block_indices = shuffleWithSeed(block_indices, seed);
+    console.log(`Block order: ${shuffled_block_indices.join(', ')}`);
     
     // Create new data structure with shuffled blocks
-    const shuffledData = {
-        numtrials: numTrials,
-        trialnum: {},
+    const shuffled_data = {
+        numtrials: numtrials,
+        trial_num: {},
         aiming_landmarks: {},
         online_fb: {},
         endpoint_feedback: {},
@@ -102,58 +134,89 @@ function shuffleBlocks(testingData, participantId) {
     };
     
     // Fill in the shuffled data
-    let newIndex = 0;
-    for (const blockIndex of shuffledBlockIndices) {
+    let new_index = 0;
+    for (const block_index of shuffled_block_indices) {
         // For each block, copy its 8 trials
-        for (let trialInBlock = 0; trialInBlock < blockSize; trialInBlock++) {
-            const originalIndex = blockIndex * blockSize + trialInBlock;
-            const originalKey = originalIndex.toString();
-            const newKey = newIndex.toString();
+        for (let trial_in_block = 0; trial_in_block < block_size; trial_in_block++) {
+            const original_index = block_index * block_size + trial_in_block;
+            const original_key = original_index.toString();
+            const new_key = new_index.toString();
             
-            // Copy all the trial data
-            shuffledData.trialnum[newKey] = testingData.trialnum[originalKey];
-            shuffledData.aiming_landmarks[newKey] = testingData.aiming_landmarks[originalKey];
-            shuffledData.online_fb[newKey] = testingData.online_fb[originalKey];
-            shuffledData.endpoint_feedback[newKey] = testingData.endpoint_feedback[originalKey];
-            shuffledData.rotation[newKey] = testingData.rotation[originalKey];
-            shuffledData.tgt_angle[newKey] = testingData.tgt_angle[originalKey];
-            shuffledData.tgt_distance[newKey] = testingData.tgt_distance[originalKey];
-            shuffledData.between_blocks[newKey] = testingData.between_blocks[originalKey];
-            shuffledData.target_jump[newKey] = testingData.target_jump[originalKey];
+            // Validate original_index is within bounds
+            if (original_index >= numtrials) {
+                console.error(`Original index ${original_index} exceeds numtrials ${numtrials}`);
+                return testing_data;
+            }
             
-            newIndex++;
+            // Copy all the trial data with validation
+            try {
+                shuffled_data.trial_num[new_key] = testing_data.trial_num ? testing_data.trial_num[original_key] : new_index + 1;
+                shuffled_data.aiming_landmarks[new_key] = testing_data.aiming_landmarks ? testing_data.aiming_landmarks[original_key] : null;
+                shuffled_data.online_fb[new_key] = testing_data.online_fb ? testing_data.online_fb[original_key] : null;
+                shuffled_data.endpoint_feedback[new_key] = testing_data.endpoint_feedback ? testing_data.endpoint_feedback[original_key] : null;
+                shuffled_data.rotation[new_key] = testing_data.rotation[original_key];
+                shuffled_data.tgt_angle[new_key] = testing_data.tgt_angle[original_key];
+                shuffled_data.tgt_distance[new_key] = testing_data.tgt_distance ? testing_data.tgt_distance[original_key] : null;
+                shuffled_data.between_blocks[new_key] = testing_data.between_blocks[original_key];
+                shuffled_data.target_jump[new_key] = testing_data.target_jump[original_key];
+            } catch (error) {
+                console.error(`Error copying data for trial ${original_index}:`, error);
+                console.error(`Available keys in rotation:`, Object.keys(testing_data.rotation).slice(0, 10));
+                return testing_data;
+            }
+            
+            new_index++;
         }
     }
     
     // Debug: Verify the shuffling worked
     console.log("First few angles in shuffled order:");
-    for (let i = 0; i < Math.min(16, numTrials); i++) {
-        console.log(`Trial ${i}: angle ${shuffledData.tgt_angle[i.toString()]}`);
+    for (let i = 0; i < Math.min(16, numtrials); i++) {
+        console.log(`Trial ${i}: angle ${shuffled_data.tgt_angle[i.toString()]}`);
     }
     
-    return shuffledData;
+    return shuffled_data;
 }
 
 // Load and randomize data
 function loadAndRandomizeData(participantId) {
+    // Prevent double loading
+    if (dataAlreadyLoaded && fileContent) {
+        console.log("Data already loaded and randomized, returning cached version");
+        return Promise.resolve(fileContent);
+    }
     return new Promise((resolve, reject) => {
         $.getJSON(fileName)
             .done(function(json) {
                 console.log(`Successfully loaded template file: ${fileName}`);
+
+                // Get participant's condition to determine block order
+                const participantCondition = getConditionFromId(participantId);
+                console.log('Shuffling blocks for participant:', participantId, 'Condition:', participantCondition);
                 
                 // Shuffle blocks for both conditions
                 const randomizedJson = {
                     conditionA: {
                         training: json.conditionA.training, // Keep training the same
-                        testing: shuffleBlocks(json.conditionA.testing, participantId)
+                        testing: json.conditionA.testing
                     },
                     conditionB: {
                         training: json.conditionB.training, // Keep training the same
-                        testing: shuffleBlocks(json.conditionB.testing, participantId)
+                        testing: json.conditionB.testing
                     }
                 };
                 
+                // Only shuffle the condition this participant will use
+                if (participantCondition === 'A') {
+                    randomizedJson.conditionA.testing = shuffleBlocks(json.conditionA.testing, participantId);
+                    console.log("Shuffled conditionA testing data");
+                } else {
+                    randomizedJson.conditionB.testing = shuffleBlocks(json.conditionB.testing, participantId);
+                    console.log("Shuffled conditionB testing data");
+                }
+
                 fileContent = randomizedJson;
+                dataAlreadyLoaded = true; // *** THIS WAS MISSING! ***
                 console.log("Blocks shuffled successfully for participant:", participantId);
                 resolve(randomizedJson);
             })
@@ -432,10 +495,10 @@ class Subject extends Database {
 }
 
 class Trial extends Database {
-  constructor(experimentID, id) {
+  constructor(experiment_id, id) {
     super("trial");
     this.id = id;
-    this.experimentID = experimentID;
+    this.experiment_id = experiment_id;
     this.cursor_data = [];
     this.blocks = [];
     this.hand_path = [];  // Will store position data for the hand
@@ -444,7 +507,7 @@ class Trial extends Database {
     this.start_y = [];
     this.screen_height = [];
     this.screen_width = [];
-    this.group_type = experimentID;
+  
   }
 
   // return the current trial number (usually define as number of blocks we've created and stored)
@@ -718,7 +781,7 @@ function checkInfo() {
   }
 
   // music experience validation
-  // Additional validation to ensure musicExperience is not empty
+  // Additional validation to ensure music_experience is not empty
   if (!music_experience) {
     alert("Please enter your music experience!");
     document.getElementById("music_experience").focus();
@@ -752,17 +815,22 @@ function checkInfo() {
   console.log("Participant assigned to condition:", subject.condition);
 
   // Also set the global variable if you need it elsewhere
-  window.experimentCondition = subject.condition;
+  window.experiment_condition = subject.condition;
 
-  // Load participant-specific data in the background
-  loadAndRandomizeData(prolific_id)  // <-- CHANGE THIS LINE
-  .then(function(data) {
-  console.log("Participant data loaded and randomized successfully");
-})
-.catch(function(error) {
-  console.error("Failed to load participant data:", error);
-  alert("Error loading experiment data. Please refresh the page and try again, or contact the experimenter.");
-});
+  // Load participant-specific data ONLY if not already loaded
+    if (!dataAlreadyLoaded || !fileContent) {
+        console.log("Loading and randomizing data for the first time...");
+        loadAndRandomizeData(prolific_id)
+            .then(function(data) {
+                console.log("Participant data loaded and randomized successfully");
+            })
+            .catch(function(error) {
+                console.error("Failed to load participant data:", error);
+                alert("Error loading experiment data. Please refresh the page and try again, or contact the experimenter.");
+            });
+    } else {
+        console.log("Data already loaded and randomized, skipping reload");
+    }
 
   // skip headphone check if SKIP_HEADPHONE_CHECK is true
   if (SKIP_HEADPHONE_CHECK) {
@@ -1075,10 +1143,10 @@ function showPreExperimentInstructions() {
   // Define condition-specific instructions
   const conditionInstructions = {
       'A': {
-          message: 'Training is just a subset of the potential targets. Targets can be in any direction!',
+          message: 'The training includes 4 auditory targets but there are 8 targets in total!',
       },
       'B': {
-          message: 'Training is just a subset of the potential targets. Targets can be in any direction!',
+          message: 'The training includes 4 auditory targets but there are 8 targets in total!',
       }
   };
   
@@ -1100,8 +1168,23 @@ function showPreExperimentInstructions() {
 }
 
 function startExperiment() {
-  // Enter full screen if not disabled
   console.log("startExperiment called, disableFullScreen:", disableFullScreen);
+  
+  // CRITICAL: Hide the pre-experiment container first
+  const preExpContainer = document.getElementById('container-pre-experiment');
+  if (preExpContainer) {
+    preExpContainer.style.display = 'none';
+    console.log("Pre-experiment container hidden");
+  }
+  
+  // Clear any content from the pre-experiment instructions div
+  const preExpInstructions = document.getElementById('condition-specific-instructions');
+  if (preExpInstructions) {
+    preExpInstructions.innerHTML = '';
+    console.log("Pre-experiment instructions cleared");
+  }
+  
+  // Enter full screen if not disabled
   if (!disableFullScreen) {
     console.log("Attempting to enter full screen");
     openFullScreen();
@@ -1111,8 +1194,13 @@ function startExperiment() {
   
   console.log("Starting game with subject data:", subject);
 
-  // start the game phase
-  startGame();
+  // IMPORTANT: Show the experiment container first, then start the game
+  show('container-exp');
+  
+  // Small delay to ensure proper page transition
+  setTimeout(() => {
+    startGame();
+  }, 100);
 
   return true;
 }
@@ -1173,7 +1261,12 @@ function closeFullScreen() {
 let subject; // : Subject
 
 // Object used to track reaching data (updated every reach and uploaded to database)
-let subjTrials; // : Trial
+let subj_trials; // : Trial
+
+// Enhanced Movement Analysis Integration - Global Variables
+let enhanced_hand_positions = []; // Enhanced version with velocity, acceleration, etc.
+let learning_events = []; // Track detected learning moments
+let trial_analytics = []; // Store analysis results for each trial
 
 /* TEMPORARY USE OF ORIGINAL CODE TO TEST THINGS OUT */
 try {
@@ -1185,9 +1278,630 @@ try {
 // Initialize Firebase
 // Setting up firebase variables
 const firestore = firebase.firestore(); // (a.k.a.) db
-const firebasestorage = firebase.storage();
-const subjectcollection = firestore.collection("Subjects");
-const trialcollection = firestore.collection("Trials");
+const firebase_storage = firebase.storage();
+const subject_collection = firestore.collection("Subjects");
+const trial_collection = firestore.collection("Trials");
+
+// ========================================
+// PRODUCTION CONFIGURATION
+// ========================================
+
+// Define PRODUCTION_CONFIG first
+const PRODUCTION_CONFIG = {
+    // Security settings
+    REQUIRE_AUTHENTICATION: true,
+    USE_ANONYMOUS_AUTH: true,
+    VALIDATE_PARTICIPANT_ID: true,
+    
+    // Upload settings (will be overridden below)
+    MAX_FILE_SIZE_MB: 50,
+    ALLOWED_FILE_TYPES: ['application/json'],
+    RETRY_ATTEMPTS: 3,
+    RETRY_DELAY_MS: 2000,
+    
+    // Data validation
+    VALIDATE_DATA_STRUCTURE: true,
+    REQUIRE_MINIMUM_TRIALS: 10,
+    
+    // Logging
+    ENABLE_DETAILED_LOGGING: true,
+    LOG_UPLOAD_PROGRESS: true
+};
+
+// Now override with your specific settings
+Object.assign(PRODUCTION_CONFIG, {
+    // Adjust these based on study requirements
+    MAX_FILE_SIZE_MB: 1000,  // Increase if you have lots of movement data
+    REQUIRE_MINIMUM_TRIALS: 80,  // Adjust based on your experiment design
+    RETRY_ATTEMPTS: 5,  // More retries for production reliability
+    
+    // Enable detailed logging for initial deployment
+    ENABLE_DETAILED_LOGGING: true,
+    LOG_UPLOAD_PROGRESS: true
+});
+
+console.log("🏭 Production configuration loaded:", PRODUCTION_CONFIG);
+
+// =============================
+// AUTHENTICATION MANAGER
+// =============================
+class AuthenticationManager {
+    constructor() {
+        this.isAuthenticated = false;
+        this.currentUser = null;
+        this.authPromise = null;
+    }
+
+    async ensureAuthenticated() {
+        if (this.isAuthenticated && this.currentUser) {
+            return this.currentUser;
+        }
+
+        if (this.authPromise) {
+            return this.authPromise;
+        }
+
+        this.authPromise = this._performAuthentication();
+        return this.authPromise;
+    }
+
+    async _performAuthentication() {
+        try {
+            console.log("🔐 Starting authentication process...");
+
+            // Check if already authenticated
+            const currentUser = firebase.auth().currentUser;
+            if (currentUser) {
+                console.log("✅ Already authenticated:", currentUser.uid);
+                this.isAuthenticated = true;
+                this.currentUser = currentUser;
+                return currentUser;
+            }
+
+            // Wait for auth state to be determined
+            const user = await new Promise((resolve, reject) => {
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    unsubscribe();
+                    if (user) {
+                        resolve(user);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+
+            if (user) {
+                console.log("✅ User already signed in:", user.uid);
+                this.isAuthenticated = true;
+                this.currentUser = user;
+                return user;
+            }
+
+            // Sign in anonymously for research studies
+            if (PRODUCTION_CONFIG.USE_ANONYMOUS_AUTH) {
+                console.log("🔐 Signing in anonymously...");
+                const userCredential = await firebase.auth().signInAnonymously();
+                const newUser = userCredential.user;
+                
+                console.log("✅ Anonymous authentication successful:", newUser.uid);
+                this.isAuthenticated = true;
+                this.currentUser = newUser;
+                return newUser;
+            }
+
+            throw new Error("Authentication required but no method available");
+
+        } catch (error) {
+            console.error("❌ Authentication failed:", error);
+            this.isAuthenticated = false;
+            this.currentUser = null;
+            this.authPromise = null;
+            throw new Error(`Authentication failed: ${error.message}`);
+        }
+    }
+
+    getUser() {
+        return this.currentUser;
+    }
+
+    isUserAuthenticated() {
+        return this.isAuthenticated && this.currentUser;
+    }
+}
+
+// =============================
+// DATA VALIDATOR
+// =============================
+class DataValidator {
+    static validateDataset(dataset) {
+        const errors = [];
+
+        // Basic structure validation
+        if (!dataset || typeof dataset !== 'object') {
+            errors.push("Dataset is not a valid object");
+            return { isValid: false, errors };
+        }
+
+        // Participant validation
+        if (!dataset.participant || !dataset.participant.id) {
+            errors.push("Missing participant information");
+        }
+
+        // Experiment validation
+        if (!dataset.experiment || !dataset.experiment.id) {
+            errors.push("Missing experiment information");
+        }
+
+        // Trials validation
+        if (!dataset.trials || !Array.isArray(dataset.trials)) {
+            errors.push("Missing or invalid trials data");
+        } else if (dataset.trials.length < PRODUCTION_CONFIG.REQUIRE_MINIMUM_TRIALS) {
+            errors.push(`Insufficient trials: ${dataset.trials.length} < ${PRODUCTION_CONFIG.REQUIRE_MINIMUM_TRIALS}`);
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            warnings: []
+        };
+    }
+
+    static validateParticipantId(participantId) {
+        if (!participantId || typeof participantId !== 'string') {
+            return { isValid: false, error: "Participant ID must be a non-empty string" };
+        }
+
+        if (participantId.length < 3) {
+            return { isValid: false, error: "Participant ID too short" };
+        }
+
+        if (participantId.length > 50) {
+            return { isValid: false, error: "Participant ID too long" };
+        }
+
+        return { isValid: true };
+    }
+}
+
+// =============================
+// SECURE STORAGE MANAGER
+// =============================
+class SecureStorageManager {
+    constructor() {
+        this.authManager = new AuthenticationManager();
+    }
+
+    async uploadDataset(dataset, participantId) {
+        const uploadId = this._generateUploadId();
+        
+        try {
+            console.log(`🚀 [${uploadId}] Starting secure dataset upload`);
+
+            // 1. Validate inputs
+            await this._validateInputs(dataset, participantId);
+
+            // 2. Ensure authentication
+            const user = await this.authManager.ensureAuthenticated();
+            console.log(`🔐 [${uploadId}] Authenticated as: ${user.uid}`);
+
+            // 3. Prepare upload
+            const uploadData = await this._prepareUpload(dataset, participantId, user.uid, uploadId);
+
+            // 4. Execute upload with retry logic
+            const result = await this._executeUploadWithRetry(uploadData, uploadId);
+
+            console.log(`✅ [${uploadId}] Upload completed successfully`);
+            return result;
+
+        } catch (error) {
+            console.error(`❌ [${uploadId}] Upload failed:`, error);
+            throw new Error(`Upload failed: ${error.message}`);
+        }
+    }
+
+    async _validateInputs(dataset, participantId) {
+        // Validate participant ID
+        const participantValidation = DataValidator.validateParticipantId(participantId);
+        if (!participantValidation.isValid) {
+            throw new Error(`Invalid participant ID: ${participantValidation.error}`);
+        }
+
+        // Validate dataset structure
+        if (PRODUCTION_CONFIG.VALIDATE_DATA_STRUCTURE) {
+            const datasetValidation = DataValidator.validateDataset(dataset);
+            if (!datasetValidation.isValid) {
+                console.warn("Dataset validation warnings:", datasetValidation.errors);
+                // Don't throw for warnings in production, just log them
+            }
+        }
+    }
+
+    async _prepareUpload(dataset, participantId, userId, uploadId) {
+        // Add production metadata
+        const enhancedDataset = {
+            ...dataset,
+            production_metadata: {
+                upload_id: uploadId,
+                upload_timestamp: new Date().toISOString(),
+                authenticated_user: userId,
+                validation_passed: true,
+                production_version: "v1.0",
+                client_metadata: {
+                    user_agent: navigator.userAgent,
+                    screen_resolution: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    language: navigator.language
+                }
+            }
+        };
+
+        // Generate secure filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const dateStr = new Date().toISOString().split('T')[0];
+        const filename = `production_datasets/${dateStr}/${participantId}_${uploadId}_${timestamp}.json`;
+
+        // Convert to JSON and validate size
+        const jsonData = JSON.stringify(enhancedDataset, null, 2);
+        const sizeMB = jsonData.length / (1024 * 1024);
+
+        if (sizeMB > PRODUCTION_CONFIG.MAX_FILE_SIZE_MB) {
+            throw new Error(`Dataset too large: ${sizeMB.toFixed(2)}MB > ${PRODUCTION_CONFIG.MAX_FILE_SIZE_MB}MB`);
+        }
+
+        // Create blob with proper content type
+        const blob = new Blob([jsonData], {
+            type: 'application/json; charset=utf-8'
+        });
+
+        // Prepare metadata
+        const metadata = {
+            contentType: 'application/json',
+            customMetadata: {
+                participant_id: participantId,
+                upload_id: uploadId,
+                authenticated_user: userId,
+                experiment_condition: enhancedDataset.participant?.condition || 'unknown',
+                trial_count: (enhancedDataset.trials?.length || 0).toString(),
+                movement_samples: (enhancedDataset.metadata?.total_movement_samples || 0).toString(),
+                upload_timestamp: new Date().toISOString(),
+                production_upload: 'true'
+            }
+        };
+
+        return {
+            filename,
+            blob,
+            metadata,
+            sizeMB,
+            enhancedDataset
+        };
+    }
+
+    async _executeUploadWithRetry(uploadData, uploadId) {
+        const { filename, blob, metadata, sizeMB } = uploadData;
+        let lastError;
+
+        for (let attempt = 1; attempt <= PRODUCTION_CONFIG.RETRY_ATTEMPTS; attempt++) {
+            try {
+                console.log(`📤 [${uploadId}] Upload attempt ${attempt}/${PRODUCTION_CONFIG.RETRY_ATTEMPTS}`);
+                console.log(`📁 File: ${filename} (${sizeMB.toFixed(2)} MB)`);
+
+                const result = await this._performUpload(filename, blob, metadata, uploadId);
+                
+                console.log(`✅ [${uploadId}] Upload successful on attempt ${attempt}`);
+                return result;
+
+            } catch (error) {
+                lastError = error;
+                console.error(`❌ [${uploadId}] Attempt ${attempt} failed:`, error.message);
+
+                // Don't retry on certain errors
+                if (this._isNonRetryableError(error)) {
+                    console.error(`🚫 [${uploadId}] Non-retryable error, not retrying`);
+                    throw error;
+                }
+
+                // Wait before retry (except on last attempt)
+                if (attempt < PRODUCTION_CONFIG.RETRY_ATTEMPTS) {
+                    const delay = PRODUCTION_CONFIG.RETRY_DELAY_MS * attempt;
+                    console.log(`⏳ [${uploadId}] Waiting ${delay}ms before retry...`);
+                    await this._sleep(delay);
+                }
+            }
+        }
+
+        throw new Error(`Upload failed after ${PRODUCTION_CONFIG.RETRY_ATTEMPTS} attempts. Last error: ${lastError.message}`);
+    }
+
+    async _performUpload(filename, blob, metadata, uploadId) {
+        const storageRef = firebase_storage.ref();
+        const fileRef = storageRef.child(filename);
+
+        return new Promise((resolve, reject) => {
+            const uploadTask = fileRef.put(blob, metadata);
+
+            uploadTask.on('state_changed',
+                // Progress callback
+                (snapshot) => {
+                    if (PRODUCTION_CONFIG.LOG_UPLOAD_PROGRESS) {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        if (progress % 25 < 1) { // Log every 25%
+                            console.log(`📊 [${uploadId}] Progress: ${progress.toFixed(1)}%`);
+                        }
+                    }
+                },
+                // Error callback
+                (error) => {
+                    console.error(`❌ [${uploadId}] Upload error:`, error);
+                    reject(error);
+                },
+                // Success callback
+                async () => {
+                    try {
+                        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+                        
+                        resolve({
+                            filename,
+                            storage_path: filename,
+                            download_url: downloadURL,
+                            size_bytes: blob.size,
+                            size_mb: blob.size / (1024 * 1024),
+                            upload_time: new Date().toISOString(),
+                            upload_id: uploadId,
+                            authenticated_user: this.authManager.getUser()?.uid
+                        });
+                    } catch (urlError) {
+                        reject(urlError);
+                    }
+                }
+            );
+        });
+    }
+
+    _isNonRetryableError(error) {
+        const nonRetryableCodes = [
+            'storage/unauthorized',
+            'storage/unauthenticated',
+            'storage/invalid-format',
+            'storage/no-default-bucket'
+        ];
+        
+        return nonRetryableCodes.includes(error.code);
+    }
+
+    _generateUploadId() {
+        return `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    _sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// =============================
+// PRODUCTION DATA MANAGER
+// =============================
+class ProductionDataManager {
+    constructor() {
+        this.storageManager = new SecureStorageManager();
+    }
+
+    async saveExperimentData(subject, subj_trials, enhanced_data = {}) {
+        try {
+            console.log("🏭 Starting production data save...");
+
+            // Validate essential inputs
+            if (!subject || !subject.id) {
+                throw new Error("Invalid subject data");
+            }
+
+            if (!subj_trials || !subj_trials.blocks) {
+                throw new Error("Invalid trial data");
+            }
+
+            // Build production-ready dataset with ALL data (no reduction)
+            const dataset = this._buildProductionDataset(subject, subj_trials, enhanced_data);
+
+            // Upload to secure storage
+            const uploadResult = await this.storageManager.uploadDataset(dataset, subject.id);
+
+            console.log("🎉 Production data save completed successfully!");
+            return uploadResult;
+
+        } catch (error) {
+            console.error("❌ Production data save failed:", error);
+            throw error;
+        }
+    }
+
+    _buildProductionDataset(subject, subj_trials, enhanced_data) {
+        const now = new Date();
+        
+        return {
+            // Participant information
+            participant: {
+                id: subject.id,
+                age: subject.age || "",
+                gender: subject.gender || "",
+                handedness: subject.handedness || "",
+                mouse_type: subject.mouse_type || "",
+                returner: subject.returner || "",
+                ethnicity: subject.ethnicity || "",
+                race: subject.race || "",
+                music_experience: subject.music_experience || "",
+                language_count: subject.language_count || "",
+                music_instrument: subject.music_instrument || "",
+                music_practice: subject.music_practice || "",
+                comments: subject.comments || "",
+                distractions: subject.distractions || [],
+                distracto: subject.distracto || "",
+                condition: subject.condition || "unknown"
+            },
+
+            // Experiment metadata
+            experiment: {
+                id: subj_trials.experiment_id || `AudioMotor_${subject.condition}`,
+                condition: subject.condition || "unknown",
+                target_file: fileName || "",
+                data_collection_time: now.toISOString(),
+                screen_dimensions: {
+                    width: window.screen_width || self.innerWidth,
+                    height: window.screen_height || self.innerHeight,
+                    center_x: window.center?.x || (self.innerWidth / 2),
+                    center_y: window.center?.y || (self.innerHeight / 2),
+                    target_distance: window.tgt_distance,
+                    square_bounds: {
+                        left: window.squareLeft,
+                        top: window.squareTop,
+                        size: window.squareSize
+                    }
+                },
+                data_format_version: "production_v1.0",
+                browser_info: {
+                    user_agent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language
+                }
+            },
+
+            // Complete trial data with ALL movement samples (NO REDUCTION)
+            trials: this._buildTrialData(subj_trials),
+
+            // Enhanced analytics if available
+            enhanced_analytics: enhanced_data.trial_analytics || null,
+            learning_events: enhanced_data.learning_events || [],
+
+            // Raw enhanced hand positions (FULL RESOLUTION)
+            raw_enhanced_hand_positions: enhanced_data.enhanced_hand_positions || [],
+
+            // Metadata
+            metadata: {
+                total_trials: subj_trials.blocks?.length || 0,
+                total_movement_samples: this._calculateTotalSamples(subj_trials),
+                total_enhanced_samples: enhanced_data.enhanced_hand_positions?.length || 0,
+                file_created: now.toISOString(),
+                production_build: true,
+                data_validated: true,
+                data_reduction_applied: "NONE", // Critical: No data reduction!
+                storage_strategy: "all_data_full_resolution"
+            }
+        };
+    }
+
+    _buildTrialData(subj_trials) {
+        if (!subj_trials.blocks) return [];
+
+        return subj_trials.blocks.map((block, index) => ({
+            // Basic trial info
+            trial_number: block.trial_num ?? index + 1,
+            current_date: block.current_date || new Date().toISOString(),
+            target_angle: block.target_angle ?? 0,
+            rotation: block.rotation ?? 0,
+            hand_fb_angle: block.hand_fb_angle ?? 0,
+            reaction_time: block.reaction_time ?? 0,
+            movement_time: block.movement_time ?? 0,
+            search_time: block.search_time ?? 0,
+            reach_feedback: block.reach_feedback || "unknown",
+
+            // COMPLETE movement data (ALL samples, no reduction)
+            movement_data: {
+                hand_path: subj_trials.hand_path?.[index] || [],           // ALL hand path data
+                cursor_data: subj_trials.cursor_data?.[index] || [],       // ALL cursor data
+                sample_count: subj_trials.hand_path?.[index]?.length || 0,
+                duration_ms: this._calculateTrialDuration(subj_trials.hand_path?.[index])
+            },
+
+            // Screen position data
+            start_position: {
+                x: subj_trials.start_x?.[index] || window.center?.x,
+                y: subj_trials.start_y?.[index] || window.center?.y
+            },
+
+            // Screen dimensions for this trial
+            screen_dimensions: {
+                height: subj_trials.screen_height?.[index] || window.screen_height,
+                width: subj_trials.screen_width?.[index] || window.screen_width
+            },
+
+            // Analytics if available
+            analytics: block.path_analysis || null,
+
+            // Learning events for this trial
+            learning_events: block.learning_events || [],
+
+            // Experimental parameters
+            experimental_params: {
+                target_jump: window.target_jump ? window.target_jump[index] : null,
+                between_blocks: window.between_blocks ? window.between_blocks[index] : null,
+                rotation_applied: window.rotation ? window.rotation[index] : null,
+                target_angle_original: window.tgt_angle ? window.tgt_angle[index] : null
+            }
+        }));
+    }
+
+    _calculateTotalSamples(subj_trials) {
+        if (!subj_trials.hand_path) return 0;
+        
+        return subj_trials.hand_path.reduce((total, path) => {
+            return total + (Array.isArray(path) ? path.length : 0);
+        }, 0);
+    }
+
+    _calculateTrialDuration(hand_path) {
+        if (!hand_path || hand_path.length < 2) return 0;
+        return hand_path[hand_path.length - 1].time - hand_path[0].time;
+    }
+}
+
+// =============================
+// PRODUCTION ERROR HANDLER
+// =============================
+class ProductionErrorHandler {
+    static handleUploadError(error, participantId) {
+        console.error("🚨 PRODUCTION UPLOAD ERROR:", error);
+
+        let userMessage = "An error occurred while saving your data. ";
+        let technicalMessage = error.message;
+
+        // Provide specific guidance based on error type
+        if (error.message.includes('Authentication failed')) {
+            userMessage += "Please refresh the page and try again.";
+            technicalMessage = "Authentication error - check Firebase config";
+        } else if (error.message.includes('storage/unauthorized')) {
+            userMessage += "Permission denied. Please contact the experimenter.";
+            technicalMessage = "Storage rules deny access - check Firebase Storage rules";
+        } else if (error.message.includes('storage/quota-exceeded')) {
+            userMessage += "Storage limit reached. Please contact the experimenter.";
+            technicalMessage = "Storage quota exceeded";
+        } else if (error.message.includes('Network error')) {
+            userMessage += "Network error. Please check your connection and try again.";
+            technicalMessage = "Network connectivity issue";
+        } else {
+            userMessage += "Please contact the experimenter with your participant ID.";
+        }
+
+        // Log for debugging
+        console.error("Error details for support:", {
+            participant_id: participantId,
+            error_message: error.message,
+            error_code: error.code,
+            timestamp: new Date().toISOString(),
+            user_agent: navigator.userAgent
+        });
+
+        return {
+            userMessage: `${userMessage}\n\nParticipant ID: ${participantId}`,
+            technicalMessage,
+            shouldRetry: !error.message.includes('unauthorized') && 
+                         !error.message.includes('quota-exceeded')
+        };
+    }
+}
+
+// Make classes available globally
+window.ProductionDataManager = ProductionDataManager;
+window.ProductionErrorHandler = ProductionErrorHandler;
+window.AuthenticationManager = AuthenticationManager;
 
 const Phase = Object.freeze({
   UNINIT: -1, // to avoid handling keyboard inputs
@@ -1225,13 +1939,25 @@ const rad2deg = 180 / Math.PI;
 // Function used to start running the game
 function startGame() {
   if (!fileContent) {
-    console.error("No file content loaded");
-    alert("Experiment data not loaded. Please refresh the page.");
-    return;
-  }
-  
-  console.log(`Starting game with file: ${fileName}`);
-  gameSetup(fileContent);
+        console.error("No file content loaded, attempting to load...");
+        if (subject && subject.id) {
+            loadAndRandomizeData(subject.id)
+                .then(function(data) {
+                    console.log("Data loaded successfully, starting game");
+                    gameSetup(data);
+                })
+                .catch(function(error) {
+                    console.error("Failed to load data:", error);
+                    alert("Experiment data not loaded. Please refresh the page.");
+                });
+        } else {
+            alert("Participant ID not available. Please refresh the page.");
+        }
+        return;
+    }
+    
+    console.log(`Starting game with file: ${fileName}`);
+    gameSetup(fileContent);
 }
 
 // Function to monitor changes in screen size;
@@ -1249,24 +1975,351 @@ function monitorWindow(_event) {
   prev_screen_size = curr_size;
 }
 
+
+// Analyze behavior in a window
+function analyzeBehaviorWindow(positions) {
+    if (positions.length === 0) return { strategy: 'unknown', confidence: 0 };
+    
+    const avg_velocity = positions.reduce((sum, pos) => sum + (pos.velocity || 0), 0) / positions.length;
+    const avg_acceleration = positions.reduce((sum, pos) => sum + Math.abs(pos.acceleration || 0), 0) / positions.length;
+    
+    // Simple strategy classification
+    let strategy = 'systematic';
+    if (avg_velocity > 100 && avg_acceleration > 200) {
+        strategy = 'exploratory';
+    } else if (avg_velocity < 50) {
+        strategy = 'deliberate';
+    }
+    
+    return {
+        strategy: strategy,
+        avg_velocity: avg_velocity,
+        avg_acceleration: avg_acceleration,
+        confidence: Math.min(1.0, positions.length / 5) // More confidence with more data
+    };
+}
+
+// Detect strategy shifts
+function detectStrategyShift(behavior1, behavior2) {
+    return behavior1.strategy !== behavior2.strategy && 
+           behavior1.confidence > 0.5 && 
+           behavior2.confidence > 0.5;
+}
+
+// Calculate shift confidence
+function calculateShiftConfidence(behavior1, behavior2) {
+    const velocity_diff = Math.abs(behavior1.avg_velocity - behavior2.avg_velocity);
+    const acceleration_diff = Math.abs(behavior1.avg_acceleration - behavior2.avg_acceleration);
+    
+    // Normalize and combine differences
+    const normalized_vel_diff = Math.min(1.0, velocity_diff / 100);
+    const normalized_acc_diff = Math.min(1.0, acceleration_diff / 500);
+    
+    return (normalized_vel_diff + normalized_acc_diff) / 2;
+}
+
+// Enhanced Movement Analysis Helper Functions
+// Helper function to determine quadrant
+function getQuadrant(pos) {
+    const centerX = window.center.x;
+    const centerY = window.center.y;
+    
+    if (pos.x >= centerX && pos.y <= centerY) return 1; // Top-right
+    if (pos.x < centerX && pos.y <= centerY) return 2;  // Top-left
+    if (pos.x < centerX && pos.y > centerY) return 3;   // Bottom-left
+    return 4; // Bottom-right
+}
+
+// Enhanced velocity calculation
+function getVelocity(pos1, pos2, timeDiff) {
+    if (!pos1 || !pos2 || timeDiff <= 0) return 0;
+    
+    const distance = Math.sqrt(
+        Math.pow(pos2.x - pos1.x, 2) + 
+        Math.pow(pos2.y - pos1.y, 2)
+    );
+    return distance / (timeDiff / 1000); // pixels per second
+}
+
+// Enhanced acceleration calculation
+function calculateAcceleration(pos1, pos2, pos3) {
+    if (!pos1 || !pos2 || !pos3) return 0;
+    
+    const time_diff1 = (pos2.time - pos1.time) / 1000;
+    const time_diff2 = (pos3.time - pos2.time) / 1000;
+    
+    if (time_diff1 <= 0 || time_diff2 <= 0) return 0;
+    
+    const vel1 = getVelocity(pos1, pos2, pos2.time - pos1.time);
+    const vel2 = getVelocity(pos2, pos3, pos3.time - pos2.time);
+    
+    const avg_time_diff = (time_diff1 + time_diff2) / 2;
+    return (vel2 - vel1) / avg_time_diff;
+}
+
+
+// Calculate pause duration
+function calculatePauseDuration(hand_positions, start_index) {
+    let duration = 0;
+    const velocity_threshold = 50;
+    
+    for (let i = start_index; i < hand_positions.length; i++) {
+        if (hand_positions[i].velocity >= velocity_threshold) {
+            break;
+        }
+        if (i > start_index) {
+            duration += hand_positions[i].time - hand_positions[i-1].time;
+        }
+    }
+    return duration;
+}
+
+// Get movement angle between two points
+function getMovementAngle(pos1, pos2) {
+    if (!pos1 || !pos2) return 0;
+    return Math.atan2(pos2.y - pos1.y, pos2.x - pos1.x) * (180 / Math.PI);
+}
+
+// Analyze audio-motor coupling
+function analyzeAudioMotorCoupling(hand_positions) {
+    return hand_positions.map(pos => {
+        if (!pos.soundParams) return null;
+        
+        const movement_vector = getMovementDirection(pos, hand_positions);
+        const sound_gradient = getAcousticGradient(pos.x, pos.y);
+        
+        return {
+            time: pos.time,
+            position: pos,
+            sound_match: pos.soundParams,
+            gradient_alignment: vectorAlignment(movement_vector, sound_gradient),
+            exploration_behavior: classifyBehavior(pos)
+        };
+    }).filter(item => item !== null);
+}
+
+// Get movement direction
+function getMovementDirection(current_pos, hand_positions) {
+    const current_index = hand_positions.findIndex(p => p.time === current_pos.time);
+    if (current_index <= 0) return { x: 0, y: 0 };
+    
+    const prev_pos = hand_positions[current_index - 1];
+    return {
+        x: current_pos.x - prev_pos.x,
+        y: current_pos.y - prev_pos.y
+    };
+}
+function detect_pauses(hand_positions) {
+    const pauses = [];
+    const velocity_threshold = 50; // pixels per second
+    const min_pause_duration = 100; // milliseconds
+    
+    let pause_start = null;
+    
+    for (let i = 0; i < hand_positions.length; i++) {
+        const pos = hand_positions[i];
+        const velocity = pos.velocity || 0;
+        
+        if (velocity < velocity_threshold) {
+            // Starting a potential pause
+            if (pause_start === null) {
+                pause_start = i;
+            }
+        } else {
+            // End of pause (if there was one)
+            if (pause_start !== null) {
+                const duration = hand_positions[i].time - hand_positions[pause_start].time;
+                if (duration >= min_pause_duration) {
+                    pauses.push({
+                        start_index: pause_start,
+                        end_index: i - 1,
+                        duration: duration,
+                        start_time: hand_positions[pause_start].time,
+                        end_time: hand_positions[i - 1].time
+                    });
+                }
+                pause_start = null;
+            }
+        }
+    }
+    
+    // Check if we ended in a pause
+    if (pause_start !== null && hand_positions.length > pause_start + 1) {
+        const duration = hand_positions[hand_positions.length - 1].time - hand_positions[pause_start].time;
+        if (duration >= min_pause_duration) {
+            pauses.push({
+                start_index: pause_start,
+                end_index: hand_positions.length - 1,
+                duration: duration,
+                start_time: hand_positions[pause_start].time,
+                end_time: hand_positions[hand_positions.length - 1].time
+            });
+        }
+    }
+    
+    return pauses;
+}
+
+// Function to detect direction changes
+function detect_direction_changes(hand_positions) {
+    if (hand_positions.length < 3) return [];
+    
+    const direction_changes = [];
+    const angle_threshold = 45; // degrees
+    
+    for (let i = 1; i < hand_positions.length - 1; i++) {
+        const prev = hand_positions[i - 1];
+        const curr = hand_positions[i];
+        const next = hand_positions[i + 1];
+        
+        // Calculate direction vectors
+        const dir1 = {
+            x: curr.x - prev.x,
+            y: curr.y - prev.y
+        };
+        
+        const dir2 = {
+            x: next.x - curr.x,
+            y: next.y - curr.y
+        };
+        
+        // Calculate angle between directions
+        const angle1 = Math.atan2(dir1.y, dir1.x);
+        const angle2 = Math.atan2(dir2.y, dir2.x);
+        
+        let angle_diff = Math.abs(angle2 - angle1) * (180 / Math.PI);
+        
+        // Normalize angle difference to 0-180 range
+        if (angle_diff > 180) {
+            angle_diff = 360 - angle_diff;
+        }
+        
+        // If angle change is significant, record it as a direction change
+        if (angle_diff > angle_threshold) {
+            direction_changes.push({
+                index: i,
+                time: curr.time,
+                angle_change: angle_diff,
+                position: { x: curr.x, y: curr.y }
+            });
+        }
+    }
+    
+    return direction_changes;
+}
+
+// Get acoustic gradient - matches your existing vowel formant system
+function getAcousticGradient(x, y) {
+    // Based on your existing getVowelFormants function:
+    // X controls f1/f2 (vowel formants), Y controls pitch
+    
+    // Check if we're within the red square
+    if (x < window.squareLeft || x > window.squareLeft + window.squareSize ||
+        y < window.squareTop || y > window.squareTop + window.squareSize) {
+        return { x: 0, y: 0 }; // No gradient outside the square
+    }
+    
+    // X direction: f1/f2 changes (vowel space)
+    // Your vowel space goes from 'i' to 'a' across x
+    const f1_gradient = (700 - 300) / window.squareSize; // a.f1 - i.f1
+    const f2_gradient = (1200 - 2300) / window.squareSize; // a.f2 - i.f2
+    
+    // Y direction: pitch changes (80 to 350 Hz)
+    const pitch_gradient = -(350 - 80) / window.squareSize; // negative because y increases downward
+    
+    return {
+        x: f1_gradient, // How much f1 changes per pixel in x
+        y: pitch_gradient // How much pitch changes per pixel in y
+    };
+}
+
+// Calculate vector alignment
+function vectorAlignment(vec1, vec2) {
+    if (!vec1 || !vec2) return 0;
+    
+    const mag1 = Math.sqrt(vec1.x * vec1.x + vec1.y * vec1.y);
+    const mag2 = Math.sqrt(vec2.x * vec2.x + vec2.y * vec2.y);
+    
+    if (mag1 === 0 || mag2 === 0) return 0;
+    
+    const dotProduct = vec1.x * vec2.x + vec1.y * vec2.y;
+    return dotProduct / (mag1 * mag2); // Returns cosine of angle between vectors
+}
+
+// Classify behavior
+function classifyBehavior(pos) {
+    // Simple classification based on position and context
+    const distanceFromCenter = Math.sqrt(
+        Math.pow(pos.x - window.center.x, 2) + 
+        Math.pow(pos.y - window.center.y, 2)
+    );
+    
+    if (distanceFromCenter < window.tgt_distance * 0.2) {
+        return 'systematic';
+    } else if (pos.velocity < 30) {
+        return 'targeted';
+    } else {
+        return 'random';
+    }
+}
+
+// Detect learning events
+function detect_learning_events(hand_positions) {
+    const events = [];
+    
+    // Look for "aha moments" - sudden strategy changes
+    hand_positions.forEach((pos, i) => {
+        if (i > 5 && i < hand_positions.length - 3) {
+            const recentBehavior = analyzeBehaviorWindow(hand_positions.slice(i-5, i));
+            const currentBehavior = analyzeBehaviorWindow(hand_positions.slice(i, i+3));
+            
+            if (detectStrategyShift(recentBehavior, currentBehavior)) {
+                events.push({
+                    type: 'strategy_shift',
+                    time: pos.time,
+                    from: recentBehavior.strategy,
+                    to: currentBehavior.strategy,
+                    confidence: calculateShiftConfidence(recentBehavior, currentBehavior)
+                });
+            }
+        }
+    });
+    
+    return events;
+}
+
 // Function that sets up the game
 function gameSetup(data) {
-
-  // Get the experiment condition from the subject object
-  const experimentCondition = subject.condition || 'A'; // Default to 'A' if missing
+  // If no data passed and we have fileContent, use that
+      if (!data && fileContent) {
+          console.log("Using already loaded fileContent in gameSetup");
+          data = fileContent;
+      }
+      
+      if (!data) {
+          console.error("No data available for gameSetup");
+          alert("Experiment data not loaded. Please refresh the page.");
+          return;
+      }
+  
+      // Get the experiment condition from the subject object
+  const experiment_condition = subject.condition || 'A'; // Default to 'A' if missing
    
-  // Update experiment_ID to include the condition
-  const experiment_ID = "AudioMotor_" + experimentCondition;
+  // Update experiment_id to include the condition
+  const experiment_id = "AudioMotor_" + experiment_condition;
+
+   // Make experiment_id globally accessible so start_trial can use it
+  window.experiment_id = experiment_id;
 
   // Determine which condition's data to use
-  const conditionData = experimentCondition === 'A' 
+  const condition_data = experiment_condition === 'A' 
     ? data.conditionA 
     : data.conditionB;
 
   // COORDINATE CALCULATIONS
   const screen_width = self.innerWidth;
   const screen_height = self.innerHeight;
-  const tgt_distance = screen_height / 3 * .80;
+  const tgt_distance = screen_height / 3;
   const center = new Point(screen_width / 2.0, screen_height / 2.0);
   // Red box dimensions
   const squareLeft = center.x - tgt_distance;
@@ -1290,8 +2343,8 @@ function gameSetup(data) {
   console.log('=== END COORDINATE SETUP ===');
   
   // Combine training and testing data properly
-  const trainingData = conditionData.training;
-  const testingData = conditionData.testing;
+  const training_data = condition_data.training;
+  const testing_data = condition_data.testing;
   
   // Merge the arrays correctly
   const rotation = {};
@@ -1300,20 +2353,20 @@ function gameSetup(data) {
   const target_jump = {};
 
   // Add training data (trials 0-3)
-  for (let i = 0; i < trainingData.numtrials; i++) {
-    rotation[i] = trainingData.rotation[i];
-    tgt_angle[i] = trainingData.tgt_angle[i];
-    between_blocks[i] = trainingData.between_blocks[i];
-    target_jump[i] = trainingData.target_jump[i];
+  for (let i = 0; i < training_data.numtrials; i++) {
+    rotation[i] = training_data.rotation[i];
+    tgt_angle[i] = training_data.tgt_angle[i];
+    between_blocks[i] = training_data.between_blocks[i];
+    target_jump[i] = training_data.target_jump[i];
   }
   
-  // Add testing data (trials 4-104, but indexed as 0-99 in testing data)
-  for (let i = 0; i < testingData.numtrials; i++) {
-    const globalTrialIndex = trainingData.numtrials + i; // This will be 4, 5, 6, ... 51
-    rotation[globalTrialIndex] = testingData.rotation[i];
-    tgt_angle[globalTrialIndex] = testingData.tgt_angle[i];
-    between_blocks[globalTrialIndex] = testingData.between_blocks[i];
-    target_jump[globalTrialIndex] = testingData.target_jump[i];
+  // Add testing data (trials 4+)
+  for (let i = 0; i < testing_data.numtrials; i++) {
+    const globalTrialIndex = training_data.numtrials + i; // This will be 4, 5, 6, ... 51
+    rotation[globalTrialIndex] = testing_data.rotation[i];
+    tgt_angle[globalTrialIndex] = testing_data.tgt_angle[i];
+    between_blocks[globalTrialIndex] = testing_data.between_blocks[i];
+    target_jump[globalTrialIndex] = testing_data.target_jump[i];
   }
   // **MAKE TRIAL DATA GLOBALLY ACCESSIBLE**
   window.rotation = rotation;
@@ -1329,8 +2382,8 @@ function gameSetup(data) {
   console.log('=== END TRIAL 47 CHECK ===');
 
   // Number of trials from training + testing data
-  const num_trials = trainingData.numtrials + testingData.numtrials;
-  console.log('Total trials:', num_trials);
+  const numtrials = training_data.numtrials + testing_data.numtrials;
+  console.log('Total trials:', numtrials);
 
   console.log('Global variables set:', {
     tgt_distance,
@@ -1338,13 +2391,13 @@ function gameSetup(data) {
     squareTop,
     squareSize,
     center,
-    totalTrials: num_trials
+    total_trials: numtrials
   });
 
   // Game state variables
-  let trialOrder = [];
-  let isPhase2 = false;
-  let handPositions = [];
+  let trial_order = [];
+  let is_phase_2 = false;
+  let hand_positions = [];
   let trial = 0;
 
   // Circle objects
@@ -1363,11 +2416,11 @@ function gameSetup(data) {
     // length of time users must hold in start before next trial (ms)
   const hold_time = 500; 
     // length of time the start circle in holding phase will turn to green (ms)
-  const green_time = 2000; 
+  const green_time = 1000; 
     // Parameters and display for when users take too long to locate the center (ms)
   const search_too_slow = 3000;
     // Setting up parameters and display when reach is too slow (ms) 
-  const too_slow_time = 4000; 
+  const too_slow_time = 5000; 
 
 // The between block messages that will be displayed
 const messages = [
@@ -1384,10 +2437,10 @@ const messages = [
     // bb_mess == 2
     "Phase 2:", 
     "The instrument will now play a sound,",
-    "then you move the cursor to mimic that sound.",  
-    "Remember: Training was only a SUBSET of potential sounds.",
-    "Accuracy is important! Listen carefully!",
-    
+    "and then you have 5 seconds to find and mimic what you heard.",  
+    "In training you heard 4 of 8 auditory targets. Find the others!",
+    "Accuracy is important!",
+
     "Press 'a' to continue.",
   ],
   [
@@ -1427,8 +2480,8 @@ const messages = [
 
   // **CRITICAL DEBUGGING: Check if key variables are defined**
   console.log('=== GAMESETUP DEBUGGING ===');
-  console.log('experimentCondition:', experimentCondition);
-  console.log('conditionData:', conditionData);
+  console.log('experiment_condition:', experiment_condition);
+  console.log('condition_data:', condition_data);
   console.log('rotation:', rotation);
   console.log('tgt_angle:', tgt_angle);
   console.log('tgt_distance:', tgt_distance);
@@ -1436,6 +2489,7 @@ const messages = [
   console.log('target_jump:', target_jump);
 
   const musicBox = new MusicBox(self);
+  
   // Calculated hand angles
   let hand_fb_angle = 0;
 
@@ -1676,7 +2730,8 @@ const messages = [
       * Draws the cursor if in appropriate game phase
       * Triggers changes in game phase if appropriate conditions are met
     ********************/
-  function update_cursor(event) {
+  // Enhanced update_cursor function - REPLACE your existing update_cursor function
+function update_cursor(event) {
     // Record the current mouse movement location
     event = event || self.event;
 
@@ -1687,10 +2742,78 @@ const messages = [
     // update cursor position
     cursor.update(cursor_x, cursor_y);
 
+    // ENHANCED ADDITIONS: Enhanced movement data collection
+    if (game_phase === Phase.MOVING) {
+        const currentTime = new Date() - begin;
+        const current_pos = {
+            time: currentTime,
+            x: cursor.point.x,
+            y: cursor.point.y
+        };
+
+        // Calculate velocity if we have previous positions
+        if (enhanced_hand_positions.length > 0) {
+            const lastPos = enhanced_hand_positions[enhanced_hand_positions.length - 1];
+            const timeDiff = currentTime - lastPos.time;
+            current_pos.velocity = getVelocity(lastPos, current_pos, timeDiff);
+        } else {
+            current_pos.velocity = 0;
+        }
+
+        // Calculate acceleration if we have 2+ previous positions
+        if (enhanced_hand_positions.length >= 2) {
+            const lastPos = enhanced_hand_positions[enhanced_hand_positions.length - 1];
+            const secondLastPos = enhanced_hand_positions[enhanced_hand_positions.length - 2];
+            current_pos.acceleration = calculateAcceleration(secondLastPos, lastPos, current_pos);
+        } else {
+            current_pos.acceleration = 0;
+        }
+
+        // Detect pauses (low velocity)
+        current_pos.isPause = current_pos.velocity < 50;
+
+        // Track which quadrant we're in
+        current_pos.quadrant = getQuadrant(current_pos);
+
+        // Store current sound parameters
+        const point = cursor.point;
+        if (point.x >= squareLeft && point.x <= squareLeft + squareSize &&
+            point.y >= squareTop && point.y <= squareTop + squareSize) {
+            const { f1, f2, _vowel } = getVowelFormants(point.x, squareLeft, squareSize);
+            const y_proportion = 1 - (point.y - squareTop) / squareSize;
+            const pitch = (350 - 80) * (Math.pow(2, y_proportion) - 1) + 80;
+            
+            current_pos.soundParams = { f1, f2, pitch, vowel: _vowel };
+        }
+
+        // Distance from target
+        if (window.tgt_angle && window.tgt_distance) {
+            const targetAngle = window.tgt_angle[trial] || 0;
+            const targetX = window.center.x + window.tgt_distance * Math.cos(targetAngle * Math.PI / 180);
+            const targetY = window.center.y - window.tgt_distance * Math.sin(targetAngle * Math.PI / 180);
+            current_pos.distanceFromTarget = Math.sqrt(
+                Math.pow(current_pos.x - targetX, 2) + 
+                Math.pow(current_pos.y - targetY, 2)
+            );
+        }
+
+        enhanced_hand_positions.push(current_pos);
+
+        // Real-time learning detection
+        if (enhanced_hand_positions.length > 10) {
+            const recent_events = detect_learning_events(enhanced_hand_positions.slice(-10));
+            if (recent_events.length > 0) {
+                learning_events.push(...recent_events);
+                console.log("Learning event detected:", recent_events[recent_events.length - 1]);
+            }
+        }
+    }
+
+    // Continue with your existing update_cursor logic...
     // distance between cursor and start
     const distance = Math.sqrt(
-      Math.pow(calibration.point.x - cursor.point.x, 2.0) +
-        Math.pow(calibration.point.y - cursor.point.y, 2.0),
+        Math.pow(calibration.point.x - cursor.point.x, 2.0) +
+        Math.pow(calibration.point.y - cursor.point.y, 2.0)
     );
 
     // Update hand angle
@@ -1699,73 +2822,73 @@ const messages = [
 
     const point = cursor.point;
     switch (game_phase) {
-      case Phase.HOLDING:
-        // Move from hold back to search phase if they move back beyond the search tolerance
-        if (distance > calibration.radius) {
-          search_phase();
-        }
-        break;
+        case Phase.HOLDING:
+            // Move from hold back to search phase if they move back beyond the search tolerance
+            if (distance > calibration.radius) {
+                search_phase();
+            }
+            break;
 
-      case Phase.SHOW_TARGETS:
-        // Move from show targets to moving phase once user has begun their reach
-        if (distance > calibration.radius) {
-          // we could also control if we want to wait for the target to finish the demo before moving the cursor.
-          // right now, if the mouse move out, we will stop the target and let the user conduct the experiment.
-          moving_phase();
-        }
-        break;
+        case Phase.SHOW_TARGETS:
+            // Move from show targets to moving phase once user has begun their reach
+            if (distance > calibration.radius) {
+                // we could also control if we want to wait for the target to finish the demo before moving the cursor.
+                // right now, if the mouse move out, we will stop the target and let the user conduct the experiment.
+                moving_phase();
+            }
+            break;
 
-      case Phase.SEARCHING:
-        // Move from search to hold phase if they move within search tolerance of the start circle
-        if (distance <= calibration.radius) {
-          hold_phase();
-        }
-        break;
+        case Phase.SEARCHING:
+            // Move from search to hold phase if they move within search tolerance of the start circle
+            if (distance <= calibration.radius) {
+                hold_phase();
+            }
+            break;
 
-      case Phase.MOVING:
-        // record mouse data
-        handPositions.push({ time: new Date() - begin, x: cursor.point.x, y: cursor.point.y });
+        case Phase.MOVING:
+            // record mouse data - KEEP YOUR EXISTING hand_positions FOR COMPATIBILITY
+            hand_positions.push({ time: new Date() - begin, x: cursor.point.x, y: cursor.point.y });
 
-        // Check if cursor is within the red square
-        if (
-          point.x >= squareLeft &&
-          point.x <= squareLeft + squareSize &&
-          point.y >= squareTop &&
-          point.y <= squareTop + squareSize
-        ) {
-          console.log(`point ${JSON.stringify(point)}`);
-          // generate value for vowel formants
-          // CHANGE: Now getting vowel formants from x position instead of y
-          const { f1, f2, _vowel } = getVowelFormants(
-            point.x, // changed from point.y to point.x
-            squareLeft, // changed from squareTop to squareLeft
-            squareSize,
-          );
-          const lo_pitch = 80;
-          const hi_pitch = 350;
+            // Check if cursor is within the red square
+            if (
+                point.x >= squareLeft &&
+                point.x <= squareLeft + squareSize &&
+                point.y >= squareTop &&
+                point.y <= squareTop + squareSize
+            ) {
+                console.log(`point ${JSON.stringify(point)}`);
+                // generate value for vowel formants
+                // CHANGE: Now getting vowel formants from x position instead of y
+                const { f1, f2, _vowel } = getVowelFormants(
+                    point.x, // changed from point.y to point.x
+                    squareLeft, // changed from squareTop to squareLeft
+                    squareSize,
+                );
+                const lo_pitch = 80;
+                const hi_pitch = 350;
 
-          // CHANGE: Now calculating pitch based on y position instead of x
-          // top of square is higher pitch, bottom is lower pitch
-          const y_proportion = 1 - (point.y - squareTop) / squareSize;
-          const pitch =
-            (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
+                // CHANGE: Now calculating pitch based on y position instead of x
+                // top of square is higher pitch, bottom is lower pitch
+                const y_proportion = 1 - (point.y - squareTop) / squareSize;
+                const pitch =
+                    (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
 
-          console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
-          // update musicbox
-          musicBox.update(pitch, f1, f2);
-        } else {
-          musicBox.pause();
-        }
+                console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
+                // update musicbox
+                musicBox.update(pitch, f1, f2);
+            } else {
+                musicBox.pause();
+            }
 
-        // Move from moving to feedback phase once their reach intersects the target ring
-        if (distance > tgt_distance *0.95) {
-          // stop audio
-          musicBox.pause();
-          fb_phase();
-        }
-        break;
+            // Move from moving to feedback phase once their reach intersects the target ring
+            if (distance > tgt_distance * 0.95) {
+                // stop audio
+                musicBox.pause();
+                fb_phase();
+            }
+            break;
     }
-  }
+}
 
   // Function called whenever a key is pressed
   // #### Make sure conditions trigger intended action in "bb_mess"
@@ -2031,17 +3154,17 @@ const messages = [
     // Math.cos is used for the x-coordinate because cosine represents the horizontal component of movement along a circle. When an angle is 0 degrees, cosine is 1, placing the point at maximum x-distance. 
     // Math.sin is used for the y-coordinate because sine represents the vertical component of movement along a circle. When an angle is 90 degrees, sine is 1, placing the point at maximum y-distance.
     const x = start.x + tgt_distance * Math.cos(value * deg2rad);
-    const y = start.y - tgt_distance * Math.sin(value * deg2rad);
+    const y = start.y + tgt_distance * Math.sin(value * deg2rad);
     const end = new Point(x, y);
 
     // Log for debugging
-    console.log(`Trial: ${trial}, Phase2: ${isPhase2}, Target angle: ${angle}, Position: (${x}, ${y})`);
+    console.log(`Trial: ${trial}, Phase2: ${is_phase_2}, Target angle: ${angle}, Position: (${x}, ${y})`);
   
     // Update target position (but don't display it)
     target.update(x, y); 
 
     // In phase 2, we initially hide the target but play the sound demo
-    if (isPhase2) {
+    if (is_phase_2) {
       // Keep target invisible during sound demo
       target.display(false);
   
@@ -2179,7 +3302,14 @@ const messages = [
   }
 
   function start_trial() {
-    subjTrials = new Trial(experiment_ID, subject.id);
+    // Ensure we have a valid experiment_id and subject ID
+    const experiment_id = window.experiment_id || "AudioMotor_" + (subject?.condition || 'A');
+    const subject_id = subject?.id || "unknown_participant";
+
+    console.log("Starting trial with:", { experiment_id, subject_id });
+
+    // Create a new Trial object for this subject
+    subj_trials = new Trial(experiment_id, subject_id)
 
     d3.select("#too_slow_message").attr("display", "none");
     
@@ -2202,41 +3332,56 @@ const messages = [
   // Function used to initiate the next trial after uploading reach data and subject data onto the database
   // Cleans up all the variables and displays to set up for the next reach
   function next_trial() {
+    // ENHANCED: Analyze the trial that just completed
+    const trial_analysis = analyzeTrialPath(enhanced_hand_positions);
+    trial_analytics.push(trial_analysis);
+    
+    console.log(`Trial ${trial} analysis:`, trial_analysis);
+    
     // Record data for the trial that was just completed
-    subjTrials.appendTrialBlock(
-      tgt_angle[trial],
-      rotation[trial],
-      hand_fb_angle,
-      reaction_time,
-      movement_time,
-      search_time,
-      reach_feedback,
-      handPositions, // cursor_data
-      handPositions  // This captures the hand_path field
+    subj_trials.appendTrialBlock(
+        tgt_angle[trial],
+        rotation[trial],
+        hand_fb_angle,
+        reaction_time,
+        movement_time,
+        search_time,
+        reach_feedback,
+        enhanced_hand_positions, // Use enhanced data instead of hand_positions
+        enhanced_hand_positions  // This captures the hand_path field
     );
-  
+
+    // ENHANCED: Add the enhanced analysis to the trial data
+    if (subj_trials.blocks.length > 0) {
+        const last_block = subj_trials.blocks[subj_trials.blocks.length - 1];
+        last_block.path_analysis = trial_analysis;
+        last_block.learning_events = [...learning_events]; // Copy current learning events
+    }
+
     // Screen dimensions
-    subjTrials.start_x.push(center.x);
-    subjTrials.start_y.push(center.y);
-    subjTrials.screen_height.push(screen_height);
-    subjTrials.screen_width.push(screen_width);
-  
-    // Reset timing variables
+    subj_trials.start_x.push(center.x);
+    subj_trials.start_y.push(center.y);
+    subj_trials.screen_height.push(screen_height);
+    subj_trials.screen_width.push(screen_width);
+
+    // ENHANCED: Reset timing variables
     reaction_time = 0;
     movement_time = 0;
     search_time = 0;
     play_sound = true;
-    handPositions = [];
+    hand_positions = []; // Keep this for compatibility
+    enhanced_hand_positions = []; // Reset enhanced positions
+    learning_events = []; // Reset learning events
   
     // Number of completed trials so far
-    const completedTrials = subjTrials.blocks.length;
-    console.log(`Completed ${completedTrials} trials out of ${num_trials}`);
+    const completedTrials = subj_trials.blocks.length;
+    console.log(`Completed ${completedTrials} trials out of ${numtrials}`);
     
     // Update the trial counter display - show consecutive numbers
-    d3.select("#trialcount").text(`Reach Number: ${completedTrials} / ${num_trials}`);
+    d3.select("#trialcount").text(`Reach Number: ${completedTrials} / ${numtrials}`);
     
     // Check if we've completed all trials
-    if (completedTrials >= num_trials) {
+    if (completedTrials >= numtrials) {
       console.log("All trials completed. Ending experiment.");
       end_trial();
       return;
@@ -2251,16 +3396,16 @@ const messages = [
     // When transitioning to Phase 2, just note the phase change
     if (bb_mess == 2) {
       console.log("Transitioning to Phase 2 - using pre-randomized order from JSON file");
-      isPhase2 = true;
+      is_phase_2 = true;
       // No randomization needed - the JSON file already has the randomized order
 }
   
     // Determine which trial to run next - simple sequential order
     trial += 1;
-    console.log(`Moving to trial ${trial} (Phase ${isPhase2 ? '2' : '1'})`);
+    console.log(`Moving to trial ${trial} (Phase ${is_phase_2 ? '2' : '1'})`);
 
     // Debug code to verify JSON randomization is working
-    if (trial < num_trials) {
+    if (trial < numtrials) {
       console.log(`Next trial: ${trial}, Angle: ${tgt_angle[trial]}, Rotation: ${rotation[trial]}`);
     }
   
@@ -2291,16 +3436,17 @@ function getVowelFormants(xPos, squareLeft, squareSize) {
     a: { f1: 700, f2: 1200 }
   };
 
-  // ensure input is a number
+  // First validation: Check for non-numeric values "NaN" 
   if (isNaN(xPos) || isNaN(squareLeft) || isNaN(squareSize)) {
-    console.error('Invalid input for getVowelFormants', { xPos, squareLeft, squareSize });
+    console.error('Invalid input for getVowelFormants - non-numeric values', { xPos, squareLeft, squareSize });
+    return { f1: 500, f2: 1500, _vowel: 'a' };
+  } 
 
-  // validate input
+  // Second validation: Check for negative or zero values
   if (xPos < 0 || squareLeft < 0 || squareSize <= 0) {
-    console.error('Invalid input for getVowelFormants', { xPos, squareLeft, squareSize });
-    return { f1: 500, f2: 1500, vowel: 'a' }; // Fallback values
+    console.error('Invalid input for getVowelFormants - invalid ranges', { xPos, squareLeft, squareSize });
+    return { f1: 500, f2: 1500, _vowel: 'a' }; // Fallback values
   }
-}
   
   // Need to be explicit about which segment these are delinating
   const vowels = Object.keys(vowelFormants);
@@ -2321,25 +3467,6 @@ function getVowelFormants(xPos, squareLeft, squareSize) {
   
   const vowel1 = vowels[index];
   const vowel2 = vowels[index + 1];
-  
-  // Add safety checks
-  if (!vowelFormants[vowel1] || !vowelFormants[vowel2]) {
-    console.warn('Unexpected vowel formant calculation', { 
-      xPos, 
-      squareLeft, 
-      squareSize, 
-      index, 
-      vowel1, 
-      vowel2 
-    });
-    
-    // Fallback to default values
-    return { 
-      f1: 500, 
-      f2: 1500, 
-      vowel: 'a' 
-    };
-  }
 
   const f1 = vowelFormants[vowel1].f1 * (1 - t) + vowelFormants[vowel2].f1 * t;
   const f2 = vowelFormants[vowel1].f2 * (1 - t) + vowelFormants[vowel2].f2 * t;
@@ -2349,138 +3476,256 @@ function getVowelFormants(xPos, squareLeft, squareSize) {
   return { f1, f2, _vowel: currentVowel };
 }
 
-// Helper function to end the game regardless good or bad
-function helpEnd() {
-  closeFullScreen();
-  // return the cursor back
-  $("html").css("cursor", "auto");
-  $("body").css("cursor", "auto");
-  // restore the screen state
-  $("body").css("background-color", "white");
-  $("html").css("background-color", "white");
-  d3.select("#stage").attr("display", "none");
-
-  try {
-    console.log("Preparing trial data for save...");
+// Function to analyze path after trial completion
+function analyzeTrialPath(hand_positions) {
+    if (hand_positions.length < 2) return {};
     
-    // #### Create a comprehensive record of all trial data
-    const subjTrial_data = {
-      id: subjTrials.id,
-      experiment_ID: subjTrials.experimentID,
-      // cursor_data: subjTrials.cursor_data,
-      trial_num: [],
-      current_date: [],
-      target_angle: [],
-      trial_type: [],
-      rotation: [],
-      hand_fb_angle: [],
-      reaction_time: [],
-      movement_time: [],
-      search_time: [],
-      reach_feedback: [],
-      start_x: subjTrials.start_x,
-      start_y: subjTrials.start_y,
-      screen_height: subjTrials.screen_height,
-      screen_width: subjTrials.screen_width,
-      group_type: subjTrials.group_type,
-      // Flag that hand path is processed
-      hand_path_flattened: true
-    };
-
-    // Extract data from blocks
-    subjTrials.blocks.forEach((block, index) => {
-      subjTrial_data.trial_num.push(block.trial_num);
-      subjTrial_data.current_date.push(block.current_date);
-      subjTrial_data.target_angle.push(block.target_angle);
-      subjTrial_data.trial_type.push(block.trial_type);
-      subjTrial_data.rotation.push(block.rotation);
-      subjTrial_data.hand_fb_angle.push(block.hand_fb_angle);
-      subjTrial_data.reaction_time.push(block.reaction_time);
-      subjTrial_data.movement_time.push(block.movement_time);
-      subjTrial_data.search_time.push(block.search_time);
-      subjTrial_data.reach_feedback.push(block.reach_feedback)
-      subjTrial_data.hand_path_flattened = true;
-    });
+    // Path efficiency
+    const start = hand_positions[0];
+    const end = hand_positions[hand_positions.length - 1];
+    const direct_distance = Math.sqrt(
+        Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+    );
     
-    // Add hand path data in a safe format for Firebase
-    if (subjTrials.hand_path && subjTrials.hand_path.length > 0) {
-      // Store hand path data as separate objects to avoid arrays
-      const handPathSummary = {};
-      
-      subjTrials.hand_path.forEach((path, index) => {
-        if (path && path.length) {
-          // For each trial, create:
-          // 1. A count
-          handPathSummary[`trial_${index+1}_count`] = path.length;
-        
-          // 2. First point as separate properties
-          if (path.length > 0) {
-            handPathSummary[`trial_${index+1}_first_x`] = path[0].x;
-            handPathSummary[`trial_${index+1}_first_y`] = path[0].y;
-            handPathSummary[`trial_${index+1}_first_time`] = path[0].time;
-          }
-          
-          // 3. Last point as separate properties
-          if (path.length > 0) {
-            handPathSummary[`trial_${index+1}_last_x`] = path[path.length-1].x;
-            handPathSummary[`trial_${index+1}_last_y`] = path[path.length-1].y;
-            handPathSummary[`trial_${index+1}_last_time`] = path[path.length-1].time;
-          }
-          
-          // 4. A few sample points (to keep data size manageable)
-          if (path.length > 10) {
-            [0, Math.floor(path.length/4), Math.floor(path.length/2), 
-            Math.floor(3*path.length/4), path.length-1].forEach((idx, sampleIdx) => {
-              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_x`] = path[idx].x;
-              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_y`] = path[idx].y;
-              handPathSummary[`trial_${index+1}_sample_${sampleIdx}_time`] = path[idx].time;
-            });
+    let total_distance = 0;
+    for (let i = 1; i < hand_positions.length; i++) {
+        const prev = hand_positions[i-1];
+        const curr = hand_positions[i];
+        total_distance += Math.sqrt(
+            Math.pow(curr.x - prev.x, 2) + Math.pow(curr.y - prev.y, 2)
+        );
+    }
+    
+    const path_efficiency = total_distance > 0 ? direct_distance / total_distance : 0;
+    
+    // Count pauses
+    const pauses = detect_pauses(hand_positions);
+    
+    // Count quadrant changes
+    let quadrant_changes = 0;
+    for (let i = 1; i < hand_positions.length; i++) {
+        if (hand_positions[i].quadrant !== hand_positions[i-1].quadrant) {
+            quadrant_changes++;
         }
-      }
-  });
-  
-  // Add the flattened data to the main object
-  Object.assign(subjTrial_data, handPathSummary);
+    }
+    
+    // Direction changes
+    const direction_changes = detect_direction_changes(hand_positions);
+    
+    // Average velocity and max acceleration
+    const velocities = hand_positions.filter(pos => pos.velocity !== undefined).map(pos => pos.velocity);
+    const accelerations = hand_positions.filter(pos => pos.acceleration !== undefined).map(pos => Math.abs(pos.acceleration));
+    
+    const avg_velocity = velocities.length > 0 ? velocities.reduce((a, b) => a + b) / velocities.length : 0;
+    const max_acceleration = accelerations.length > 0 ? Math.max(...accelerations) : 0;
+    
+    // Audio-motor coupling analysis
+    const audio_motor_coupling = analyzeAudioMotorCoupling(hand_positions);
+    const avg_gradient_alignment = audio_motor_coupling.length > 0 ? 
+        audio_motor_coupling.reduce((sum, item) => sum + item.gradient_alignment, 0) / audio_motor_coupling.length : 0;
+    
+    return {
+        path_efficiency,
+        total_distance,
+        direct_distance,
+        pause_count: pauses.length,
+        avg_pause_duration: pauses.length > 0 ? pauses.reduce((sum, p) => sum + p.duration, 0) / pauses.length : 0,
+        quadrant_changes,
+        direction_changes: direction_changes.length,
+        avg_velocity,
+        max_acceleration,
+        avg_gradient_alignment,
+        total_samples: hand_positions.length,
+        learning_events_count: learning_events.length,
+        behavior_classification: hand_positions.length > 0 ? classifyBehavior(hand_positions[Math.floor(hand_positions.length/2)]) : 'unknown'
+    };
 }
 
-    console.log("Data prepared, attempting to save...");
-    console.log("Sample of data:", JSON.stringify(subjTrial_data).substring(0, 500));
-
-    // Upload to Firebase
-    updateCollection(trialcollection, subjTrial_data)
-      .then(() => {
-        console.log("Trial data successfully saved!");
-      })
-      .catch(error => {
-        console.error("Failed to save trial data:", error);
-        alert("There was an error saving your data. Please contact the experimenter.");
-      });
-  } catch (error) {
-    console.error("Error in helpEnd function:", error);
-  }
+// Function to get comprehensive experiment summary
+function getExperimentSummary() {
+    if (trial_analytics.length === 0) {
+        return {
+            total_trials: 0,
+            overallPerformance: {
+                avg_path_efficiency: 0,
+                avg_velocity: 0,
+                total_learning_events: 0
+            },
+            learning_progression: [],
+            behavior_patterns: {
+                systematic_trials: 0,
+                exploratory_trials: 0,
+                targeted_trials: 0
+            }
+        };
+    }
+    
+    const summary = {
+        total_trials: trial_analytics.length,
+        overall_performance: {
+            avg_path_efficiency: trial_analytics.reduce((sum, t) => sum + (t.path_efficiency || 0), 0) / trial_analytics.length,
+            avg_velocity: trial_analytics.reduce((sum, t) => sum + (t.avg_velocity || 0), 0) / trial_analytics.length,
+            total_learning_events: trial_analytics.reduce((sum, t) => sum + (t.learning_events_count || 0), 0)
+        },
+        learning_progression: trial_analytics.map((analysis, index) => ({
+            trial: index + 1,
+            efficiency: analysis.path_efficiency || 0,
+            velocity: analysis.avg_velocity || 0,
+            pauses: analysis.pause_count || 0
+        })),
+        behavior_patterns: {
+            systematic_trials: trial_analytics.filter(t => t.behavior_classification === 'systematic').length,
+            exploratory_trials: trial_analytics.filter(t => t.behavior_classification === 'random').length,
+            targetedTrials: trial_analytics.filter(t => t.behavior_classification === 'targeted').length
+        }
+    };
+    
+    return summary;
 }
 
-// Function that allows for the premature end of a game
-function badGame() {
-  show("container-failed");
-  helpEnd();
+
+// helpEnd() function saves *everything* to Firebase Storage
+async function helpEnd() {
+    console.log("🏭 Starting production data save process...");
+    
+    // Restore UI state
+    closeFullScreen();
+    $("html").css("cursor", "auto");
+    $("body").css("cursor", "auto");
+    $("body").css("background-color", "white");
+    $("html").css("background-color", "white");
+    d3.select("#stage").attr("display", "none");
+
+    try {
+        // Validate essential data
+        if (!subject || !subject.id) {
+            throw new Error("Missing participant information");
+        }
+
+        if (!subj_trials || !subj_trials.blocks || subj_trials.blocks.length === 0) {
+            throw new Error("No trial data available");
+        }
+
+        console.log(`📊 Preparing to save data for participant: ${subject.id}`);
+        console.log(`🧪 Trials completed: ${subj_trials.blocks.length}`);
+
+        // Show loading message to participant
+        const loadingMessage = `Saving your data securely...\nParticipant ID: ${subject.id}`;
+        
+        // Create a simple loading overlay
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'loading-overlay';
+        loadingOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-family: Arial, sans-serif;
+            z-index: 10000;
+        `;
+        loadingOverlay.innerHTML = `
+            <div style="text-align: center;">
+                <div style="margin-bottom: 20px;">💾 Saving your data...</div>
+                <div style="font-size: 18px; color: #ccc;">Participant ID: ${subject.id}</div>
+                <div style="font-size: 16px; color: #999; margin-top: 10px;">Please wait, do not close this page</div>
+            </div>
+        `;
+        document.body.appendChild(loadingOverlay);
+
+        // Initialize production data manager
+        const productionDataManager = new ProductionDataManager();
+
+        // Prepare enhanced data if available
+        const enhancedData = {
+            trial_analytics: window.trial_analytics || [],
+            learning_events: window.learning_events || [],
+            enhanced_hand_positions: window.enhanced_hand_positions || []
+        };
+
+        console.log("🚀 Starting secure upload...");
+
+        // Save data using production system
+        const uploadResult = await productionDataManager.saveExperimentData(
+            subject, 
+            subj_trials, 
+            enhancedData
+        );
+
+        // Remove loading overlay
+        document.body.removeChild(loadingOverlay);
+
+        // Show success message
+        const successMessage = `
+✅ Data saved successfully!
+
+Participant ID: ${subject.id}
+File size: ${uploadResult.size_mb.toFixed(2)} MB
+Upload ID: ${uploadResult.upload_id}
+
+Thank you for participating!
+        `.trim();
+
+        console.log("🎉 PRODUCTION DATA SAVE COMPLETED!");
+        console.log("📋 Upload details:", uploadResult);
+
+        // Show success message to participant
+        alert(successMessage);
+
+        // Log final summary for researchers
+        console.log("📊 FINAL DATA SUMMARY:");
+        console.log(`   👤 Participant: ${subject.id}`);
+        console.log(`   🎯 Condition: ${subject.condition}`);
+        console.log(`   🧪 Trials: ${subj_trials.blocks.length}`);
+        console.log(`   📁 File: ${uploadResult.filename}`);
+        console.log(`   💾 Size: ${uploadResult.size_mb.toFixed(2)} MB`);
+        console.log(`   🔗 URL: ${uploadResult.download_url}`);
+
+        return uploadResult;
+
+    } catch (error) {
+        console.error("❌ PRODUCTION DATA SAVE FAILED:", error);
+
+        // Remove loading overlay if it exists
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            document.body.removeChild(loadingOverlay);
+        }
+
+        // Handle error with production error handler
+        const errorInfo = ProductionErrorHandler.handleUploadError(error, subject?.id || 'unknown');
+        
+        // Show error to participant
+        alert(`❌ ${errorInfo.userMessage}`);
+
+        // Log technical details for support
+        console.error("🔧 TECHNICAL ERROR DETAILS:", errorInfo.technicalMessage);
+        console.error("💡 Retry recommended:", errorInfo.shouldRetry);
+
+        // Don't throw - let the experiment continue to questionnaire
+        // The participant can contact support with their ID
+        return null;
+    }
 }
 
 // Function that ends the game appropriately after the experiment has been completed
 function endGame() {
-  // save the data
-
-  // show questionaire
-  show("container-not-an-ad");
-  
+  console.log("endGame() called - experiment completed successfully");
+  // save the trial data via helpEnd()
   // release fullscreen and restore cursor
   helpEnd();
-
-  // participant has completed the experiment
-  // show the questionaire
-  // the SUBMIT button will call the function to save the data
-  // and close the questionaire
-  // show("container-questionaire");
+  
+  // show questionaire
+  show("container-not-an-ad");
+  // The questionnaire submit button will call saveFeedback() which handles
+  // saving the participant demographics and final redirect
 }
 
 // Functions that need to be outside of the main function
@@ -2492,11 +3737,11 @@ function validateAge(input) {
 
   // Remove any non-digit characters
   value = value.replace(/\D/g, '');
-  // Ensure it's in the 0-120 range
+  // Ensure it's in the 0-99 range
   if (value !== "") {
     const num = parseInt(value);
-    if (num > 120) {
-      value = "120";
+    if (num > 99) {
+      value = "99";
     }
   }
   // Update the input value
@@ -2520,150 +3765,143 @@ function validateHours(input) {
 }
 
 // Function used to save the feedback from the final HTML page
-function saveFeedback() {
-  // Initialize distractions array
-  subject.distractions = [];
-  
-  // Process distraction checkboxes
-  for (let i = 1; i <= 7; i++) {
-    const checkbox = document.getElementById(`distract${i}`);
-    if (checkbox && checkbox.checked) {
-      subject.distractions.push(checkbox.value);
-      
-      // If "Other" is checked, get the text
-      if (checkbox.value === "other") {
-        const distractoInput = document.querySelector('input[name="distracto"]');
-        if (distractoInput) {
-          subject.distracto = distractoInput.value;
+// OPTIONAL: Enhanced version of saveFeedback() that also uses production features
+async function saveFeedback() {
+    console.log("💾 Starting production feedback save...");
+
+    try {
+        // Collect feedback data (your existing code)
+        subject.distractions = [];
+        
+        // Process distraction checkboxes
+        for (let i = 1; i <= 7; i++) {
+            const checkbox = document.getElementById(`distract${i}`);
+            if (checkbox && checkbox.checked) {
+                subject.distractions.push(checkbox.value);
+                
+                if (checkbox.value === "other") {
+                    const distractoInput = document.querySelector('input[name="distracto"]');
+                    if (distractoInput) {
+                        subject.distracto = distractoInput.value;
+                    }
+                }
+            }
         }
-      }
+
+        // Get demographic information
+        const age = document.getElementById("age-input")?.value || "";
+        const gender = document.getElementById("gender")?.value || "";
+        const music_instrument = document.getElementById("music-instrument-input")?.value || "";
+        const music_practice = document.getElementById("music-practice-input")?.value || "";
+        const language_count = document.getElementById("language-count")?.value || "";
+        const returner = document.getElementById("repeat")?.value || "";
+        const handedness = document.getElementById("hand")?.value || "";
+        const ethnicity = document.getElementById("ethnic")?.value || "";
+        const race = document.getElementById("race")?.value || "";
+
+        // Validate required fields
+        const requiredFields = [
+            { name: "Age", value: age },
+            { name: "Music practice hours", value: music_practice },
+            { name: "Gender", value: gender },
+            { name: "Musical instrument question", value: music_instrument },
+            { name: "Language count", value: language_count },
+            { name: "Experiment returner", value: returner },
+            { name: "Handedness", value: handedness }
+        ];
+
+        const missingFields = requiredFields.filter(field => !field.value);
+        if (missingFields.length > 0) {
+            alert(`Please complete all required fields: ${missingFields.map(f => f.name).join(", ")}`);
+            return false;
+        }
+
+        // Validate age vs musical experience
+        const age_num = parseInt(age) || 0;
+        const music_experience = parseInt(subject.music_experience) || 0;
+        if (age_num > 0 && music_experience > 0 && music_experience > age_num) {
+            alert(`Error: Musical experience (${music_experience}) cannot exceed age (${age_num})`);
+            return false;
+        }
+
+        // Update subject with feedback data
+        subject.age = age;
+        subject.gender = gender;
+        subject.handedness = handedness;
+        subject.returner = returner;
+        subject.ethnicity = ethnicity || "";
+        subject.race = race || "";
+        subject.language_count = language_count;
+        subject.music_instrument = music_instrument;
+        subject.music_practice = music_practice || "0";
+
+        const feedbackInput = document.getElementById('feedback_final');
+        subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
+
+        console.log("📝 Feedback data collected and validated");
+
+        // Initialize production authentication for Firebase operations
+        const authManager = new AuthenticationManager();
+        await authManager.ensureAuthenticated();
+
+        // Prepare subject data for Firebase
+        const subject_data = {
+            id: subject.id,
+            age: subject.age,
+            gender: subject.gender,
+            handedness: subject.handedness,
+            mouse_type: subject.mouse_type,
+            returner: subject.returner,
+            tgt_file: fileName,
+            ethnicity: subject.ethnicity,
+            race: subject.race,
+            music_experience: subject.music_experience,
+            language_count: subject.language_count,
+            music_instrument: subject.music_instrument,
+            music_practice: subject.music_practice,
+            comments: subject.comments,
+            distractions: subject.distractions,
+            distracto: subject.distracto,
+            condition: subject.condition,
+            // Production metadata
+            feedback_timestamp: new Date().toISOString(),
+            browser_info: {
+                user_agent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language
+            }
+        };
+
+        console.log("💾 Saving feedback to Firebase...");
+
+        // Save to Firebase with production error handling
+        const saveResult = await updateCollection(subject_collection, subject_data);
+        
+        if (saveResult) {
+            console.log("✅ Feedback saved successfully to Firebase");
+            
+            // Show completion page
+            show("final-page");
+
+            // Redirect after delay
+            setTimeout(function() {
+                window.location.href = "https://app.prolific.com/submissions/complete?cc=CSIP9LNR";
+            }, 2000);
+
+            return true;
+        } else {
+            throw new Error("Firebase save returned false");
+        }
+
+    } catch (error) {
+        console.error("❌ Error saving feedback:", error);
+        
+        // Production error handling
+        const errorInfo = ProductionErrorHandler.handleUploadError(error, subject?.id || 'unknown');
+        alert(`Error saving feedback: ${errorInfo.userMessage}`);
+        
+        return false;
     }
-  }
-
-  // Get demographic information directly from DOM elements
-  const age = document.getElementById("age-input") ? document.getElementById("age-input").value : "";
-  const gender = document.getElementById("gender") ? document.getElementById("gender").value : "";
-  const music_instrument = document.getElementById("music-instrument-input") ? document.getElementById("music-instrument-input").value : "";
-  const music_practice = document.getElementById("music-practice-input") ? document.getElementById("music-practice-input").value : "";
-  const language_count = document.getElementById("language-count") ? document.getElementById("language-count").value : "";
-  const returner = document.getElementById("repeat") ? document.getElementById("repeat").value : "";
-  const handedness = document.getElementById("hand") ? document.getElementById("hand").value : "";
-  const ethnicity = document.getElementById("ethnic") ? document.getElementById("ethnic").value : "";
-  const race = document.getElementById("race") ? document.getElementById("race").value : "";
-
-  
-  // Calling the function to validate the age input
-  const ageInput = document.getElementById("age-input");
-  if (ageInput) {
-    // Call the validation function
-    validateAge(ageInput);
-  }
-  
-  // Calling the function to validate the hours input
-  const hoursInput = document.getElementById("music-practice-input");
-  if (hoursInput) {
-    // Call the validation function
-    validateHours(hoursInput);
-  }
-
-  // Validate age vs musical experience
-const ageNum = parseInt(age) || 0;
-const musicExperience = parseInt(document.getElementById('music_experience').value) || 0;
-if (ageNum > 0 && musicExperience > 0 && musicExperience > ageNum) {
-  alert(`Error: You entered ${musicExperience} years of musical experience but your age is ${ageNum}. This seems incorrect. Please correct your entry, contact the researcher if you believe this is an error, or refresh the page to restart the experiment.`);
-  return false;
-}
-  // Validate required fields
-  const requiredFields = [
-    { name: "Age", value: age },
-    { name: "Music practice hours", value: music_practice },
-    { name: "Gender", value: gender },
-    { name: "Musical instrument question", value: music_instrument },
-    { name: "Language count", value: language_count },
-    { name: "Experiment returner", value: returner },
-    { name: "Handedness", value: handedness }
-  ];
-  
-  // Get feedback 
-  const feedbackInput = document.getElementById('feedback_final');
-  // Always set comments to a string value, empty string if no input
-  subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
-
-  // Log for debugging
-  console.log("Feedback captured:", subject.comments);
-
-  const missingFields = requiredFields.filter(field => !field.value);
-  if (missingFields.length > 0) {
-    alert(`Please complete all required fields before submitting. Missing: ${missingFields.map(f => f.name).join(", ")}`);
-    return false;
-  }
-
-  // Update the subject object with the new information
-  subject.age = age;
-  subject.gender = gender;
-  subject.handedness = handedness;
-  subject.returner = returner;
-  subject.ethnicity = ethnicity || ""; // Optional field
-  subject.race = race || ""; // Optional field
-  subject.language_count = language_count;
-  subject.music_instrument = music_instrument;
-  subject.music_practice = music_practice || "0"; // Default to 0 if empty
-
-  // Log for debugging
-  console.log("Subject data before saving:", {
-    id: subject.id,
-    age: subject.age,
-    gender: subject.gender,
-    handedness: subject.handedness,
-    mouse_type: subject.mouse_type,
-    returner: subject.returner,
-    music_experience: subject.music_experience,
-    language_count: subject.language_count,
-    music_instrument: subject.music_instrument,
-    music_practice: subject.music_practice,
-    ethnicity: subject.ethnicity,
-    race: subject.race,
-    comments: subject.comments,
-    distractions: subject.distractions,
-    distracto: subject.distracto
-  });
-
-  // Prepare data for Firebase
-  const subject_data = {
-    id: subject.id,
-    age: subject.age,
-    gender: subject.gender,
-    handedness: subject.handedness,
-    mouse_type: subject.mouse_type,
-    returner: subject.returner,
-    tgt_file: fileName,
-    ethnicity: subject.ethnicity,
-    race: subject.race,
-    music_experience: subject.music_experience,
-    language_count: subject.language_count,
-    music_instrument: subject.music_instrument,
-    music_practice: subject.music_practice,
-    comments: subject.comments,
-    distractions: subject.distractions,
-    distracto: subject.distracto,
-    condition: subject.condition // to save condition
-  };
-
-  // Save to Firebase
-  updateCollection(subjectcollection, subject_data)
-    .then(function() {
-      console.log("Subject data successfully saved to Firebase");
-      show("final-page");
-
-      // Redirect after 2 seconds
-    setTimeout(function() {
-      window.location.href = "https://app.prolific.com/submissions/complete?cc=CSIP9LNR";
-    }, 2000);
-    })
-    .catch(function(error) {
-      console.error("Error saving subject data to Firebase:", error);
-      alert("There was an error saving your data. Please contact the experimenter.");
-    });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
