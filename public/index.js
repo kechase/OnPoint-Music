@@ -2170,7 +2170,6 @@ function analyzeAudioMotorCoupling(current_trial_enhanced_positions) {
             time: pos.time,
             position: pos,
             sound_match: pos.soundParams,
-            gradient_alignment: vectorAlignment(movement_vector, sound_gradient),
         };
     }).filter(item => item !== null);
 }
@@ -2308,19 +2307,6 @@ function getAcousticGradient(x, y) {
         x: f1_gradient, // How much f1 changes per pixel in x
         y: pitch_gradient // How much pitch changes per pixel in y
     };
-}
-
-// Calculate vector alignment
-function vectorAlignment(vec1, vec2) {
-    if (!vec1 || !vec2) return 0;
-    
-    const mag1 = Math.sqrt(vec1.x * vec1.x + vec1.y * vec1.y);
-    const mag2 = Math.sqrt(vec2.x * vec2.x + vec2.y * vec2.y);
-    
-    if (mag1 === 0 || mag2 === 0) return 0;
-    
-    const dotProduct = vec1.x * vec2.x + vec1.y * vec2.y;
-    return dotProduct / (mag1 * mag2); // Returns cosine of angle between vectors
 }
 
 
@@ -3840,11 +3826,6 @@ function analyzeTrialPath(current_trial_enhanced_positions) {
     const avg_velocity = velocities.length > 0 ? velocities.reduce((a, b) => a + b) / velocities.length : 0;
     const max_acceleration = accelerations.length > 0 ? Math.max(...accelerations) : 0;
     
-    // Audio-motor coupling analysis
-    const audio_motor_coupling = analyzeAudioMotorCoupling(current_trial_enhanced_positions);
-    const avg_gradient_alignment = audio_motor_coupling.length > 0 ? 
-        audio_motor_coupling.reduce((sum, item) => sum + item.gradient_alignment, 0) / audio_motor_coupling.length : 0;
-    
     return {
         path_efficiency,
         total_distance,
@@ -3855,7 +3836,6 @@ function analyzeTrialPath(current_trial_enhanced_positions) {
         direction_changes: direction_changes.length,
         avg_velocity,
         max_acceleration,
-        avg_gradient_alignment,
         total_samples: current_trial_enhanced_positions.length,
     };
 }
