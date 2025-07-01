@@ -2273,8 +2273,8 @@ const feedback_time = 50;
 const feedback_time_slow = 1500; 
 // length of time users must hold in start before next trial (ms)
 const hold_time = 500; 
-// length of time the start circle in holding phase will turn to green (ms)
-const green_time = 1000; 
+// length of time the start circle in holding phase before turns white to green (ms)
+const green_time = 1500; // sound plays for 2 seconds so turning green at 1.5s 
 // Parameters and display for when users take too long to locate the center (ms)
 const search_too_slow = 3000;
 // Setting up parameters and display when reach is too slow (ms) 
@@ -2849,10 +2849,6 @@ function moving_phase() {
   if (green_timer !== null) {
     clearTimeout(green_timer);
     green_timer = null;
-  }
-
-  if (target_jump[trial] != 1.0) {
-    target.display(false);
   }
   
   // Record reaction time as time spent with target visible before moving
