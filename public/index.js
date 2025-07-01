@@ -2055,47 +2055,6 @@ function monitorWindow(_event) {
 // ==================================================
 // Enhanced Movement Analysis Helper Functions - globally accessible
 // ==================================================
-// Analyze behavior in a window
-function analyzeBehaviorWindow(positions) {
-    if (positions.length === 0) return { strategy: 'unknown', confidence: 0 };
-    
-    const avg_velocity = positions.reduce((sum, pos) => sum + (pos.velocity || 0), 0) / positions.length;
-    const avg_acceleration = positions.reduce((sum, pos) => sum + Math.abs(pos.acceleration || 0), 0) / positions.length;
-    
-    // Simple strategy classification
-    let strategy = 'systematic';
-    if (avg_velocity > 100 && avg_acceleration > 200) {
-        strategy = 'exploratory';
-    } else if (avg_velocity < 50) {
-        strategy = 'deliberate';
-    }
-    
-    return {
-        strategy: strategy,
-        avg_velocity: avg_velocity,
-        avg_acceleration: avg_acceleration,
-        confidence: Math.min(1.0, positions.length / 5) // More confidence with more data
-    };
-}
-
-// Detect strategy shifts
-function detectStrategyShift(behavior1, behavior2) {
-    return behavior1.strategy !== behavior2.strategy && 
-           behavior1.confidence > 0.5 && 
-           behavior2.confidence > 0.5;
-}
-
-// Calculate shift confidence
-function calculateShiftConfidence(behavior1, behavior2) {
-    const velocity_diff = Math.abs(behavior1.avg_velocity - behavior2.avg_velocity);
-    const acceleration_diff = Math.abs(behavior1.avg_acceleration - behavior2.avg_acceleration);
-    
-    // Normalize and combine differences
-    const normalized_vel_diff = Math.min(1.0, velocity_diff / 100);
-    const normalized_acc_diff = Math.min(1.0, acceleration_diff / 500);
-    
-    return (normalized_vel_diff + normalized_acc_diff) / 2;
-}
 
 // Helper function to determine quadrant
 function getQuadrant(pos) {
