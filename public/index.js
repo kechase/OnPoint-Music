@@ -1298,7 +1298,6 @@ let subject; // : Subject
 
 // Enhanced Movement Analysis Integration - Global Variables
 let current_trial_enhanced_positions = []; // Enhanced data with velocity, acceleration, etc.
-let learning_events = []; // Track detected learning moments
 let trial_analytics = []; // Store analysis results for each trial
 
 // ==================================================
@@ -1825,7 +1824,6 @@ class ProductionDataManager {
 
             // Enhanced analytics if available
             enhanced_analytics: enhanced_data.trial_analytics || null,
-            learning_events: enhanced_data.learning_events || [],
 
             // Raw enhanced hand positions (FULL RESOLUTION)
             raw_current_trial_enhanced_positions: enhanced_data.current_trial_enhanced_positions || [],
@@ -1881,9 +1879,6 @@ class ProductionDataManager {
 
             // Analytics if available
             analytics: block.path_analysis || null,
-
-            // Learning events for this trial
-            learning_events: block.learning_events || [],
 
             // Experimental parameters
             experimental_params: {
@@ -2346,30 +2341,6 @@ function classifyBehavior(pos) {
     }
 }
 
-// Detect learning events
-function detect_learning_events(current_trial_enhanced_positions) {
-    const events = [];
-    
-    // Look for "aha moments" - sudden strategy changes
-    current_trial_enhanced_positions.forEach((pos, i) => {
-        if (i > 5 && i < current_trial_enhanced_positions.length - 3) {
-            const recentBehavior = analyzeBehaviorWindow(current_trial_enhanced_positions.slice(i-5, i));
-            const currentBehavior = analyzeBehaviorWindow(current_trial_enhanced_positions.slice(i, i+3));
-            
-            if (detectStrategyShift(recentBehavior, currentBehavior)) {
-                events.push({
-                    type: 'strategy_shift',
-                    time: pos.time,
-                    from: recentBehavior.strategy,
-                    to: currentBehavior.strategy,
-                    confidence: calculateShiftConfidence(recentBehavior, currentBehavior)
-                });
-            }
-        }
-    });
-    
-    return events;
-}
 
 // ==================================================
 // GLOBAL GAME STATE VARIABLES
@@ -2572,15 +2543,6 @@ function update_cursor(event) {
       }
 
       current_trial_enhanced_positions.push(current_pos);
-
-      // Real-time learning detection
-      if (current_trial_enhanced_positions.length > 10) {
-          const recent_events = detect_learning_events(current_trial_enhanced_positions.slice(-10));
-          if (recent_events.length > 0) {
-              learning_events.push(...recent_events);
-              console.log("Learning event detected:", recent_events[recent_events.length - 1]);
-          }
-      }
   }
   // END OF ENHANCED ADDITIONS
 
@@ -3131,7 +3093,6 @@ function next_trial() {
   if (subjTrials.blocks.length > 0) {
       const last_block = subjTrials.blocks[subjTrials.blocks.length - 1];
       last_block.path_analysis = trial_analysis;
-      last_block.learning_events = [...learning_events]; // Copy current learning events
   }
 
   // Screen dimensions
@@ -3147,7 +3108,6 @@ function next_trial() {
   play_sound = true;
   current_trial_basic_positions = []; // Keep this for compatibility
   current_trial_enhanced_positions = []; // Reset enhanced positions
-  learning_events = []; // Reset learning events
 
   // Number of completed trials so far
   const completedTrials = subjTrials.blocks.length;
@@ -3728,8 +3688,7 @@ console.log(`bb_mess set to: ${bb_mess} (from between_blocks[0])`);
 console.log(`Total trials: ${numtrials}`);
 
 // Reset the existing global arrays without redeclaring
-current_trial_enhanced_positions.length = 0;  
-learning_events.length = 0;           
+current_trial_enhanced_positions.length = 0;            
 trial_analytics.length = 0;        
 
 console.log('Global variables set:', {
@@ -3916,7 +3875,6 @@ function analyzeTrialPath(current_trial_enhanced_positions) {
         max_acceleration,
         avg_gradient_alignment,
         total_samples: current_trial_enhanced_positions.length,
-        learning_events_count: learning_events.length,
         behavior_classification: current_trial_enhanced_positions.length > 0 ? classifyBehavior(current_trial_enhanced_positions[Math.floor(current_trial_enhanced_positions.length/2)]) : 'unknown'
     };
 }
@@ -3929,7 +3887,6 @@ function getExperimentSummary() {
             overallPerformance: {
                 avg_path_efficiency: 0,
                 avg_velocity: 0,
-                total_learning_events: 0
             },
             learning_progression: [],
             behavior_patterns: {
@@ -3945,7 +3902,6 @@ function getExperimentSummary() {
         overall_performance: {
             avg_path_efficiency: trial_analytics.reduce((sum, t) => sum + (t.path_efficiency || 0), 0) / trial_analytics.length,
             avg_velocity: trial_analytics.reduce((sum, t) => sum + (t.avg_velocity || 0), 0) / trial_analytics.length,
-            total_learning_events: trial_analytics.reduce((sum, t) => sum + (t.learning_events_count || 0), 0)
         },
         learning_progression: trial_analytics.map((analysis, index) => ({
             trial: index + 1,
@@ -4097,7 +4053,6 @@ function badGame() {
                     const productionDataManager = new window.ProductionDataManager();
                     const partialEnhancedData = {
                         trial_analytics: window.trial_analytics || [],
-                        learning_events: window.learning_events || [],
                         current_trial_enhanced_positions: window.current_trial_enhanced_positions || [],
                         termination_info: {
                             reason: "attention_check_failed",
@@ -4369,7 +4324,6 @@ async function saveFeedback() {
         // Prepare enhanced data for the complete set
         const enhancedData = {
             trial_analytics: window.trial_analytics || [],
-            learning_events: window.learning_events || [],
             current_trial_enhanced_positions: window.current_trial_enhanced_positions || []
         };
 
