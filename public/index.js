@@ -1177,10 +1177,10 @@ function showPreExperimentInstructions() {
   // Define condition-specific instructions
   const conditionInstructions = {
       'A': {
-          message: 'The training includes 4 auditory targets but there are 8 targets in total!',
+          message: 'The training includes 4 auditory targets -- and there are 8 targets in total!',
       },
       'B': {
-          message: 'The training includes 4 auditory targets but there are 8 targets in total!',
+          message: 'The training includes 4 auditory targets -- and there are 8 targets in total!',
       }
   };
   
@@ -2158,32 +2158,6 @@ function getMovementAngle(pos1, pos2) {
     return Math.atan2(pos2.y - pos1.y, pos2.x - pos1.x) * (180 / Math.PI);
 }
 
-// Analyze audio-motor coupling
-function analyzeAudioMotorCoupling(current_trial_enhanced_positions) {
-    return current_trial_enhanced_positions.map(pos => {
-        if (!pos.soundParams) return null;
-        
-        const movement_vector = getMovementDirection(pos, current_trial_enhanced_positions);
-        
-        return {
-            time: pos.time,
-            position: pos,
-            sound_match: pos.soundParams,
-        };
-    }).filter(item => item !== null);
-}
-
-// Get movement direction
-function getMovementDirection(current_pos, current_trial_enhanced_positions) {
-    const current_index = current_trial_enhanced_positions.findIndex(p => p.time === current_pos.time);
-    if (current_index <= 0) return { x: 0, y: 0 };
-    
-    const prev_pos = current_trial_enhanced_positions[current_index - 1];
-    return {
-        x: current_pos.x - prev_pos.x,
-        y: current_pos.y - prev_pos.y
-    };
-}
 function detect_pauses(current_trial_enhanced_positions) {
     const pauses = [];
     const velocity_threshold = 50; // pixels per second
@@ -2357,16 +2331,16 @@ const messages = [
   ],
   [
     // bb_mess == 1
-    "Listen carefully!",
-    "Press 'b' when you are ready to proceed.",
+    "Yes! Remember to listen carefully!",
+    "Press 'b' to proceed.",
   ],
   [
     // bb_mess == 2
     "Phase 2:", 
     "The instrument will now play a sound,",
     "and then you have 5 seconds to find and mimic what you heard.",  
-    "In training you heard 4 of 8 auditory targets. Find the others!",
-    "Accuracy is important!",
+    "There are 8 auditory targets.",
+    "Listen carefully, accuracy is important!",
 
     "Press 'a' to continue.",
   ],
