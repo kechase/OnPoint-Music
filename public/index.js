@@ -2171,7 +2171,6 @@ function analyzeAudioMotorCoupling(current_trial_enhanced_positions) {
             position: pos,
             sound_match: pos.soundParams,
             gradient_alignment: vectorAlignment(movement_vector, sound_gradient),
-            exploration_behavior: classifyBehavior(pos)
         };
     }).filter(item => item !== null);
 }
@@ -2322,23 +2321,6 @@ function vectorAlignment(vec1, vec2) {
     
     const dotProduct = vec1.x * vec2.x + vec1.y * vec2.y;
     return dotProduct / (mag1 * mag2); // Returns cosine of angle between vectors
-}
-
-// Classify behavior
-function classifyBehavior(pos) {
-    // Simple classification based on position and context
-    const distanceFromCenter = Math.sqrt(
-        Math.pow(pos.x - window.center.x, 2) + 
-        Math.pow(pos.y - window.center.y, 2)
-    );
-    
-    if (distanceFromCenter < window.tgt_distance * 0.2) {
-        return 'systematic';
-    } else if (pos.velocity < 30) {
-        return 'targeted';
-    } else {
-        return 'random';
-    }
 }
 
 
@@ -3875,7 +3857,6 @@ function analyzeTrialPath(current_trial_enhanced_positions) {
         max_acceleration,
         avg_gradient_alignment,
         total_samples: current_trial_enhanced_positions.length,
-        behavior_classification: current_trial_enhanced_positions.length > 0 ? classifyBehavior(current_trial_enhanced_positions[Math.floor(current_trial_enhanced_positions.length/2)]) : 'unknown'
     };
 }
 
@@ -3889,15 +3870,11 @@ function getExperimentSummary() {
                 avg_velocity: 0,
             },
             learning_progression: [],
-            behavior_patterns: {
-                systematic_trials: 0,
-                exploratory_trials: 0,
-                targeted_trials: 0
             }
         };
     }
     
-    const summary = {
+  const summary = {
         numtrials: trial_analytics.length,
         overall_performance: {
             avg_path_efficiency: trial_analytics.reduce((sum, t) => sum + (t.path_efficiency || 0), 0) / trial_analytics.length,
@@ -3909,15 +3886,7 @@ function getExperimentSummary() {
             velocity: analysis.avg_velocity || 0,
             pauses: analysis.pause_count || 0
         })),
-        behavior_patterns: {
-            systematic_trials: trial_analytics.filter(t => t.behavior_classification === 'systematic').length,
-            exploratory_trials: trial_analytics.filter(t => t.behavior_classification === 'random').length,
-            targeted_trials: trial_analytics.filter(t => t.behavior_classification === 'targeted').length
-        }
     };
-    
-    return summary;
-}
 
 
 // helpEnd() function saves *everything* to Firebase Storage
