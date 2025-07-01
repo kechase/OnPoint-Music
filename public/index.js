@@ -2164,7 +2164,6 @@ function analyzeAudioMotorCoupling(current_trial_enhanced_positions) {
         if (!pos.soundParams) return null;
         
         const movement_vector = getMovementDirection(pos, current_trial_enhanced_positions);
-        const sound_gradient = getAcousticGradient(pos.x, pos.y);
         
         return {
             time: pos.time,
@@ -2282,31 +2281,6 @@ function detect_direction_changes(current_trial_enhanced_positions) {
     }
     
     return direction_changes;
-}
-
-// Get acoustic gradient - matches your existing vowel formant system
-function getAcousticGradient(x, y) {
-    // Based on your existing getVowelFormants function:
-    // X controls f1/f2 (vowel formants), Y controls pitch
-    
-    // Check if we're within the red square
-    if (x < window.squareLeft || x > window.squareLeft + window.squareSize ||
-        y < window.squareTop || y > window.squareTop + window.squareSize) {
-        return { x: 0, y: 0 }; // No gradient outside the square
-    }
-    
-    // X direction: f1/f2 changes (vowel space)
-    // Your vowel space goes from 'i' to 'a' across x
-    const f1_gradient = (700 - 300) / window.squareSize; // a.f1 - i.f1
-    const f2_gradient = (1200 - 2300) / window.squareSize; // a.f2 - i.f2
-    
-    // Y direction: pitch changes (80 to 350 Hz)
-    const pitch_gradient = -(350 - 80) / window.squareSize; // negative because y increases downward
-    
-    return {
-        x: f1_gradient, // How much f1 changes per pixel in x
-        y: pitch_gradient // How much pitch changes per pixel in y
-    };
 }
 
 
