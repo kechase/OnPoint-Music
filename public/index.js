@@ -21,7 +21,7 @@ const experiment_config = {
   square_size_ratio: 1/3, // Size of the red square relative to the screen size
 
   // Target configuration
-  target_distance_ratio: 0.8, // Targets at 80% from center to square edge, change as needed
+  target_distance_ratio: 0.9, // Targets at 90% from center to square edge, change as needed
 
   // Visual feedback configuration
   enable_debug_visualization: false, // False for deployed code 
@@ -1290,7 +1290,7 @@ function openFullScreen() {
   const elem = document.getElementById("container-instructions1");
   if (elem.requestFullscreen) {
     elem.requestFullscreen();
-    console.log("enter1");
+    console.log("entered fullscreen successfully");
   } else if (elem.msRequestFullscreen) {
     elem.msRequestFullscreen();
     console.log("enter2");
@@ -2292,7 +2292,7 @@ const feedback_time_slow = 1500;
 // length of time users must hold in start before next trial (ms)
 const hold_time = 500; 
 // length of time the start circle in holding phase before turns white to green (ms)
-const green_time = 1500; // sound plays for 2 seconds so turning green at 1.5s 
+const green_time = 1950; // sound plays for 2 seconds so turning green at 19.5s (50 min before sound demo stops based on 2-second demo) 
 // Parameters and display for when users take too long to locate the center (ms)
 const search_too_slow = 3000;
 // Setting up parameters and display when reach is too slow (ms) 
