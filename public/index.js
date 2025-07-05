@@ -8,7 +8,33 @@ All fields that require change are marked by a "####" comment.
 // #### Make sure this is set to 'false' before deploying!
 const noSave = false;
 
-// Set to 'true' to disable **full screen mode** during development
+// Experiment files // #### Update this to the correct path of your target file
+const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
+let fileContent;
+
+// ==================================================
+// EXPERIMENT CONFIGURATION
+// ==================================================
+
+const experiment_config = {
+  // Red square configuration
+  square_size_ratio: 1/3, // Size of the red square relative to the screen size
+
+  // Target configuration
+  target_distance_ratio: 0.8, // Targets at 80% from center to square edge, change as needed
+
+  // Visual feedback configuration
+  enable_debug_visualization: false, // False for deployed code 
+  //enable_debug_visualization: true, // True for development 
+
+  // Validation
+  min_screen_size: 600, // Minimum screen dimension in pixels (width or height)
+  max_target_distance: 400, // Maximum target distance ratio (0.9 = 90% of screen width/height)
+};
+
+console.log("🎯 Experiment configuration loaded:", experiment_config);
+
+// Set to 'true' to disable full screen mode during development
 // #### Make sure this is set to false before deploying!
 const disableFullScreen = false;
 
@@ -21,9 +47,7 @@ const SKIP_HEADPHONE_CHECK = true;
 // This isn't fully functional as it requires additional logic in the showPreExperimentInstructions function related to pre-instructions and making it full screen; not ready yet.
 const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
 
-// Experiment files // #### Update this to the correct path of your target file
-const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
-let fileContent;
+
 
 // Global flag to prevent double randomization
 let dataAlreadyLoaded = false;
@@ -1323,40 +1347,28 @@ const trial_collection = firestore.collection("Trials");
 // ==================================================
 
 // Define PRODUCTION_CONFIG first
-const PRODUCTION_CONFIG = {
+const production_config = {
     // Security settings
-    REQUIRE_AUTHENTICATION: false,
-    USE_ANONYMOUS_AUTH: true,  // Set to true to allow anonymous sign-in w/o user accounts
-    VALIDATE_PARTICIPANT_ID: true,
+    require_authentication: false,
+    use_anonymous_auth: true,  // Set to true to allow anonymous sign-in w/o user accounts
+    validate_participant_id: true,
     
     // Upload settings (will be overridden below)
-    MAX_FILE_SIZE_MB: 50,
-    ALLOWED_FILE_TYPES: ['application/json'],
-    RETRY_ATTEMPTS: 3,
-    RETRY_DELAY_MS: 2000,
+    max_files_size_mb: 1000,
+    allowed_file_types: ['application/json'],
+    retry_attempts: 5,
+    retry_delay_ms: 2000,
     
     // Data validation
-    VALIDATE_DATA_STRUCTURE: true, // Check data format before saving
-    REQUIRE_MINIMUM_TRIALS: 10, // Need at least 80 trials for valid dataset, set to 10 for testing
+    validate_data_structure: true, // Check data format before saving
+    require_minimum_trials: 10, // Need at least 80 trials for valid dataset, set to 10 for testing
     
     // Logging
-    ENABLE_DETAILED_LOGGING: true, // Show detailed console messages
-    LOG_UPLOAD_PROGRESS: true // Show upload progress to participants
+    enable_detailed_logging: true, // Show detailed console messages
+    log_upload_progress: true // Show upload progress to participants
 };
 
-// Now override with your specific settings
-Object.assign(PRODUCTION_CONFIG, {
-    // Adjust these based on study requirements
-    MAX_FILE_SIZE_MB: 1000,  // Increase if you have lots of movement data
-    REQUIRE_MINIMUM_TRIALS: 10,  // Adjust based on your experiment design
-    RETRY_ATTEMPTS: 5,  // More retries for production reliability
-    
-    // Enable detailed logging for initial deployment
-    ENABLE_DETAILED_LOGGING: true,
-    LOG_UPLOAD_PROGRESS: true
-});
-
-console.log("🏭 Production configuration loaded:", PRODUCTION_CONFIG);
+console.log("🏭 Production configuration loaded:", production_config);
 
 // ==================================================
 // AUTHENTICATION MANAGER
@@ -1385,8 +1397,8 @@ class AuthenticationManager {
     try {
         console.log("🔐 Starting authentication process...");
         console.log("🔐 Current config:", {
-            REQUIRE_AUTHENTICATION: PRODUCTION_CONFIG.REQUIRE_AUTHENTICATION,
-            USE_ANONYMOUS_AUTH: PRODUCTION_CONFIG.USE_ANONYMOUS_AUTH
+            require_authentication: production_config.require_authentication,
+            use_anonymous_auth: production_config.use_anonymous_auth
         });
 
         // Check if already authenticated
@@ -1423,7 +1435,7 @@ class AuthenticationManager {
         }
 
         // Sign in anonymously for research studies
-        if (PRODUCTION_CONFIG.USE_ANONYMOUS_AUTH) {
+        if (production_config.use_anonymous_auth) {
             console.log("🔐 Signing in anonymously...");
             console.log("🔐 Firebase auth available:", !!firebase.auth);
             console.log("🔐 signInAnonymously method:", !!firebase.auth().signInAnonymously);
@@ -1494,8 +1506,8 @@ class DataValidator {
         // Trials validation
         if (!dataset.trials || !Array.isArray(dataset.trials)) {
             errors.push("Missing or invalid trials data");
-        } else if (dataset.trials.length < PRODUCTION_CONFIG.REQUIRE_MINIMUM_TRIALS) {
-            errors.push(`Insufficient trials: ${dataset.trials.length} < ${PRODUCTION_CONFIG.REQUIRE_MINIMUM_TRIALS}`);
+        } else if (dataset.trials.length < production_config.REQUIRE_MINIMUM_TRIALS) {
+            errors.push(`Insufficient trials: ${dataset.trials.length} < ${production_config.REQUIRE_MINIMUM_TRIALS}`);
         }
 
         return {
@@ -1566,7 +1578,7 @@ class SecureStorageManager {
         }
 
         // Validate dataset structure
-        if (PRODUCTION_CONFIG.VALIDATE_DATA_STRUCTURE) {
+        if (production_config.validate_data_structure) {
             const datasetValidation = DataValidator.validateDataset(dataset);
             if (!datasetValidation.isValid) {
                 console.warn("Dataset validation warnings:", datasetValidation.errors);
@@ -1603,8 +1615,8 @@ class SecureStorageManager {
         const jsonData = JSON.stringify(enhancedDataset, null, 2);
         const sizeMB = jsonData.length / (1024 * 1024);
 
-        if (sizeMB > PRODUCTION_CONFIG.MAX_FILE_SIZE_MB) {
-            throw new Error(`Dataset too large: ${sizeMB.toFixed(2)}MB > ${PRODUCTION_CONFIG.MAX_FILE_SIZE_MB}MB`);
+        if (sizeMB > production_config.MAX_FILE_SIZE_MB) {
+            throw new Error(`Dataset too large: ${sizeMB.toFixed(2)}MB > ${production_config.MAX_FILE_SIZE_MB}MB`);
         }
 
         // Create blob with proper content type
@@ -1640,9 +1652,9 @@ class SecureStorageManager {
         const { filename, blob, metadata, sizeMB } = uploadData;
         let lastError;
 
-        for (let attempt = 1; attempt <= PRODUCTION_CONFIG.RETRY_ATTEMPTS; attempt++) {
+        for (let attempt = 1; attempt <= production_config.retry_attempts; attempt++) {
             try {
-                console.log(`📤 [${uploadId}] Upload attempt ${attempt}/${PRODUCTION_CONFIG.RETRY_ATTEMPTS}`);
+                console.log(`📤 [${uploadId}] Upload attempt ${attempt}/${production_config.retry_attempts}`);
                 console.log(`📁 File: ${filename} (${sizeMB.toFixed(2)} MB)`);
 
                 const result = await this._performUpload(filename, blob, metadata, uploadId);
@@ -1661,15 +1673,15 @@ class SecureStorageManager {
                 }
 
                 // Wait before retry (except on last attempt)
-                if (attempt < PRODUCTION_CONFIG.RETRY_ATTEMPTS) {
-                    const delay = PRODUCTION_CONFIG.RETRY_DELAY_MS * attempt;
+                if (attempt < production_config.retry_attempts) {
+                    const delay = production_config.retry_delay_ms * attempt;
                     console.log(`⏳ [${uploadId}] Waiting ${delay}ms before retry...`);
                     await this._sleep(delay);
                 }
             }
         }
 
-        throw new Error(`Upload failed after ${PRODUCTION_CONFIG.RETRY_ATTEMPTS} attempts. Last error: ${lastError.message}`);
+        throw new Error(`Upload failed after ${production_config.retry_attempts} attempts. Last error: ${lastError.message}`);
     }
 
     async _performUpload(filename, blob, metadata, uploadId) {
@@ -1682,7 +1694,7 @@ class SecureStorageManager {
             uploadTask.on('state_changed',
                 // Progress callback
                 (snapshot) => {
-                    if (PRODUCTION_CONFIG.LOG_UPLOAD_PROGRESS) {
+                    if (production_config.LOG_UPLOAD_PROGRESS) {
                         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
                         if (progress % 25 < 1) { // Log every 25%
                             console.log(`📊 [${uploadId}] Progress: ${progress.toFixed(1)}%`);
@@ -3204,13 +3216,52 @@ const reach_number_point = new Point(
   function calculateCoordinates() {
     const screen_width = self.innerWidth;
     const screen_height = self.innerHeight;
-    const tgt_distance = screen_height / 3;
     const center = new Point(screen_width / 2.0, screen_height / 2.0);
-    // Red box dimensions
-    const squareLeft = center.x - tgt_distance;
-    const squareTop = center.y - tgt_distance;
-    const squareSize = 2 * tgt_distance;
 
+    // Validate minimum screen size
+    if (Math.min(screen_width, screen_height) < experiment_config.min_screen_size) {
+        console.warn(`Screen too small: ${screen_width}x${screen_height}. Minimum: ${experiment_config.min_screen_size}`);
+    }
+
+    // Calculate square radius from screen height
+    const square_radius = screen_height * experiment_config.square_size_ratio;
+
+    // Calculate square size and target distance separately
+    const target_distance_from_center = square_radius * experiment_config.target_distance_ratio;
+
+    // Safety check to ensure target distance is not larger than square radius
+    const max_safe_distance = square_radius * 0.95;
+    const tgt_distance = Math.min(
+      target_distance_from_center,
+      max_safe_distance,
+      experiment_config.max_target_distance
+    );
+
+    // Red square positioning (use square_radius, NOT original tgt_distance)
+    const squareLeft = center.x - square_radius;
+    const squareTop = center.y - square_radius;
+    const squareSize = 2 * square_radius; // Width and height of the square
+
+    // Validation - ensure we have valid numbers
+    if (isNaN(tgt_distance) || isNaN(squareLeft) || isNaN(squareTop) || isNaN(squareSize)) {
+        console.error("CALCULATION ERROR - NaN values detected:", {
+            tgt_distance, squareLeft, squareTop, squareSize,
+            square_radius, screen_width, screen_height,
+            experiment_config
+        });
+        alert("Screen calculation error. Please refresh the page.");
+        return null;
+    }
+
+    // Debug logging
+    console.log("=== COORDINATE SYSTEM ===");
+    console.log(`Screen: ${screen_width} x ${screen_height}`);
+    console.log(`Square: ${squareSize} x ${squareSize} at (${squareLeft}, ${squareTop})`);
+    console.log(`Square radius: ${square_radius}`);
+    console.log(`Target distance: ${tgt_distance} (${(tgt_distance/square_radius*100).toFixed(1)}% of square radius)`);
+    console.log(`Targets inside square: ${tgt_distance < square_radius ? '✅' : '❌'}`);
+    console.log("========================");
+    
     return {
       screen_width,
       screen_height,
@@ -3981,7 +4032,6 @@ function handleCriticalError(error, context = "unknown") {
 // Enhanced window error handler
 window.onerror = function(message, source, lineno, colno, error) {
   console.error("=== WINDOW ERROR CAUGHT ===");
-  console.error("Message:", message);
   console.error("Source:", source);
   console.error("Line:", lineno);
   console.error("Column:", colno);
