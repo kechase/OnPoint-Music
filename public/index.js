@@ -4293,7 +4293,7 @@ async function saveFeedback() {
 
             // Redirect after delay
             setTimeout(function() {
-                window.location.href = "https://app.prolific.com/submissions/complete?cc=CSIP9LNR";
+                window.location.href = "https://app.prolific.com/submissions/complete?cc=CEI3UR0J";
             }, 2000);
 
             return true;
