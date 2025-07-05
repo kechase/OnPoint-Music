@@ -47,7 +47,13 @@ const SKIP_HEADPHONE_CHECK = true;
 // This isn't fully functional as it requires additional logic in the showPreExperimentInstructions function related to pre-instructions and making it full screen; not ready yet.
 const SKIP_PRE_EXPERIMENT_INSTRUCTIONS = false;
 
+// Globally accessible game state
+const GameState = {
+    NORMAL: 'normal',        // Normal gameplay - cursor always moves
+    SOUND_DEMO: 'sound_demo' // during sound demo - cursor movement ignored
+};
 
+let gameState = GameState.NORMAL; // Default to normal state
 
 // Global flag to prevent double randomization
 let dataAlreadyLoaded = false;
@@ -2374,6 +2380,11 @@ function update_cursor(event) {
   // update cursor position
   cursor.update(cursor_x, cursor_y);
 
+  // ONLY ignore movement during sound demo - otherwise always allow movement
+  if (gameState === GameState.SOUND_DEMO) {
+    return; // Don't process movement ONLY during the sound demo
+  }
+
   // ENHANCED ADDITIONS: Enhanced movement data collection
   if (game_phase === Phase.MOVING) {
       const currentTime = new Date() - begin;
@@ -2642,6 +2653,9 @@ function hideMessageFlexible() {
 }
 // Function to play sound along a path from start to end over a duration
 function play_sounds(start, end, duration, update) {
+  // ONLY set demo state during the sound demonstration
+  startSoundDemo();
+  
   // Make sure any previous sound is stopped
     musicBox.pause();
   
@@ -2680,6 +2694,8 @@ function play_sounds(start, end, duration, update) {
   animate((t) => play_sound_along(t), duration, () => {
     console.log("Animation ended, stopping sound");
     musicBox.pause();
+    // Resume normal cursor movement when demo ends
+    endSoundDemo();
 });
 
   // Ensure the sound stops after the specified duration as a fallback
@@ -2897,6 +2913,28 @@ function moving_phase() {
 
   game_phase = Phase.MOVING;
 }
+
+// ==================================================
+// SOUND DEMO STATE MANAGEMENT
+// ==================================================
+function startSoundDemo() {
+    gameState = GameState.SOUND_DEMO;
+    console.log("🎵 Sound demo started - cursor movement paused");
+}
+
+function endSoundDemo() {
+    gameState = GameState.NORMAL;
+    console.log("🎯 Sound demo ended - cursor movement resumed");
+}
+
+// Phase where users have finished their reach and receive feedback
+function fb_phase() {
+    // Clear the movement timeout if it exists
+    if (movement_timeout != null) {
+      clearTimeout(movement_timeout);
+      movement_timeout = null;
+    }
+  }
 
 // Phase where users have finished their reach and receive feedback
 function fb_phase() {
@@ -3162,7 +3200,7 @@ function setupPageRender(center, screen_width, screen_height, squareLeft, square
     .attr("font-size", message_size)
     .attr("id", "too_slow_message")
     .attr("display", "none")
-    .text("Keep trying! You can do it!");
+    .text("Let's keep going, we're moving to the next target sound!");
 
   svgContainer.append("text")
     .attr("text-anchor", "middle")
