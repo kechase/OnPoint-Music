@@ -12,6 +12,10 @@ const noSave = false;
 const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
 let fileContent;
 
+let resizeDebounceTimer = null;
+let isProcessingResize = false;
+let coordinatesLocked = false;
+
 // ==================================================
 // EXPERIMENT CONFIGURATION
 // ==================================================
@@ -54,6 +58,7 @@ const GameState = {
 };
 
 let gameState = GameState.NORMAL; // Default to normal state
+let lockedCursorPosition = null; // Store the center position during sound demo
 
 // Global flag to prevent double randomization
 let dataAlreadyLoaded = false;
@@ -315,20 +320,26 @@ class Circle {
 
   // update position of the element
   update(x, y) {
-    const width = self.screen.availWidth;
-    const height = self.screen.availHeight;
+    x = Math.max(squareLeft, Math.min(squareLeft + squareSize, x));
+    y = Math.max(squareTop, Math.min(squareTop + squareSize, y));
 
-    if (x > width) {
-      x = width + 0.0;
-    } else if (x < 0) {
-      x = 0.0;
-    }
+    // TODO: update debug coordinates
 
-    if (y > height) {
-      y = height + 0.0;
-    } else if (y < 0) {
-      y = 0.0;
-    }
+    // const width = self.screen.availWidth;
+    // const height = self.screen.availHeight;
+    // d3.select("#trialcount").text(`doc.width=${document.width}; win.width=${window.width}; availWidth=${width}`);
+
+    // if (x > width) {
+    //   x = width + 0.0;
+    // } else if (x < 0) {
+    //   x = 0.0;
+    // }
+
+    // if (y > height) {
+    //   y = height + 0.0;
+    // } else if (y < 0) {
+    //   y = 0.0;
+    // }
     this.point.x = x;
     this.point.y = y;
     this.element.attr("cx", x).attr("cy", y);
@@ -815,12 +826,12 @@ function checkInfo() {
   const values = $("#infoform").serializeArray();
   
   // Map the form values 
-  const prolific_id = getFormValue(values, "prolific_id");
+  const participant_id = getFormValue(values, "participant_id");
   const mouse_type = getFormValue(values, "mouse_type");
   const music_experience = getFormValue(values, "music_experience");
 
   // Basic validation
-  if (!prolific_id || !mouse_type || !music_experience ) {
+  if (!participant_id || !mouse_type || !music_experience ) {
     alert("Please fill out all required information!");
     return false;
   }
@@ -850,7 +861,7 @@ function checkInfo() {
 // ==================================================  
 
   subject = new Subject(
-    prolific_id,     // Prolific ID
+    participant_id,     // Participant ID
     "",              // Age (will collect later)
     "",              // Gender (will collect later)
     "",              // Handedness (will collect later)
@@ -868,7 +879,7 @@ function checkInfo() {
 // Assign condition
 // ==================================================
   
-  subject.condition = getConditionFromId(prolific_id);
+  subject.condition = getConditionFromId(participant_id);
   console.log("Participant assigned to condition:", subject.condition);
 
   // Also set the global variable if you need it elsewhere
@@ -877,7 +888,7 @@ function checkInfo() {
   // Load participant-specific data ONLY if not already loaded
     if (!dataAlreadyLoaded || !fileContent) {
         console.log("Loading and randomizing data for the first time...");
-        loadAndRandomizeData(prolific_id)
+        loadAndRandomizeData(participant_id)
             .then(function(data) {
                 console.log("Participant data loaded and randomized successfully");
             })
@@ -2112,14 +2123,14 @@ function calculateAcceleration(pos1, pos2, pos3) {
     return (vel2 - vel1) / avg_time_diff;
 }
 
+const VELOCITY_THRESHOLD = 50; // pixels per second
 
 // Calculate pause duration
 function calculatePauseDuration(current_trial_enhanced_positions, start_index) {
     let duration = 0;
-    const velocity_threshold = 50;
-    
+
     for (let i = start_index; i < current_trial_enhanced_positions.length; i++) {
-        if (current_trial_enhanced_positions[i].velocity >= velocity_threshold) {
+        if (current_trial_enhanced_positions[i].velocity >= VELOCITY_THRESHOLD) {
             break;
         }
         if (i > start_index) {
@@ -2137,7 +2148,6 @@ function getMovementAngle(pos1, pos2) {
 
 function detect_pauses(current_trial_enhanced_positions) {
     const pauses = [];
-    const velocity_threshold = 50; // pixels per second
     const min_pause_duration = 100; // milliseconds
     
     let pause_start = null;
@@ -2146,7 +2156,7 @@ function detect_pauses(current_trial_enhanced_positions) {
         const pos = current_trial_enhanced_positions[i];
         const velocity = pos.velocity || 0;
         
-        if (velocity < velocity_threshold) {
+        if (velocity < VELOCITY_THRESHOLD) {
             // Starting a potential pause
             if (pause_start === null) {
                 pause_start = i;
@@ -2292,7 +2302,7 @@ const feedback_time_slow = 1500;
 // length of time users must hold in start before next trial (ms)
 const hold_time = 500; 
 // length of time the start circle in holding phase before turns white to green (ms)
-const green_time = 1950; // sound plays for 2 seconds so turning green at 19.5s (50 min before sound demo stops based on 2-second demo) 
+const green_time = 1950; // sound plays for 2 seconds so turning green at 19.5s (50 ms before sound demo stops based on 2-second demo) 
 // Parameters and display for when users take too long to locate the center (ms)
 const search_too_slow = 3000;
 // Setting up parameters and display when reach is too slow (ms) 
@@ -2373,17 +2383,20 @@ function update_cursor(event) {
   // Record the current mouse movement location
   event = event || self.event;
 
+  // CRITICAL FIX: Check if we're in sound demo mode BEFORE updating cursor position
+  if (gameState === GameState.SOUND_DEMO) {
+    // During sound demo, completely ignore mouse movement
+    // Keep cursor locked at the stored position
+    return;
+  }
+
+  // Only update cursor position if NOT in sound demo mode
   const cursor_x = cursor.point.x + event.movementX;
   const cursor_y = cursor.point.y + event.movementY;
 
   // Ensure we do not exceed screen boundaries
   // update cursor position
   cursor.update(cursor_x, cursor_y);
-
-  // ONLY ignore movement during sound demo - otherwise always allow movement
-  if (gameState === GameState.SOUND_DEMO) {
-    return; // Don't process movement ONLY during the sound demo
-  }
 
   // ENHANCED ADDITIONS: Enhanced movement data collection
   if (game_phase === Phase.MOVING) {
@@ -2919,12 +2932,22 @@ function moving_phase() {
 // ==================================================
 function startSoundDemo() {
     gameState = GameState.SOUND_DEMO;
-    console.log("🎵 Sound demo started - cursor movement paused");
+    // Lock the cursor at its current position (center of start circle)
+    lockedCursorPosition = {
+        x: cursor.point.x,
+        y: cursor.point.y
+    };
+    console.log("🎵 Sound demo started - cursor locked at", lockedCursorPosition);
 }
 
 function endSoundDemo() {
     gameState = GameState.NORMAL;
-    console.log("🎯 Sound demo ended - cursor movement resumed");
+    // Reset cursor to the locked position (ignore any mouse movements during demo)
+    if (lockedCursorPosition) {
+        cursor.update(lockedCursorPosition.x, lockedCursorPosition.y);
+        console.log("🎯 Sound demo ended - cursor reset to", lockedCursorPosition);
+        lockedCursorPosition = null;
+    }
 }
 
 // Phase where users have finished their reach and receive feedback
@@ -2934,20 +2957,11 @@ function fb_phase() {
       clearTimeout(movement_timeout);
       movement_timeout = null;
     }
-  }
 
-// Phase where users have finished their reach and receive feedback
-function fb_phase() {
-    // Clear the movement timeout if it exists
-    if (movement_timeout != null) {
-      clearTimeout(movement_timeout);
-      movement_timeout = null;
-    }
-
-  // Record movement time as time spent reaching before intersecting target circle
-  movement_time = new Date() - begin;
-  let timer = 0;
-  musicBox.pause();
+    // Record movement time as time spent reaching before intersecting target circle
+    movement_time = new Date() - begin;
+    let timer = 0;
+    musicBox.pause();
 
   // Gives "hurry" message upon completing a trial that was done too slowly
   if (movement_time > too_slow_time) {
@@ -2961,7 +2975,7 @@ function fb_phase() {
     reach_feedback = "good_reach";
     timer = feedback_time;
   }
-  setTimeout(next_trial, timer);
+  // setTimeout(next_trial, timer);
 
   // Record the hand location immediately after crossing target ring
   // projected back onto target ring (since mouse doesn't sample fast enough)
@@ -2979,9 +2993,13 @@ function fb_phase() {
     tgt_distance * Math.sin(hand_fb_angle * deg2rad);
 
   cursor.display(true);
-
-  // Start next trial after feedback time has elapsed
   game_phase = Phase.FEEDBACK;
+
+  // Unlock coordinates and call next_trial with proper timing
+  setTimeout(() => {
+    unlockCoordinates();
+    next_trial();
+  }, timer);
 }
 
 
@@ -2992,10 +3010,10 @@ function fb_phase() {
 // Cleans up all the variables and displays to set up for the next reach
 function next_trial() {
   // ENHANCED: Analyze the trial that just completed
-  const trial_analysis = analyzeTrialPath(current_trial_enhanced_positions);
-  trial_analytics.push(trial_analysis);
+  // const trial_analysis = analyzeTrialPath(current_trial_enhanced_positions);
+  // trial_analytics.push(trial_analysis);
   
-  console.log(`Trial ${trial} analysis:`, trial_analysis);
+  // console.log(`Trial ${trial} analysis:`, trial_analysis);
   
   // Record data for the trial that was just completed
   subjTrials.appendTrialBlock(
@@ -3013,7 +3031,7 @@ function next_trial() {
   // ENHANCED: Add the enhanced analysis to the trial data
   if (subjTrials.blocks.length > 0) {
       const last_block = subjTrials.blocks[subjTrials.blocks.length - 1];
-      last_block.path_analysis = trial_analysis;
+      // last_block.path_analysis = trial_analysis;
   }
 
   // Screen dimensions
@@ -3250,7 +3268,23 @@ const reach_number_point = new Point(
 // ==================================================
 // GLOBAL GAME BUILDING BLOCKS - Build the Red Square
 // ==================================================
-  // COORDINATE CALCULATIONS
+function isTrialActive() {
+    return game_phase === Phase.MOVING || 
+           game_phase === Phase.SHOW_TARGETS || 
+           game_phase === Phase.HOLDING;
+}
+
+function lockCoordinates() {
+    coordinatesLocked = true;
+    console.log("🔒 Coordinates locked during trial");
+}
+
+function unlockCoordinates() {
+    coordinatesLocked = false;
+    console.log("🔓 Coordinates unlocked");
+}  
+
+// COORDINATE CALCULATIONS
   function calculateCoordinates() {
     const screen_width = self.innerWidth;
     const screen_height = self.innerHeight;
@@ -3552,7 +3586,7 @@ for (let i = 0; i < training_data.numtrials; i++) {
   target_jump[i] = training_data.target_jump[i];
 
   // DEBUG: Log first few training trials
-  if (i < 3) {
+  if (i < 4) {
     console.log(`Training trial ${i}: angle=${tgt_angle[i]}, rotation=${rotation[i]}, between_blocks=${between_blocks[i]}, target_jump=${target_jump[i]}`);
   }
 }
@@ -4293,7 +4327,7 @@ async function saveFeedback() {
 
             // Redirect after delay
             setTimeout(function() {
-                window.location.href = "https://app.prolific.com/submissions/complete?cc=CSIP9LNR";
+                window.location.href = "https://cmu-researchpool.sona-systems.com/default.aspx?logout=SSO";
             }, 2000);
 
             return true;
