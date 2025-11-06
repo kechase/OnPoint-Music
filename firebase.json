@@ -61,8 +61,5 @@
         "*.local"
       ]
     }
-  ],
-  "remoteconfig": {
-    "template": "remoteconfig.template.json"
-  }
+  ]
 }
