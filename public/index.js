@@ -514,7 +514,7 @@ class Database {
 }
 
 class Subject extends Database {
-  constructor(id, age, gender, handedness, mouse_type, returner, ethnicity, race, music_experience, language_count, music_instrument, music_practice) {
+  constructor(id, age, gender, handedness, mouse_type, returner, ethnicity, race, music_experience, language_count, language_specific, music_instrument, music_practice) {
     super("subject");
       this.id = id,
       this.age = age,
@@ -524,6 +524,7 @@ class Subject extends Database {
       this.returner = returner,
       this.music_experience = music_experience, 
       this.language_count = language_count,
+      this.language_specific = language_specific,
       this.music_instrument = music_instrument,
       this.music_practice = music_practice,
       this.tgt_file = fileName,
@@ -871,6 +872,7 @@ function checkInfo() {
     "",              // Race (will collect later)
     music_experience,// Music experience
     "",              // Language count (will collect later)
+    "",              // Language specific (will collect later)
     "",              // Music instrument (will collect later)
     ""               // Music practice (will collect later)
   );
@@ -1814,6 +1816,7 @@ class ProductionDataManager {
                 race: subject.race || "",
                 music_experience: subject.music_experience || "",
                 language_count: subject.language_count || "",
+                language_specific: subject.language_specific || "",
                 music_instrument: subject.music_instrument || "",
                 music_practice: subject.music_practice || "",
                 comments: subject.comments || "",
@@ -2260,6 +2263,8 @@ let trial_order = [];
 let is_phase_2 = false;
 let current_trial_basic_positions = [];    // Basic x, y, time data for current trial
 let trial = 0;
+let current_trial_target_angle = 0;  // ✅ Store the target angle for the current trial
+let current_trial_rotation = 0;      // ✅ Stores the rotation for the current trial
 
 // Circle objects
 let calibration = null;
@@ -2731,6 +2736,17 @@ function show_targets() {
   // Start of timer for reaction time
   begin = new Date();
 
+  // Capture target angle and rotation for THIS trial
+  current_trial_target_angle = window.tgt_angle[trial];
+  current_trial_rotation = window.rotation[trial];
+  
+  // Debug logging
+  console.log(`=== TRIAL ${trial} START ===`);
+  console.log(`Target angle: ${current_trial_target_angle}°`);
+  console.log(`Rotation: ${current_trial_rotation}°`);
+  console.log(`Target jump: ${window.target_jump[trial]}`);
+  console.log(`========================`);
+
   // DEBUGGING
   console.log("=== SHOW_TARGETS DEBUG ===");
   console.log(`Current trial: ${trial}`);
@@ -3009,23 +3025,24 @@ function fb_phase() {
 // // Function used to initiate the next trial after uploading reach data and subject data onto the database
 // Cleans up all the variables and displays to set up for the next reach
 function next_trial() {
-  // ENHANCED: Analyze the trial that just completed
-  // const trial_analysis = analyzeTrialPath(current_trial_enhanced_positions);
-  // trial_analytics.push(trial_analysis);
-  
-  // console.log(`Trial ${trial} analysis:`, trial_analysis);
+  // Use the captured values from when the trial started
+  console.log(`=== SAVING TRIAL ${trial} DATA ===`);
+  console.log(`Using captured target_angle: ${current_trial_target_angle}°`);
+  console.log(`Using captured rotation: ${current_trial_rotation}°`);
+  console.log(`Hand reached at: ${hand_fb_angle}°`);
+  console.log(`==============================`);
   
   // Record data for the trial that was just completed
   subjTrials.appendTrialBlock(
-      tgt_angle[trial],
-      rotation[trial],
+      current_trial_target_angle,  // Use captured value
+      current_trial_rotation,      // Use captured value
       hand_fb_angle,
       reaction_time,
       movement_time,
       search_time,
       reach_feedback,
-      current_trial_basic_positions,    // ✅ Array of position objects from current trial
-      current_trial_enhanced_positions  // ✅ Array of position objects from current trial
+      current_trial_basic_positions,
+      current_trial_enhanced_positions
   );
 
   // ENHANCED: Add the enhanced analysis to the trial data
@@ -3047,6 +3064,8 @@ function next_trial() {
   play_sound = true;
   current_trial_basic_positions = []; // Keep this for compatibility
   current_trial_enhanced_positions = []; // Reset enhanced positions
+  current_trial_target_angle = 0;  
+  current_trial_rotation = 0;      
 
   // Number of completed trials so far
   const completedTrials = subjTrials.blocks.length;
@@ -4218,6 +4237,7 @@ async function saveFeedback() {
         const music_instrument = document.getElementById("music-instrument-input")?.value || "";
         const music_practice = document.getElementById("music-practice-input")?.value || "";
         const language_count = document.getElementById("language-count")?.value || "";
+        const language_specific = document.getElementById("language-specific")?.value || "";
         const returner = document.getElementById("repeat")?.value || "";
         const handedness = document.getElementById("hand")?.value || "";
         const ethnicity = document.getElementById("ethnic")?.value || "";
@@ -4256,6 +4276,7 @@ async function saveFeedback() {
         subject.ethnicity = ethnicity || "";
         subject.race = race || "";
         subject.language_count = language_count;
+        subject.language_specific = language_specific;
         subject.music_instrument = music_instrument;
         subject.music_practice = music_practice || "0";
 

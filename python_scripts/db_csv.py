@@ -10,11 +10,21 @@ from datetime import datetime
 # =============================================================================
 # CONFIGURATION 
 # =============================================================================
-SUBJECT_ID = 'katiekatie'  # Update this
-BASE_DATA_PATH = '/Users/katie/Documents/1-Product/Research/OnPoint-Music-Admin-and-Data/data_storage'
-VERSION = 'production_v1'  # Updated for production version
-SERVICE_ACCOUNT_PATH = "/Users/katie/Documents/workspace/z-Security-Keys/onpoint-music-security-key.json"
-STORAGE_BUCKET = "onpoint-music.firebasestorage.app"
+# DOWNLOAD OPTIONS - Choose one:
+DOWNLOAD_MODE = 'ALL'  # Options: 'ALL', 'SINGLE', 'BATCH'
+
+# For SINGLE mode:
+SUBJECT_ID = 'participant_ID'
+
+# For BATCH mode - Add the participant IDs you want to download:
+# BATCH_PARTICIPANT_IDS = [
+        # Add as many participant IDs as you want here ]
+
+FIREBASE_DATE = '2025-11-05'  # Date folder in Firebase Storage (format: YYYY-MM-DD)
+BASE_DATA_PATH = ''
+VERSION = ''  # Updated for production version
+SERVICE_ACCOUNT_PATH = ""
+STORAGE_BUCKET = ""
 # =============================================================================
 
 # Initialize Firebase
@@ -32,20 +42,23 @@ def ensure_directory_exists(file_path):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def list_all_datasets():
+def list_all_datasets(verbose=True):
     """List all complete datasets in Firebase Storage."""
     try:
-        print("📂 Scanning for complete datasets in Firebase Storage...")
+        if verbose:
+            print("📂 Scanning for complete datasets in Firebase Storage...")
         
-        blobs = list(bucket.list_blobs(prefix='production_datasets/'))
+        blobs = list(bucket.list_blobs(prefix=f'production_datasets/{FIREBASE_DATE}'))
         
         if not blobs:
-            print("❌ No complete datasets found")
+            if verbose:
+                print("❌ No complete datasets found")
             return []
         
         datasets = []
-        print(f"✅ Found {len(blobs)} complete datasets:")
-        print("=" * 100)
+        if verbose:
+            print(f"✅ Found {len(blobs)} complete datasets:")
+            print("=" * 100)
         
         for blob in blobs:
             filename = blob.name.split('/')[-1]
@@ -71,9 +84,11 @@ def list_all_datasets():
             }
             datasets.append(dataset_info)
             
-            print(f"   👤 {participant_id:<12} | 🎯 {condition:<2} | 🧪 {trial_count:<3} | 📊 {size_mb:>6.1f} MB | ⏰ {created}")
+            if verbose:
+                print(f"   👤 {participant_id:<12} | 🎯 {condition:<2} | 🧪 {trial_count:<3} | 📊 {size_mb:>6.1f} MB | ⏰ {created}")
         
-        print("=" * 100)
+        if verbose:
+            print("=" * 100)
         return datasets
         
     except Exception as e:
@@ -86,7 +101,7 @@ def download_complete_dataset(subject_id: str) -> Optional[dict]:
         print(f"🔍 Looking for dataset for subject: {subject_id}")
         
         # Find the dataset file
-        datasets = list_all_datasets()
+        datasets = list_all_datasets(verbose=False)
         subject_datasets = [d for d in datasets if d['participant_id'] == subject_id]
         
         if not subject_datasets:
@@ -139,7 +154,7 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
         print(f"✅ Complete JSON: {json_path}")
         
         # 2. Save participant info (updated field names)
-        participant_path = os.path.join(subject_dir, f"{participant_id}_participant.csv")
+        participant_path = os.path.join(subject_dir, f"{participant_id}_participant_demographics.csv")
         participant_data = dataset['participant']
         
         with open(participant_path, 'w', newline='') as f:
@@ -152,7 +167,7 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
         print(f"✅ Participant info: {participant_path}")
         
         # 3. Save basic trial data (updated structure)
-        trials_path = os.path.join(subject_dir, f"{participant_id}_trials.csv")
+        trials_path = os.path.join(subject_dir, f"{participant_id}_trial_summary.csv")
         
         trial_rows = []
         for trial in dataset.get('trials', []):
@@ -161,7 +176,7 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
             enhanced_positions = trial.get('movement_data', {}).get('enhanced_positions', [])
             
             # Get analytics data
-            analytics = trial.get('analytics', {})
+            analytics = trial.get('analytics') or {}
             
             row = [
                 participant_id,
@@ -177,19 +192,9 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
                 len(basic_positions),  # Basic position count
                 len(enhanced_positions),  # Enhanced position count
                 trial.get('movement_data', {}).get('duration_ms', 0),
-                # Enhanced analytics
-                analytics.get('path_efficiency', 0),
+                # Enhanced analytics - all derived measures
                 analytics.get('total_distance', 0),
                 analytics.get('direct_distance', 0),
-                analytics.get('avg_velocity', 0),
-                analytics.get('max_acceleration', 0),
-                analytics.get('pause_count', 0),
-                analytics.get('avg_pause_duration', 0),
-                analytics.get('quadrant_changes', 0),
-                analytics.get('direction_changes', 0),
-                analytics.get('avg_gradient_alignment', 0),
-                analytics.get('behavior_classification', ''),
-                len(trial.get('learning_events', []))
             ]
             trial_rows.append(row)
         
@@ -199,16 +204,13 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
                 'participant_id', 'condition', 'trial_number', 'target_angle', 'rotation',
                 'reaction_time', 'movement_time', 'search_time', 'reach_feedback',
                 'hand_fb_angle', 'basic_samples', 'enhanced_samples', 'movement_duration_ms',
-                'path_efficiency', 'total_distance', 'direct_distance', 
-                'avg_velocity', 'max_acceleration', 'pause_count', 'avg_pause_duration',
-                'quadrant_changes', 'direction_changes', 'avg_gradient_alignment',
-                'behavior_classification', 'learning_events'
+                'total_distance', 'direct_distance'
             ]
             writer.writerow(header)
             writer.writerows(trial_rows)
         print(f"✅ Trial summary: {trials_path}")
         
-        # 4. Save detailed movement data (updated structure)
+        # 4. Save detailed movement data 
         movement_path = os.path.join(subject_dir, f"{participant_id}_movement_detailed.csv")
         
         movement_rows = []
@@ -216,10 +218,10 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
             trial_num = trial.get('trial_number', 0)
             target_angle = trial.get('target_angle', 0)
             rotation = trial.get('rotation', 0)
+            hand_fb_angle = trial.get('hand_fb_angle', 0) 
             
             # Get movement data from new structure
             basic_positions = trial.get('movement_data', {}).get('basic_positions', [])
-            enhanced_positions = trial.get('movement_data', {}).get('enhanced_positions', [])
             
             # Process enhanced movement samples (preferred data)
             for point_idx, point in enumerate(enhanced_positions):
@@ -232,18 +234,17 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
                     point_idx,
                     target_angle,
                     rotation,
+                    hand_fb_angle,
                     point.get('time', 0),
                     point.get('x', 0),
                     point.get('y', 0),
-                    point.get('velocity', 0),
-                    point.get('acceleration', 0),
-                    point.get('isPause', False),
-                    point.get('quadrant', 0),
                     sound_params.get('f1', 0),
                     sound_params.get('f2', 0),
                     sound_params.get('pitch', 0),
                     sound_params.get('vowel', ''),
-                    point.get('distanceFromTarget', 0)
+                    point.get('distanceFromTarget', 0),
+                    point.get('angle_from_start', 0),
+                    point.get('movement_phase', '')
                 ]
                 movement_rows.append(row)
         
@@ -251,50 +252,28 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
             writer = csv.writer(f)
             header = [
                 'participant_id', 'condition', 'trial_number', 'point_index', 
-                'target_angle', 'rotation', 'time_ms', 'x', 'y', 
-                'velocity', 'acceleration', 'is_pause', 'quadrant',
-                'f1', 'f2', 'pitch', 'vowel', 'distance_from_target'
+                'target_angle', 'rotation', 'hand_fb_angle', 'time_ms', 'x', 'y', 
+                'f1', 'f2', 'pitch', 'vowel', 'distance_from_target',
+                'angle_from_start', 'movement_phase'
             ]
             writer.writerow(header)
             writer.writerows(movement_rows)
         print(f"✅ Detailed movement: {movement_path}")
         print(f"   📍 Total movement samples: {len(movement_rows)}")
         
-        # 5. Save learning events (NEW)
-        learning_events = dataset.get('learning_events', [])
-        if learning_events:
-            learning_path = os.path.join(subject_dir, f"{participant_id}_learning_events.csv")
-            
-            learning_rows = []
-            for event in learning_events:
-                row = [
-                    participant_id,
-                    condition,
-                    event.get('type', ''),
-                    event.get('time', 0),
-                    event.get('from', ''),
-                    event.get('to', ''),
-                    event.get('confidence', 0)
-                ]
-                learning_rows.append(row)
-            
-            with open(learning_path, 'w', newline='') as f:
-                writer = csv.writer(f)
-                header = ['participant_id', 'condition', 'event_type', 'time_ms', 
-                         'from_strategy', 'to_strategy', 'confidence']
-                writer.writerow(header)
-                writer.writerows(learning_rows)
-            print(f"✅ Learning events: {learning_path}")
+        # 6. Save screen & technical data
+        screen_tech_path = os.path.join(subject_dir, f"{participant_id}_screen_technical.json")
+        screen_tech_data = {
+            'screen_dimensions': dataset.get('screen_dimensions', {}),
+            'browser_info': dataset.get('browser_info', {}),
+            'target_positioning': dataset.get('target_positioning', {}),
+            'experimental_parameters': dataset.get('experimental_parameters', {})
+        }
+        with open(screen_tech_path, 'w') as f:
+            json.dump(screen_tech_data, f, indent=2)
+        print(f"✅ Screen & technical data: {screen_tech_path}")
         
-        # 6. Save enhanced analytics (NEW)
-        enhanced_analytics = dataset.get('enhanced_analytics')
-        if enhanced_analytics:
-            analytics_path = os.path.join(subject_dir, f"{participant_id}_enhanced_analytics.json")
-            with open(analytics_path, 'w') as f:
-                json.dump(enhanced_analytics, f, indent=2)
-            print(f"✅ Enhanced analytics: {analytics_path}")
-        
-        # 7. Save production metadata (NEW)
+        # 7. Save production metadata
         production_metadata = dataset.get('production_metadata')
         if production_metadata:
             metadata_path = os.path.join(subject_dir, f"{participant_id}_production_metadata.json")
@@ -319,46 +298,72 @@ def save_dataset_to_files(dataset: dict, output_dir: str) -> bool:
         traceback.print_exc()
         return False
 
-def batch_download_datasets(subject_ids: List[str], output_dir: str) -> dict:
-    """Download datasets for multiple subjects."""
-    print(f"🚀 Starting batch download for {len(subject_ids)} subjects")
+def batch_download_selected_datasets(participant_ids: List[str], output_dir: str) -> dict:
+    """Download datasets for a specific list of participants."""
+    print(f"🚀 Starting batch download for {len(participant_ids)} selected participants")
+    print(f"📋 Participants to download: {', '.join(participant_ids)}")
     
     results = {
         'successful': 0,
         'failed': 0,
+        'not_found': 0,
         'results': []
     }
     
-    for i, subject_id in enumerate(subject_ids, 1):
-        print(f"\n📥 Processing {i}/{len(subject_ids)}: {subject_id}")
+    # First, check which participants are available (quietly)
+    print(f"\n🔍 Checking availability of requested participants...")
+    available_datasets = list_all_datasets(verbose=False)
+    available_participant_ids = set([d['participant_id'] for d in available_datasets])
+    
+    requested_set = set(participant_ids)
+    found_participants = requested_set.intersection(available_participant_ids)
+    missing_participants = requested_set - available_participant_ids
+    
+    if missing_participants:
+        print(f"⚠️  Warning: {len(missing_participants)} participants not found in storage:")
+        for missing_id in missing_participants:
+            print(f"   ❌ {missing_id}")
+            results['not_found'] += 1
+            results['results'].append({'participant_id': missing_id, 'status': 'not_found'})
+    
+    if not found_participants:
+        print("❌ None of the requested participants were found in storage!")
+        return results
+    
+    print(f"✅ Found {len(found_participants)} of {len(participant_ids)} requested participants")
+    
+    # Download found participants
+    for i, participant_id in enumerate(found_participants, 1):
+        print(f"\n📥 Processing {i}/{len(found_participants)}: {participant_id}")
         print("-" * 50)
         
         try:
-            dataset = download_complete_dataset(subject_id)
+            dataset = download_complete_dataset(participant_id)
             if dataset and save_dataset_to_files(dataset, output_dir):
                 results['successful'] += 1
                 results['results'].append({
-                    'subject_id': subject_id, 
+                    'participant_id': participant_id, 
                     'status': 'success',
                     'condition': dataset['participant'].get('condition', 'unknown'),
                     'trials': len(dataset.get('trials', [])),
                     'movement_samples': dataset.get('metadata', {}).get('total_movement_samples', 0)
                 })
-                print(f"✅ Success: {subject_id}")
+                print(f"✅ Success: {participant_id}")
             else:
                 results['failed'] += 1
-                results['results'].append({'subject_id': subject_id, 'status': 'failed'})
-                print(f"❌ Failed: {subject_id}")
+                results['results'].append({'participant_id': participant_id, 'status': 'failed'})
+                print(f"❌ Failed: {participant_id}")
                 
         except Exception as e:
             results['failed'] += 1
-            results['results'].append({'subject_id': subject_id, 'status': 'error', 'error': str(e)})
-            print(f"❌ Error with {subject_id}: {str(e)}")
+            results['results'].append({'participant_id': participant_id, 'status': 'error', 'error': str(e)})
+            print(f"❌ Error with {participant_id}: {str(e)}")
     
     print(f"\n🎊 Batch download complete:")
     print(f"   ✅ Successful: {results['successful']}")
     print(f"   ❌ Failed: {results['failed']}")
-    print(f"   📈 Success rate: {(results['successful'] / len(subject_ids) * 100):.1f}%")
+    print(f"   🔍 Not found: {results['not_found']}")
+    print(f"   📈 Success rate: {(results['successful'] / len(found_participants) * 100):.1f}%" if found_participants else "0%")
     
     # Print summary by condition
     successful_results = [r for r in results['results'] if r['status'] == 'success']
@@ -379,88 +384,142 @@ def batch_download_datasets(subject_ids: List[str], output_dir: str) -> dict:
     
     return results
 
-def create_analysis_summary(output_dir: str) -> None:
-    """Create a summary analysis CSV across all participants."""
-    try:
-        print(f"\n📊 Creating analysis summary...")
+def batch_download_all_datasets(output_dir: str) -> dict:
+    """Download ALL available datasets from Firebase."""
+    print(f"🚀 Starting download of ALL available datasets")
+    
+    # Get list of all available datasets (with verbose output for ALL mode)
+    datasets = list_all_datasets(verbose=True)
+    if not datasets:
+        print("❌ No datasets found")
+        return {'successful': 0, 'failed': 0, 'results': []}
+    
+    # Extract unique participant IDs
+    participant_ids = list(set([d['participant_id'] for d in datasets]))
+    print(f"📊 Found {len(participant_ids)} unique participants")
+    
+    results = {
+        'successful': 0,
+        'failed': 0,
+        'results': []
+    }
+    
+    for i, participant_id in enumerate(participant_ids, 1):
+        print(f"\n📥 Processing {i}/{len(participant_ids)}: {participant_id}")
+        print("-" * 50)
         
-        # Find all participant directories
-        summary_data = []
-        
-        for item in os.listdir(output_dir):
-            item_path = os.path.join(output_dir, item)
-            if os.path.isdir(item_path) and '_condition_' in item:
-                participant_id = item.split('_condition_')[0]
-                condition = item.split('_condition_')[1]
+        try:
+            dataset = download_complete_dataset(participant_id)
+            if dataset and save_dataset_to_files(dataset, output_dir):
+                results['successful'] += 1
+                results['results'].append({
+                    'participant_id': participant_id, 
+                    'status': 'success',
+                    'condition': dataset['participant'].get('condition', 'unknown'),
+                    'trials': len(dataset.get('trials', [])),
+                    'movement_samples': dataset.get('metadata', {}).get('total_movement_samples', 0)
+                })
+                print(f"✅ Success: {participant_id}")
+            else:
+                results['failed'] += 1
+                results['results'].append({'participant_id': participant_id, 'status': 'failed'})
+                print(f"❌ Failed: {participant_id}")
                 
-                # Try to read trial summary
-                trials_file = os.path.join(item_path, f"{participant_id}_trials.csv")
-                if os.path.exists(trials_file):
-                    df = pd.read_csv(trials_file)
-                    
-                    # Calculate summary statistics
-                    summary = {
-                        'participant_id': participant_id,
-                        'condition': condition,
-                        'total_trials': len(df),
-                        'avg_reaction_time': df['reaction_time'].mean(),
-                        'avg_movement_time': df['movement_time'].mean(),
-                        'avg_path_efficiency': df['path_efficiency'].mean(),
-                        'avg_velocity': df['avg_velocity'].mean(),
-                        'total_learning_events': df['learning_events'].sum(),
-                        'total_movement_samples': df['enhanced_samples'].sum()
-                    }
-                    summary_data.append(summary)
+        except Exception as e:
+            results['failed'] += 1
+            results['results'].append({'participant_id': participant_id, 'status': 'error', 'error': str(e)})
+            print(f"❌ Error with {participant_id}: {str(e)}")
+    
+    print(f"\n🎊 Complete download finished:")
+    print(f"   ✅ Successful: {results['successful']}")
+    print(f"   ❌ Failed: {results['failed']}")
+    print(f"   📈 Success rate: {(results['successful'] / len(participant_ids) * 100):.1f}%")
+    
+    # Print summary by condition
+    successful_results = [r for r in results['results'] if r['status'] == 'success']
+    if successful_results:
+        condition_summary = {}
+        for result in successful_results:
+            condition = result.get('condition', 'unknown')
+            if condition not in condition_summary:
+                condition_summary[condition] = {'count': 0, 'total_trials': 0, 'total_samples': 0}
+            condition_summary[condition]['count'] += 1
+            condition_summary[condition]['total_trials'] += result.get('trials', 0)
+            condition_summary[condition]['total_samples'] += result.get('movement_samples', 0)
         
-        if summary_data:
-            summary_df = pd.DataFrame(summary_data)
-            summary_path = os.path.join(output_dir, 'analysis_summary.csv')
-            summary_df.to_csv(summary_path, index=False)
-            print(f"✅ Analysis summary: {summary_path}")
-            
-            # Print quick stats
-            print(f"   📈 Total participants: {len(summary_df)}")
-            print(f"   🎯 Conditions: {summary_df['condition'].unique()}")
-            print(f"   🧪 Total trials: {summary_df['total_trials'].sum()}")
-            print(f"   📍 Total movement samples: {summary_df['total_movement_samples'].sum()}")
-        
-    except Exception as e:
-        print(f"❌ Error creating analysis summary: {str(e)}")
+        print(f"\n📊 Summary by condition:")
+        for condition, stats in condition_summary.items():
+            print(f"   🎯 Condition {condition}: {stats['count']} participants, "
+                  f"{stats['total_trials']} trials, {stats['total_samples']} movement samples")
+    
+    return results
+
 
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
 if __name__ == "__main__":
-    print("🔥 Complete Dataset Downloader (Production Version)")
+    print("🔥 Complete Dataset Downloader (FLEXIBLE VERSION)")
     print("=" * 60)
     
-    # List all available datasets
-    print("📂 Available datasets:")
-    datasets = list_all_datasets()
+    # Set up output directory
+    output_dir = os.path.join(BASE_DATA_PATH, VERSION)
+    os.makedirs(output_dir, exist_ok=True)
     
-    if not datasets:
-        print("❌ No datasets found in Firebase Storage")
-        exit()
-    
-    print(f"\n🎯 Downloading dataset for: {SUBJECT_ID}")
-    
-    # Download single subject
-    dataset = download_complete_dataset(SUBJECT_ID)
-    
-    if dataset:
-        output_dir = os.path.join(BASE_DATA_PATH, 'complete_datasets', VERSION)
-        success = save_dataset_to_files(dataset, output_dir)
+    if DOWNLOAD_MODE == 'ALL':
+        print("🌟 DOWNLOADING ALL AVAILABLE DATA")
+        print("=" * 60)
         
-        if success:
-            print(f"\n🎉 Download complete!")
-            print(f"📁 Files saved to: {output_dir}/{SUBJECT_ID}_condition_{dataset['participant'].get('condition', 'unknown')}/")
+        # Download all datasets
+        batch_results = batch_download_all_datasets(output_dir)
+        
+        print(f"\n🎉 ALL DATA DOWNLOAD COMPLETE!")
+        print(f"📁 All files saved to: {output_dir}")
+        print(f"✅ Successfully downloaded: {batch_results['successful']} participants")
+        print(f"❌ Failed downloads: {batch_results['failed']} participants")
+        
+    elif DOWNLOAD_MODE == 'BATCH':
+        print("📋 DOWNLOADING SELECTED BATCH OF PARTICIPANTS")
+        print("=" * 60)
+        
+        if not BATCH_PARTICIPANT_IDS:
+            print("❌ Error: BATCH_PARTICIPANT_IDS list is empty!")
+            print("   Please add participant IDs to the BATCH_PARTICIPANT_IDS list in the configuration section.")
+            exit()
+        
+        # Download selected participants
+        batch_results = batch_download_selected_datasets(BATCH_PARTICIPANT_IDS, output_dir)
+        
+        # Create comprehensive analysis summary for downloaded participants
+        if batch_results['successful'] > 0:
+            create_comprehensive_analysis_summary(output_dir)
+        
+        print(f"\n🎉 BATCH DOWNLOAD COMPLETE!")
+        print(f"📁 Files saved to: {output_dir}")
+        print(f"✅ Successfully downloaded: {batch_results['successful']} participants")
+        print(f"❌ Failed downloads: {batch_results['failed']} participants")
+        print(f"🔍 Not found: {batch_results['not_found']} participants")
+        
+    elif DOWNLOAD_MODE == 'SINGLE':
+        print(f"🎯 DOWNLOADING SINGLE DATASET FOR: {SUBJECT_ID}")
+        print("=" * 60)
+        
+        # Download single subject
+        dataset = download_complete_dataset(SUBJECT_ID)
+        
+        if dataset:
+            success = save_dataset_to_files(dataset, output_dir)
+            
+            if success:
+                print(f"\n🎉 Download complete!")
+                print(f"📁 Files saved to: {output_dir}/{SUBJECT_ID}_condition_{dataset['participant'].get('condition', 'unknown')}/")
+            else:
+                print(f"\n❌ Error saving files")
         else:
-            print(f"\n❌ Error saving files")
-    else:
-        print(f"\n❌ Failed to download dataset for {SUBJECT_ID}")
+            print(f"\n❌ Failed to download dataset for {SUBJECT_ID}")
     
-    # Uncomment for batch download:
-    # subject_list = ["123456789", "987654321", "456789123"]
-    # batch_results = batch_download_datasets(subject_list, output_dir)
-    # create_analysis_summary(output_dir)
+    else:
+        print(f"❌ Error: Invalid DOWNLOAD_MODE '{DOWNLOAD_MODE}'")
+        print("   Valid options are: 'ALL', 'BATCH', 'SINGLE'")
+        exit()
