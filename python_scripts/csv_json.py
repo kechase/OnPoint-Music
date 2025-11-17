@@ -41,10 +41,41 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
         betweenBlocks = {}
         targetJump = {}
         
-        # For training, preserve original order (don't randomize)
-        # For testing, randomize the order
+        # For training, randomize within blocks of 4 trials
         if is_training:
+            # Group training rows by angle to identify unique angles
+            angle_groups = {}
+            for row in rows:
+                angle = int(row[3])
+                if angle not in angle_groups:
+                    angle_groups[angle] = []
+                angle_groups[angle].append(row)
+            
+            num_angles = len(angle_groups)
+            print(f"\nTraining has {num_angles} unique angles")
+            
+            # Determine number of blocks (assuming equal repetitions per angle)
+            # Each block should have one trial per angle
+            num_blocks = len(rows) // num_angles
+            print(f"Creating {num_blocks} randomized training blocks")
+            
+            # Create blocks by taking one trial from each angle group
+            randomized_trials = []
+            for block_num in range(num_blocks):
+                block = []
+                for angle in sorted(angle_groups.keys()):
+                    if len(angle_groups[angle]) > block_num:
+                        block.append(angle_groups[angle][block_num])
+                
+                # Randomize the order within this block
+                random.shuffle(block)
+                randomized_trials.extend(block)
+                print(f"  Block {block_num + 1}: angles {[int(trial[3]) for trial in block]}")
+            
+            rows = randomized_trials
             trial_order = list(range(len(rows)))
+        
+        # For testing, randomize within blocks of 8 angles
         else:
             # Group testing rows by direction (angle)
             angle_groups = {}
@@ -54,7 +85,7 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
                     angle_groups[angle] = []
                 angle_groups[angle].append(row)
 
-            # Create balanced blocks of 8 (2 trials per angle per block)
+            # Create balanced blocks of 8 (1 trials per angle per block)
             balanced_trials = []
             num_angles = len(angle_groups)
 
@@ -148,6 +179,12 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
         if add_pre_instructions and is_training:
             betweenBlocks["0"] = 1.0
 
+        # Set the last training trial to trigger Phase 2 transition
+        if is_training:
+            last_trial_key = str(rowCount - 1)
+            betweenBlocks[last_trial_key] = 2.0
+            print(f"Set training trial {last_trial_key} (last trial) to between_blocks = 2.0 (Phase 2 transition)")
+
         jsonData = {
             "numtrials": rowCount,
             "trialnum": trialNums,
@@ -180,10 +217,10 @@ def jsonFromCsv(csvFilePath, jsonFilePath):
 
 
 #### MANUALLY ENTER THE REAL PATH to THIS CSV FILE
-csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/build_tools/csv_tgt_files/csv_tgt_file_2025-05-27.csv'
+csvFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/build_tools/csv_tgt_files/csv_tgt_file_2025-11-17.csv'
 
 #### MANUALLY CREATE THIS NOT-YET-REAL FILEPATH (SO THIS SCRIPT WILL CREATE and DROP THE FILE THERE)
-jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/csv_tgt_file_2025-05-27.json'
+jsonFilePath = '/Users/katie/Documents/workspace/OnPoint-Music/public/tgt_files/csv_tgt_file_2025-11-17.json'
 
 # Run the conversion
 jsonFromCsv(csvFilePath, jsonFilePath)

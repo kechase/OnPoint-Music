@@ -9,7 +9,7 @@ All fields that require change are marked by a "####" comment.
 const noSave = false;
 
 // Experiment files // #### Update this to the correct path of your target file
-const fileName = "./tgt_files/csv_tgt_file_2025-05-27.json";
+const fileName = "./tgt_files/csv_tgt_file_2025-11-17.json";
 let fileContent;
 
 let resizeDebounceTimer = null;
@@ -77,6 +77,7 @@ function getParticipantSeed(participantId) {
 // ==================================================
 // Function to shuffle array with seeded randomness
 // ==================================================
+// Simple seeded random number generator (linear congruential generator) so that we can have reproducible shuffling
 function seededRandom(startNumber) {
     let current = startNumber;
     
@@ -120,7 +121,7 @@ function shuffleBlocks(testing_data, participantId) {
     
     const numtrials = testing_data.numtrials;
     const block_size = 8; // 8 angles per block
-    const num_blocks = numtrials / block_size; // Should be 12 blocks
+    const num_blocks = numtrials / block_size; // Only for testing phase - should be 10 blocks
     
     // Validate that numtrials is divisible by block_size
     if (numtrials % block_size !== 0) {
@@ -591,6 +592,9 @@ class Trial extends Database {
       feedback,
     );
 
+    // ✨ Determine phase based on global is_phase_2 flag
+    block.phase = is_phase_2 ? 'testing' : 'training';
+
 // ==================================================
 // Saved start position and screen size for each trial before final push to database
 // ==================================================
@@ -624,6 +628,7 @@ class Block extends Database {
     this.movement_time = movement_time;
     this.search_time = time;
     this.reach_feedback = feedback;
+    this.phase = null;  // ✨ Will be set to 'training' or 'testing'
     // this.log = [];  // used to collect mouse movement
   }
 }
@@ -1380,7 +1385,7 @@ const production_config = {
     
     // Data validation
     validate_data_structure: true, // Check data format before saving
-    require_minimum_trials: 10, // Need at least 80 trials for valid dataset, set to 10 for testing
+    require_minimum_trials: 100, // Need at least 80 trials for valid dataset, set to 10 for testing
     
     // Logging
     enable_detailed_logging: true, // Show detailed console messages
@@ -1880,6 +1885,7 @@ class ProductionDataManager {
         return subjTrials.blocks.map((block, index) => ({
             // Basic trial info
             trial_number: block.trial_num ?? index + 1,
+            phase: block.phase || "unknown",  // ✨ 'training' or 'testing'
             current_date: block.current_date || new Date().toISOString(),
             target_angle: block.target_angle ?? 0,
             rotation: block.rotation ?? 0,
