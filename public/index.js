@@ -1374,7 +1374,7 @@ const trial_collection = firestore.collection("Trials");
 const production_config = {
     // Security settings
     require_authentication: false,
-    use_anonymous_auth: true,  // Set to true to allow anonymous sign-in w/o user accounts
+    use_anonymous_auth: false,  // skip the authentication and just upload directly, which the Firebase Storage Rules already allow.
     validate_participant_id: true,
     
     // Upload settings (will be overridden below)
@@ -1405,6 +1405,11 @@ class AuthenticationManager {
     }
 
     async ensureAuthenticated() {
+        // If auth not required, return null immediately
+        if (!production_config.use_anonymous_auth && !production_config.require_authentication) {
+        console.log("🔐 Skipping authentication (not required by config)");
+        return null;
+      }
         if (this.isAuthenticated && this.currentUser) {
             return this.currentUser; // Already logged in, return immediately
         }
@@ -1425,6 +1430,12 @@ class AuthenticationManager {
             use_anonymous_auth: production_config.use_anonymous_auth
         });
 
+        // If auth is not required, return immediately
+        if (!production_config.use_anonymous_auth && !production_config.require_authentication) {
+            console.log("🔐 Authentication not required by config");
+            return null;
+        }
+        
         // Check if already authenticated
         const currentUser = firebase.auth().currentUser;
         console.log("🔐 Current user check:", currentUser);
@@ -1575,12 +1586,18 @@ class SecureStorageManager {
             // 1. Validate inputs
             await this._validateInputs(dataset, participantId);
 
-            // 2. Ensure authentication
-            const user = await this.authManager.ensureAuthenticated();
-            console.log(`🔐 [${uploadId}] Authenticated as: ${user.uid}`);
+            // 2. Ensure authentication ONLY if required
+            let userID = 'unauthenticated';
+            if (production_config.use_anonymous_auth) {
+                const user = await this.authManager.ensureAuthenticated();
+                userID = user.uid;
+                console.log(`🔐 [${uploadId}] Authenticated as: ${userID}`);
+            } else {
+                console.log(`🔐 [${uploadId}] Skipping authentication (not required)`);
+            }
 
             // 3. Prepare upload
-            const uploadData = await this._prepareUpload(dataset, participantId, user.uid, uploadId);
+            const uploadData = await this._prepareUpload(dataset, participantId, userID, uploadId);
 
             // 4. Execute upload with retry logic
             const result = await this._executeUploadWithRetry(uploadData, uploadId);
@@ -4192,7 +4209,21 @@ function validateHours(input) {
 // Enhanced version of saveFeedback() that also uses production features
 async function saveFeedback() {
   console.log("💾 Starting complete feedback save with demographics...");
-
+  // Check required fields
+      const requiredFields = [
+          'age-input', 'gender', 'music-instrument-input', 
+          'music-practice-input', 'language-count', 'language-specific',
+          'repeat', 'hand', 'feedback_final'
+      ];
+      
+      for (let fieldId of requiredFields) {
+          const field = document.getElementById(fieldId);
+          if (!field.value || field.value.trim() === '') {
+              alert('Please complete all required fields before submitting.');
+              field.focus();
+              return;
+          }
+      }
   // 🔍 FIREBASE DEBUGGING
   console.log("🔥 Firebase debugging:");
   console.log("  - Firebase available:", !!window.firebase);
@@ -4201,6 +4232,7 @@ async function saveFeedback() {
   console.log("  - Current user:", firebase.auth().currentUser);
 
   // Test anonymous auth directly
+  /*
   try {
       console.log("🧪 Testing anonymous auth...");
       const testAuth = await firebase.auth().signInAnonymously();
@@ -4216,7 +4248,7 @@ async function saveFeedback() {
   } catch (error) {
       // ... existing error handling ...
   }
-
+      */
 
     try {
         // Collect all demographic data 
