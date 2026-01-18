@@ -80,13 +80,16 @@
                 You're invited to participate in a study named "Playing a New Instrument!"
             </p>
             <p>
-                This will take ~20 minutes and <b>you will be compensated with COURSE CREDIT.</b>
+                This will take ~20 minutes and you will be compensated with COURSE CREDIT.
             </p>
             <p>
                 Please understand that we <em>reserve the right to not compensate entries that fail to follow instructions.</em>
             </p>
             <p>
-                <b>In this experiment you'll listen to nuanced sounds. <em>Headphones are required. Ensure your sound is turned on and that you're in a quiet environment.</em></b>
+                <b>In this experiment you'll listen to nuanced sounds. <em>Headphones are required. Ensure your sound is turned on and that you're in a quiet environment. </em></b>
+            </p>
+            <p>
+                <b>YOU MUST COMPLETE THE STUDY IN ONE SITTING -- DO NOT START UNTIL YOU'RE IN A QUIET PLACE AND READY TO COMPLETE THE STUDY. </em></b>
             </p>
             <br>
         
@@ -388,11 +391,11 @@
                 </form>
                 <div class="questions" id="age-question">
                     Age:
-                    <input id="age-input" type="number" min="18" max="99" name="age">
+                    <input id="age-input" type="number" min="18" max="99" name="age" required>
                 </div>
                 <div class="questions" id="gender-question">
                     Gender:
-                    <select id="gender" name="gender">
+                    <select id="gender" name="gender" required>
                         <option value=""></option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
@@ -401,7 +404,7 @@
                 </div>
                 <div class="questions" id="music-instrument">
                     Do you, or have you ever, played a musical instrument?
-                    <select id="music-instrument-input" name="music_instrument">
+                    <select id="music-instrument-input" name="music_instrument" required>
                         <option value=""></option>
                         <option value="yes">Yes</option>
                         <option value="no">No</option>       
@@ -412,7 +415,7 @@
                     <input id="music-practice-input" type="number" min="0" max="168" 
                     onkeypress="return isNumericKey(event)" 
                     oninput="validateHours(this)"
-                    name="music_practice">
+                    name="music_practice" required>
                 </div>
                 <div class="questions" id="languages">
                     How many languages do you speak?
@@ -426,12 +429,12 @@
                 <form id="languageForm">
                 <div class="questions" id="languages-specific">
                     WHICH language(s) do you speak?
-                    <input id="language-specific" type="text" name="language_specific" value="">
+                    <input id="language-specific" type="text" name="language_specific" value="" required>
                     </form>
                 </div>
                 <div class="questions" id="returner">
                     Have you done our experiments before?
-                    <select id="repeat" name="repeater">
+                    <select id="repeat" name="repeater" required>
                         <option value=""></option>
                         <option value="yes">Yes</option>
                         <option value="no">No</option>
@@ -440,7 +443,7 @@
                 </div>
                 <div class="questions" id="handedness">
                     Please select your handedness:
-                    <select id="hand" name="hand">
+                    <select id="hand" name="hand" required>
                         <option value=""></option>
                         <option value="bothh">Ambidextrous</option>
                         <option value="lefth">Left</option>
@@ -480,7 +483,7 @@
             <form id="feedbackForm">
                 <div class="question" id="feedback1">
                     Let us know if you had any issues with this experiment or if you have any feedback for us (or simply type "none")
-                    <input id="feedback_final" type="text" name="feedback_final" value="">
+                    <input id="feedback_final" type="text" name="feedback_final" value="" required>
                 </div>
             </form>
             <div style="text-align: left;">
