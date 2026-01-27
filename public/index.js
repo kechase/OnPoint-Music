@@ -2319,6 +2319,7 @@ var musicBox;
 
 // Game data objects
 let subjTrials = null;
+let isSavingData = false; // Prevents double submission of feedback form
 
 // ==================================================
 // GLOBAL TIMING VARIABLES
@@ -4207,209 +4208,270 @@ function validateHours(input) {
 
 // Function used to save the feedback from the final HTML page
 // Enhanced version of saveFeedback() that also uses production features
+// Function used to save the feedback from the final HTML page
+// Enhanced version of saveFeedback() that also uses production features
 async function saveFeedback() {
+  // ✅ NEW: Prevent double submission
+  if (isSavingData) {
+    console.warn("⚠️ Save already in progress, ignoring duplicate request");
+    alert("Your data is already being saved. Please wait...");
+    return false;
+  }
+  
   console.log("💾 Starting complete feedback save with demographics...");
-  // Check required fields
-      const requiredFields = [
-          'age-input', 'gender', 'music-instrument-input', 
-          'music-practice-input', 'language-count', 'language-specific',
-          'repeat', 'hand', 'feedback_final'
-      ];
-      
-      for (let fieldId of requiredFields) {
-          const field = document.getElementById(fieldId);
-          if (!field.value || field.value.trim() === '') {
-              alert('Please complete all required fields before submitting.');
-              field.focus();
-              return;
-          }
+  
+  // ✅ NEW: Lock immediately to prevent any other submissions
+  isSavingData = true;
+  console.log("🔒 Data save locked");
+  
+  // ✅ NEW: Disable submit button immediately (before validation)
+  const submitButton = document.querySelector('button[onclick="saveFeedback()"]');
+  const originalButtonText = submitButton ? submitButton.textContent : 'Submit';
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.style.opacity = '0.5';
+    submitButton.style.cursor = 'not-allowed';
+    submitButton.textContent = '⏳ Please wait...';
+    console.log("🔒 Submit button disabled");
+  }
+  
+  // Check required fields (EXISTING CODE - keep as is)
+  const requiredFields = [
+    'age-input', 'gender', 'music-instrument-input', 
+    'music-practice-input', 'language-count', 'language-specific',
+    'repeat', 'hand', 'feedback_final'
+  ];
+  
+  for (let fieldId of requiredFields) {
+    const field = document.getElementById(fieldId);
+    if (!field.value || field.value.trim() === '') {
+      // ✅ NEW: Unlock and re-enable button if validation fails
+      isSavingData = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.style.opacity = '1';
+        submitButton.style.cursor = 'pointer';
+        submitButton.textContent = originalButtonText;
       }
-  // 🔍 FIREBASE DEBUGGING
+      
+      alert('Please complete all required fields before submitting.');
+      field.focus();
+      return false;
+    }
+  }
+
+  // 🔍 FIREBASE DEBUGGING (EXISTING CODE - keep as is)
   console.log("🔥 Firebase debugging:");
   console.log("  - Firebase available:", !!window.firebase);
   console.log("  - Firebase.auth available:", !!window.firebase?.auth);
   console.log("  - Firebase.storage available:", !!window.firebase?.storage);
   console.log("  - Current user:", firebase.auth().currentUser);
 
-  // Test anonymous auth directly
-  /*
   try {
-      console.log("🧪 Testing anonymous auth...");
-      const testAuth = await firebase.auth().signInAnonymously();
-      console.log("✅ Anonymous auth test successful:", testAuth.user.uid);
-  } catch (authError) {
-      console.error("❌ Anonymous auth test failed:", authError);
-      alert(`Authentication test failed: ${authError.message}`);
-      return false;
-  }
-
-  try {
-      // ... rest of your existing saveFeedback code ...
-  } catch (error) {
-      // ... existing error handling ...
-  }
-      */
-
-    try {
-        // Collect all demographic data 
-        subject.distractions = [];
+    // Collect all demographic data (EXISTING CODE - keep as is)
+    subject.distractions = [];
+    
+    // Process distraction checkboxes
+    for (let i = 1; i <= 7; i++) {
+      const checkbox = document.getElementById(`distract${i}`);
+      if (checkbox && checkbox.checked) {
+        subject.distractions.push(checkbox.value);
         
-        // Process distraction checkboxes
-        for (let i = 1; i <= 7; i++) {
-            const checkbox = document.getElementById(`distract${i}`);
-            if (checkbox && checkbox.checked) {
-                subject.distractions.push(checkbox.value);
-                
-                if (checkbox.value === "other") {
-                    const distractoInput = document.querySelector('input[name="distracto"]');
-                    if (distractoInput) {
-                        subject.distracto = distractoInput.value;
-                    }
-                }
-            }
+        if (checkbox.value === "other") {
+          const distractoInput = document.querySelector('input[name="distracto"]');
+          if (distractoInput) {
+            subject.distracto = distractoInput.value;
+          }
         }
-
-        // Get demographic information
-        const age = document.getElementById("age-input")?.value || "";
-        const gender = document.getElementById("gender")?.value || "";
-        const music_instrument = document.getElementById("music-instrument-input")?.value || "";
-        const music_practice = document.getElementById("music-practice-input")?.value || "";
-        const language_count = document.getElementById("language-count")?.value || "";
-        const language_specific = document.getElementById("language-specific")?.value || "";
-        const returner = document.getElementById("repeat")?.value || "";
-        const handedness = document.getElementById("hand")?.value || "";
-        const ethnicity = document.getElementById("ethnic")?.value || "";
-        const race = document.getElementById("race")?.value || "";
-
-        // Validate required fields
-        const requiredFields = [
-            { name: "Age", value: age },
-            { name: "Music practice hours", value: music_practice },
-            { name: "Gender", value: gender },
-            { name: "Musical instrument question", value: music_instrument },
-            { name: "Language count", value: language_count },
-            { name: "Experiment returner", value: returner },
-            { name: "Handedness", value: handedness }
-        ];
-
-        const missingFields = requiredFields.filter(field => !field.value);
-        if (missingFields.length > 0) {
-            alert(`Please complete all required fields: ${missingFields.map(f => f.name).join(", ")}`);
-            return false;
-        }
-
-        // Validate age vs musical experience
-        const age_num = parseInt(age) || 0;
-        const music_experience = parseInt(subject.music_experience) || 0;
-        if (age_num > 0 && music_experience > 0 && music_experience > age_num) {
-            alert(`Error: Musical experience (${music_experience}) cannot exceed age (${age_num})`);
-            return false;
-        }
-
-        // Update subject with all demographic data
-        subject.age = age;
-        subject.gender = gender;
-        subject.handedness = handedness;
-        subject.returner = returner;
-        subject.ethnicity = ethnicity || "";
-        subject.race = race || "";
-        subject.language_count = language_count;
-        subject.language_specific = language_specific;
-        subject.music_instrument = music_instrument;
-        subject.music_practice = music_practice || "0";
-
-        const feedbackInput = document.getElementById('feedback_final');
-        subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
-
-        console.log("📝 Demographic data collected and validated");
-
-        // Show loading message to participant
-        const loadingMessage = `Saving your data securely...\nParticipant ID: ${subject.id}`;
-
-        // Create a simple loading overlay
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.id = 'loading-overlay';
-        loadingOverlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            font-family: Arial, sans-serif;
-            z-index: 10000;
-        `;
-        loadingOverlay.innerHTML = `
-            <div style="text-align: center;">
-                <div style="margin-bottom: 20px;">💾 Saving your data...</div>
-                <div style="font-size: 18px; color: #ccc;">Participant ID: ${subject.id}</div>
-                <div style="font-size: 16px; color: #999; margin-top: 10px;">Please wait, do not close this page</div>
-            </div>
-        `;
-        document.body.appendChild(loadingOverlay);
-
-        // Prepare enhanced data for the complete set
-        const enhancedData = {
-            trial_analytics: window.trial_analytics || [],
-            current_trial_enhanced_positions: window.current_trial_enhanced_positions || []
-        };
-
-        // Replace this section in saveFeedback():
-        console.log("🏭 Saving complete dataset with demographics...");
-
-        // NOW save the complete dataset with demographics using production features
-        const uploadResult = await new ProductionDataManager().saveExperimentData(
-            subject, 
-            subjTrials, 
-            enhancedData
-        );
-
-        // Remove loading overlay
-        document.body.removeChild(loadingOverlay);
-
-        if (uploadResult) {
-            console.log("🎉 COMPLETE DATA SAVE SUCCESSFUL!");
-            console.log("📋 Upload details:", uploadResult);
-            
-            // Show success message
-            const successMessage = `✅ Your data has been saved successfully!\n\nParticipant ID: ${subject.id}\nFile: ${uploadResult.filename}\nSize: ${uploadResult.size_mb.toFixed(2)} MB\n\nThank you for participating!`;
-            alert(successMessage);
-            
-            // Show completion page
-            show("final-page");
-
-            // Redirect after delay
-            setTimeout(function() {
-                window.location.href = "https://cmu-researchpool.sona-systems.com/default.aspx?logout=SSO";
-            }, 2000);
-
-            return true;
-        } else {
-            throw new Error("Complete data save failed");
-        }
-
-    } catch (error) {
-        console.error("❌ Error saving complete data:", error);
-        
-        // Remove loading overlay if it exists
-        const loadingOverlay = document.getElementById('loading-overlay');
-        if (loadingOverlay) {
-            document.body.removeChild(loadingOverlay);
-        }
-        
-        // Production error handling
-        const errorInfo = window.ProductionErrorHandler.handleUploadError(error, subject?.id || 'unknown');
-        alert(`❌ Error saving data: ${errorInfo.userMessage}`);
-        
-        return false;
+      }
     }
+
+    // Get demographic information (EXISTING CODE - keep as is)
+    const age = document.getElementById("age-input")?.value || "";
+    const gender = document.getElementById("gender")?.value || "";
+    const music_instrument = document.getElementById("music-instrument-input")?.value || "";
+    const music_practice = document.getElementById("music-practice-input")?.value || "";
+    const language_count = document.getElementById("language-count")?.value || "";
+    const language_specific = document.getElementById("language-specific")?.value || "";
+    const returner = document.getElementById("repeat")?.value || "";
+    const handedness = document.getElementById("hand")?.value || "";
+    const ethnicity = document.getElementById("ethnic")?.value || "";
+    const race = document.getElementById("race")?.value || "";
+
+    // Validate required fields (EXISTING CODE - keep as is)
+    const requiredFieldsData = [
+      { name: "Age", value: age },
+      { name: "Music practice hours", value: music_practice },
+      { name: "Gender", value: gender },
+      { name: "Musical instrument question", value: music_instrument },
+      { name: "Language count", value: language_count },
+      { name: "Experiment returner", value: returner },
+      { name: "Handedness", value: handedness }
+    ];
+
+    const missingFields = requiredFieldsData.filter(field => !field.value);
+    if (missingFields.length > 0) {
+      // ✅ NEW: Unlock and re-enable button if validation fails
+      isSavingData = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.style.opacity = '1';
+        submitButton.style.cursor = 'pointer';
+        submitButton.textContent = originalButtonText;
+      }
+      
+      alert(`Please complete all required fields: ${missingFields.map(f => f.name).join(", ")}`);
+      return false;
+    }
+
+    // Validate age vs musical experience (EXISTING CODE - keep as is)
+    const age_num = parseInt(age) || 0;
+    const music_experience = parseInt(subject.music_experience) || 0;
+    if (age_num > 0 && music_experience > 0 && music_experience > age_num) {
+      // ✅ NEW: Unlock and re-enable button if validation fails
+      isSavingData = false;
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.style.opacity = '1';
+        submitButton.style.cursor = 'pointer';
+        submitButton.textContent = originalButtonText;
+      }
+      
+      alert(`Error: Musical experience (${music_experience}) cannot exceed age (${age_num})`);
+      return false;
+    }
+
+    // Update subject with all demographic data (EXISTING CODE - keep as is)
+    subject.age = age;
+    subject.gender = gender;
+    subject.handedness = handedness;
+    subject.returner = returner;
+    subject.ethnicity = ethnicity || "";
+    subject.race = race || "";
+    subject.language_count = language_count;
+    subject.language_specific = language_specific;
+    subject.music_instrument = music_instrument;
+    subject.music_practice = music_practice || "0";
+
+    const feedbackInput = document.getElementById('feedback_final');
+    subject.comments = (feedbackInput && feedbackInput.value) ? feedbackInput.value : "";
+
+    console.log("📝 Demographic data collected and validated");
+
+    // ✅ UPDATED: Change button text to show saving
+    if (submitButton) {
+      submitButton.textContent = '💾 Saving data...';
+    }
+
+    // Show loading message to participant (EXISTING CODE - keep as is)
+    const loadingMessage = `Saving your data securely...\nParticipant ID: ${subject.id}`;
+
+    // Create a simple loading overlay (EXISTING CODE - keep as is)
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'loading-overlay';
+    loadingOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      font-family: Arial, sans-serif;
+      z-index: 10000;
+    `;
+    loadingOverlay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="margin-bottom: 20px;">💾 Saving your data...</div>
+        <div style="font-size: 18px; color: #ccc;">Participant ID: ${subject.id}</div>
+        <div style="font-size: 16px; color: #999; margin-top: 10px;">Please wait, do not close this page</div>
+      </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+
+    // Prepare enhanced data for the complete set (EXISTING CODE - keep as is)
+    const enhancedData = {
+      trial_analytics: window.trial_analytics || [],
+      current_trial_enhanced_positions: window.current_trial_enhanced_positions || []
+    };
+
+    // Save the complete dataset (EXISTING CODE - keep as is)
+    console.log("🏭 Saving complete dataset with demographics...");
+
+    const uploadResult = await new ProductionDataManager().saveExperimentData(
+      subject, 
+      subjTrials, 
+      enhancedData
+    );
+
+    // Remove loading overlay (EXISTING CODE - keep as is)
+    document.body.removeChild(loadingOverlay);
+
+    if (uploadResult) {
+      console.log("🎉 COMPLETE DATA SAVE SUCCESSFUL!");
+      console.log("📋 Upload details:", uploadResult);
+      
+      // ✅ NEW: Keep button disabled on success (no unlock!)
+      // We don't want them to submit again
+      if (submitButton) {
+        submitButton.textContent = '✅ Data Saved Successfully!';
+        submitButton.style.backgroundColor = '#4CAF50';
+      }
+      
+      // Show success message (EXISTING CODE - keep as is)
+      const successMessage = `✅ Your data has been saved successfully!\n\nParticipant ID: ${subject.id}\nFile: ${uploadResult.filename}\nSize: ${uploadResult.size_mb.toFixed(2)} MB\n\nThank you for participating!`;
+      alert(successMessage);
+      
+      // Show completion page (EXISTING CODE - keep as is)
+      show("final-page");
+
+      // Redirect after delay (EXISTING CODE - keep as is)
+      setTimeout(function() {
+        window.location.href = "https://cmu-researchpool.sona-systems.com/default.aspx?logout=SSO";
+      }, 2000);
+
+      // ✅ NEW: Return true but KEEP the lock (isSavingData = true)
+      // We never unlock on success - one submission per session!
+      return true;
+      
+    } else {
+      throw new Error("Complete data save failed");
+    }
+
+  } catch (error) {
+    console.error("❌ Error saving complete data:", error);
+    
+    // ✅ NEW: Unlock on error so they can retry
+    isSavingData = false;
+    console.log("🔓 Data save unlocked due to error");
+    
+    // Remove loading overlay if it exists (EXISTING CODE - keep as is)
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      document.body.removeChild(loadingOverlay);
+    }
+    
+    // ✅ NEW: Re-enable button on error so they can retry
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.style.opacity = '1';
+      submitButton.style.cursor = 'pointer';
+      submitButton.textContent = originalButtonText;
+      submitButton.style.backgroundColor = ''; // Reset color
+    }
+    
+    // Production error handling (EXISTING CODE - keep as is)
+    const errorInfo = window.ProductionErrorHandler.handleUploadError(error, subject?.id || 'unknown');
+    alert(`❌ Error saving data: ${errorInfo.userMessage}`);
+    
+    return false;
   }
+}
 
 document.addEventListener("DOMContentLoaded", function () {
   // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
