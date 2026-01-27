@@ -832,7 +832,7 @@ function checkInfo() {
   const values = $("#infoform").serializeArray();
   
   // Map the form values 
-  const participant_id = getFormValue(values, "participant_id");
+  const participant_id = String(getFormValue(values, "participant_id"));
   const mouse_type = getFormValue(values, "mouse_type");
   const music_experience = getFormValue(values, "music_experience");
 
@@ -4247,7 +4247,7 @@ async function saveFeedback() {
   console.log("🔒 Data save locked");
   
   // ✅ NEW: Disable submit button immediately (before validation)
-  const submitButton = document.querySelector('button[onclick="saveFeedback()"]');
+  const submitButton = document.getElementById('submit-feedback-button');
   const originalButtonText = submitButton ? submitButton.textContent : 'Submit';
   if (submitButton) {
     submitButton.disabled = true;
