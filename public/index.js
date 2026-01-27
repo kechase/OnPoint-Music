@@ -4172,6 +4172,28 @@ window.addEventListener('unhandledrejection', function(event) {
   event.preventDefault(); // Prevent console error
 });
 
+// Function to validate the participant ID input
+function validateParticipantId(input) {
+  // Get the current value
+  let value = input.value;
+
+  // Remove any non-digit characters
+  const cleaned = value.replace(/\D/g, '');
+  
+  // If characters were removed, show alert
+  if (value !== cleaned && value !== "") {
+    alert("⚠️ Participant ID must contain numbers only!");
+  }
+  
+  // Update the input value with cleaned version
+  input.value = cleaned;
+  
+  // Optional: limit length (e.g., max 10 digits)
+  if (input.value.length > 10) {
+    input.value = input.value.slice(0, 10);
+  }
+}
+
 // Function to validate the age input
 function validateAge(input) {
   // Get the current value

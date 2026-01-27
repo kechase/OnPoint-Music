@@ -154,7 +154,14 @@
 
                 <div class="questions">
                     Research Participant Pool ID (NOT andrewID):
-                    <input id="participant_id" type="text" name="participant_id" value="">
+                    <input id="participant_id" 
+                        type="number" 
+                        name="participant_id" 
+                        value=""
+                        min="0"
+                        onkeypress="return isNumericKey(event)"
+                        oninput="validateParticipantId(this)"
+                        placeholder="Enter numbers only">
                 </div>
                 
                 <div class="questions" id="mouseQ">
