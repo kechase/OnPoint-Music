@@ -90,4 +90,14 @@ onpoint-music-firebase-adminsdk-*.json
 # bin
 /bin
 
-**/.venv
+public/tgt_files/csv_tgt_file_shortTest.json
+python_scripts/1_create_id_mapping.py
+python_scripts/2_participant_completion_dates.py
+python_scripts/3_github_releases.py
+python_scripts/4_match_participant_to_version.py
+python_scripts/5_participant_tracking.py
+python_scripts/5a_create_anonymized_participant_list.py
+python_scripts/6_credit_report.py
+python_scripts/7_download_from_firebase_storage.py
+python_scripts/full_data_download_archive.py
+python_scripts/master_ID_mapping_script.py
