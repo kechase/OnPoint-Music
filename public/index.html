@@ -487,18 +487,59 @@
                 </div>
             </form>
             <hr>
-            <form id="feedbackForm">
+            <form id="feedbackForm" onsubmit="return false;">
+                <!-- prevents Enter key from doing anything -->
                 <div class="question" id="feedback1">
                     Let us know if you had any issues with this experiment or if you have any feedback for us (or simply type "none")
                     <input id="feedback_final" type="text" name="feedback_final" value="" required>
                 </div>
             </form>
             <div style="text-align: left;">
-                <button type="button" id="submit-feedback-button" value="final" onclick="saveFeedback()">
+                <button type="button" 
+                        id="submit-feedback-button" 
+                        value="final" 
+                        onclick="saveFeedback(); return false;">
                     <b>SUBMIT</b>
                 </button>
             </div>
-            </form> 
+            <!-- Removed stray </form> tag -->
+
+            <script>
+            // Prevent Enter key in forms from triggering anything
+            document.getElementById('feedbackForm').onsubmit = function(e) {
+                e.preventDefault();
+                return false;
+            };
+
+            document.getElementById('distractionForm').onsubmit = function(e) {
+                e.preventDefault();
+                return false;
+            };
+
+            // Prevent accidental navigation away after submission
+            window.dataSubmitted = false;
+
+            window.addEventListener('beforeunload', function (e) {
+                if (window.dataSubmitted) {
+                    // Allow navigation after successful submit
+                    return undefined;
+                }
+                // Warn if they try to leave before submitting
+                const confirmationMessage = 'Are you sure you want to leave? Your data may not be saved.';
+                e.returnValue = confirmationMessage;
+                return confirmationMessage;
+            });
+
+            // Prevent back button after submission
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                    if (window.dataSubmitted) {
+                        window.location.replace("https://cmu-researchpool.sona-systems.com/default.aspx?logout=SSO");
+                    }
+                }
+            });
+            </script>
+ 
             <!-- **TODO** Customize the message you want for your experiment -->
             <!-- <h2>You have a wonderful life now!</h2> -->
         </div>
