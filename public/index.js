@@ -2464,9 +2464,9 @@ function update_cursor(event) {
       const point = cursor.point;
       if (point.x >= window.squareLeft && point.x <= window.squareLeft + window.squareSize &&
           point.y >= window.squareTop && point.y <= window.squareTop + window.squareSize) {
-          const { f1, f2, _vowel } = getVowelFormants(point.x, window.squareLeft, window.squareSize);
-          const y_proportion = 1 - (point.y - window.squareTop) / window.squareSize;
-          const pitch = (350 - 80) * (Math.pow(2, y_proportion) - 1) + 80;
+          const { f1, f2, _vowel } = getVowelFormants(point.y, window.squareTop, window.squareSize);
+          const x_proportion = (point.x - window.squareLeft) / window.squareSize;
+          const pitch = (350 - 80) * (Math.pow(2, x_proportion) - 1) + 80;
           
           current_pos.soundParams = { f1, f2, pitch, vowel: _vowel };
       }
@@ -2534,20 +2534,19 @@ function update_cursor(event) {
           ) {
               console.log(`point ${JSON.stringify(point)}`);
               // generate value for vowel formants
-              // CHANGE: Now getting vowel formants from x position instead of y
+              // Y-axis controls formants: bottom = 'a', top = 'i'
               const { f1, f2, _vowel } = getVowelFormants(
-                  point.x, // changed from point.y to point.x
-                  window.squareLeft, // changed from squareTop to squareLeft
+                  point.y, // changed from point.x to point.y
+                  window.squareTop, // changed from squareLeft to squareTop
                   window.squareSize,
               );
               const lo_pitch = 80;
               const hi_pitch = 350;
 
-              // CHANGE: Now calculating pitch based on y position instead of x
-              // top of square is higher pitch, bottom is lower pitch
-              const y_proportion = 1 - (point.y - window.squareTop) / window.squareSize;
+              // X-axis controls pitch: left = low pitch, right = high pitch
+              const x_proportion = (point.x - window.squareLeft) / window.squareSize;
               const pitch =
-                  (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
+                  (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
 
               console.log(`f1:${f1} f2: ${f2} pitch: ${pitch} vowel:${_vowel}`);
               // update musicbox
@@ -2718,13 +2717,14 @@ function play_sounds(start, end, duration, update) {
     soundY = Math.max(squareTop, Math.min(soundY, squareTop + squareSize));
 
   // Use the clamped coordinates for sound generation
-  const { f1, f2, _vowel } = getVowelFormants(soundX, squareLeft, squareSize);
+  // Y-axis controls formants: bottom = 'a', top = 'i'
+  const { f1, f2, _vowel } = getVowelFormants(soundY, squareTop, squareSize);
 
-  // Match the pitch calculation from the update_cursor function
+  // X-axis controls pitch: left = low pitch, right = high pitch
   const lo_pitch = 80;
   const hi_pitch = 350;
-  const y_proportion = 1 - (soundY - squareTop) / squareSize;
-  const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, y_proportion) - 1) + lo_pitch;
+  const x_proportion = (soundX - squareLeft) / squareSize;
+  const pitch = (hi_pitch - lo_pitch) * (Math.pow(2, x_proportion) - 1) + lo_pitch;
 
   console.log(`Demo sound: x=${soundX.toFixed(1)}, y=${soundY.toFixed(1)}, f1=${f1.toFixed(1)}, f2=${f2.toFixed(1)}, pitch=${pitch.toFixed(1)}, vowel=${_vowel}`);
 
@@ -3792,40 +3792,41 @@ start_trial();
 // ==================================================
 // FORMANT STRUCTURE CALCULATION
 // ==================================================
-function getVowelFormants(xPos, squareLeft, squareSize) {
+// this function is called in update_cursor to determine which vowel to play based on the y position of the cursor within the square
+function getVowelFormants(yPos, squareTop, squareSize) { 
   const vowelFormants = {
     i: { f1: 300, f2: 2300 },
     a: { f1: 700, f2: 1200 }
   };
 
   // First validation: Check for non-numeric values "NaN" 
-  if (isNaN(xPos) || isNaN(squareLeft) || isNaN(squareSize)) {
-    console.error('Invalid input for getVowelFormants - non-numeric values', { xPos, squareLeft, squareSize });
+  if (isNaN(yPos) || isNaN(squareTop) || isNaN(squareSize)) {
+    console.error('Invalid input for getVowelFormants - non-numeric values', {yPos, squareTop, squareSize });
     return { f1: 500, f2: 1500, _vowel: 'a' };
   } 
 
   // Second validation: Check for negative or zero values
-  if (xPos < 0 || squareLeft < 0 || squareSize <= 0) {
-    console.error('Invalid input for getVowelFormants - invalid ranges', { xPos, squareLeft, squareSize });
+  if (yPos < 0 || squareTop < 0 || squareSize <= 0) {
+    console.error('Invalid input for getVowelFormants - invalid ranges', { yPos, squareTop, squareSize });
     return { f1: 500, f2: 1500, _vowel: 'a' }; // Fallback values
   }
   
   // Need to be explicit about which segment these are delinating
   const vowels = Object.keys(vowelFormants);
   
-  // Ensure xPos is within the square boundaries
-  xPos = Math.max(squareLeft, Math.min(xPos, squareLeft + squareSize));
+  // Ensure yPos is within the square boundaries
+  yPos = Math.max(squareTop, Math.min(yPos, squareTop + squareSize));
   
   const segmentWidth = squareSize / (vowels.length - 1);
-  const offset = Math.max(xPos - squareLeft, 0);
+  const offset = Math.max(yPos - squareTop, 0);
   
   // Ensure index is within bounds
   const index = Math.min(
     Math.max(Math.floor(offset / segmentWidth), 0), 
     vowels.length - 2
   );
-  
-  const t = ((xPos - squareLeft) % segmentWidth) / segmentWidth;
+  // with only two vowels, this is overly engineered, but it allows for easy expansion to more vowels in the future without changing the core logic of interpolation
+  const t = ((yPos - squareTop) / segmentWidth);
   
   const vowel1 = vowels[index];
   const vowel2 = vowels[index + 1];
@@ -4230,8 +4231,6 @@ function validateHours(input) {
 
 // Function used to save the feedback from the final HTML page
 // Enhanced version of saveFeedback() that also uses production features
-// Function used to save the feedback from the final HTML page
-// Enhanced version of saveFeedback() that also uses production features
 async function saveFeedback() {
   // ✅ NEW: Prevent double submission
   if (isSavingData) {
@@ -4437,6 +4436,9 @@ async function saveFeedback() {
     if (uploadResult) {
       console.log("🎉 COMPLETE DATA SAVE SUCCESSFUL!");
       console.log("📋 Upload details:", uploadResult);
+
+      window.dataSubmitted = true;  // Allow navigation now
+      console.log("✅ dataSubmitted flag set - navigation allowed");
       
       // ✅ NEW: Keep button disabled on success (no unlock!)
       // We don't want them to submit again
